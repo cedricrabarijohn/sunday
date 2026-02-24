@@ -1,5 +1,5 @@
 import { FC, ReactNode } from "react";
-import styles from '@/components/button/Button.module.scss';
+import styles from '@/components/atoms/button/Button.module.scss';
 import { IComponentWithChildren } from "@/types/app";
 
 export interface ButtonProps extends IComponentWithChildren {

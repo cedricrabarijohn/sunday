@@ -1,9 +1,9 @@
 'use client';
 
 import {useTranslations} from 'next-intl';
-import Logo from '../logo/Logo';
-import Button from '../button/Button';
-import LanguageSwitcher from '../language-switcher/LanguageSwitcher';
+import Logo from '../../molecules/logo/Logo';
+import Button from '../../atoms/button/Button';
+import LanguageSwitcher from '../../molecules/language-switcher/LanguageSwitcher';
 import styles from './Navbar.module.scss';
 
 const Navbar = () => {

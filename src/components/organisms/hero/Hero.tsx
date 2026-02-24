@@ -1,7 +1,7 @@
 'use client';
 
 import {useTranslations} from 'next-intl';
-import Button from '../atoms/button/Button';
+import Button from '../../atoms/button/Button';
 import styles from './Hero.module.scss'
 import HeroBg from './HeroBg';
 
