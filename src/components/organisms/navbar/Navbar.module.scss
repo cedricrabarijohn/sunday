@@ -33,12 +33,15 @@
         opacity: 0.8;
     }
 
-    @media (max-width: 480px) {
-        gap: 0.5rem;
+    svg {
+        flex-shrink: 0;
     }
 
-    svg {
-        .logo-app-name {
+    @media (max-width: 480px) {
+        width: 40px;
+        gap: 0.5rem;
+
+        svg :global(.logo-app-name) {
             display: none !important;
         }
     }
