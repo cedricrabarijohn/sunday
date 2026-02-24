@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "Sunday",
+    "tagline": "Where productivity meets peace of mind"
+  },
+  "navbar": {
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "title": "Sunday",
+    "subtitle": "Where productivity meets peace of mind"
+  },
+  "demoLogo": {
+    "title": "Sunday Logo Variants",
+    "subtitle": "Complete logo system for dark and light themes",
+    "logoIconOnly": "Logo Icon Only",
+    "logoWithBrand": "Logo with Brand Name",
+    "sizeExamples": "Size Examples",
+    "downloadSvg": "Download SVG Files",
+    "darkTheme": "Dark Theme",
+    "lightTheme": "Light Theme",
+    "download": "Download",
+    "backToHome": "Back to Home"
+  },
+  "metadata": {
+    "title": "Sunday",
+    "description": "Where productivity meets peace of mind"
+  }
+}

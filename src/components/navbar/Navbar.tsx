@@ -1,8 +1,14 @@
+'use client';
+
+import {useTranslations} from 'next-intl';
 import Logo from '../logo/Logo';
 import Button from '../button/Button';
+import LanguageSwitcher from '../language-switcher/LanguageSwitcher';
 import styles from './Navbar.module.scss';
 
 const Navbar = () => {
+    const t = useTranslations('navbar');
+    
     return (
         <nav className={styles.navbar}>
             <div className={styles.container}>
@@ -12,8 +18,9 @@ const Navbar = () => {
                 </a>
                 
                 <div className={styles.actions}>
+                    <LanguageSwitcher />
                     <Button variant="primary" size="medium">
-                        Get Started
+                        {t('getStarted')}
                     </Button>
                 </div>
             </div>

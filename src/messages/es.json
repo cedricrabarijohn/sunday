@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "Sunday",
+    "tagline": "Donde la productividad encuentra la paz mental"
+  },
+  "navbar": {
+    "getStarted": "Comenzar"
+  },
+  "hero": {
+    "title": "Sunday",
+    "subtitle": "Donde la productividad encuentra la paz mental"
+  },
+  "demoLogo": {
+    "title": "Variantes del Logo Sunday",
+    "subtitle": "Sistema completo de logos para temas oscuros y claros",
+    "logoIconOnly": "Logo Solo Icono",
+    "logoWithBrand": "Logo con Nombre de Marca",
+    "sizeExamples": "Ejemplos de Tamaños",
+    "downloadSvg": "Descargar Archivos SVG",
+    "darkTheme": "Tema Oscuro",
+    "lightTheme": "Tema Claro",
+    "download": "Descargar",
+    "backToHome": "Volver al Inicio"
+  },
+  "metadata": {
+    "title": "Sunday",
+    "description": "Donde la productividad encuentra la paz mental"
+  }
+}
