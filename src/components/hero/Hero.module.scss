@@ -8,12 +8,22 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
+}
+
+.heroContent {
+    padding: 0 10px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
     
-    h1, p, .logo {
-        position: relative;
-        z-index: 1;
+    p {
+        font-size: 2rem;
+        font-weight: 200;
+        text-align: center;
     }
-    
+
     .logo {
         margin-bottom: 1rem;
     }
