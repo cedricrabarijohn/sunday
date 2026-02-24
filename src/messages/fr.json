@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "Sunday",
+    "tagline": "Où la productivité rencontre la tranquillité d'esprit"
+  },
+  "navbar": {
+    "getStarted": "Commencer"
+  },
+  "hero": {
+    "title": "Sunday",
+    "subtitle": "Où la productivité rencontre la tranquillité d'esprit"
+  },
+  "demoLogo": {
+    "title": "Variantes du Logo Sunday",
+    "subtitle": "Système de logo complet pour les thèmes sombres et clairs",
+    "logoIconOnly": "Logo Icône Seul",
+    "logoWithBrand": "Logo avec Nom de Marque",
+    "sizeExamples": "Exemples de Tailles",
+    "downloadSvg": "Télécharger les Fichiers SVG",
+    "darkTheme": "Thème Sombre",
+    "lightTheme": "Thème Clair",
+    "download": "Télécharger",
+    "backToHome": "Retour à l'Accueil"
+  },
+  "metadata": {
+    "title": "Sunday",
+    "description": "Où la productivité rencontre la tranquillité d'esprit"
+  }
+}
