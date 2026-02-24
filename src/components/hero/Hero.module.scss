@@ -1,0 +1,20 @@
+.hero {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    
+    h1, p, .logo {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .logo {
+        margin-bottom: 1rem;
+    }
+}
