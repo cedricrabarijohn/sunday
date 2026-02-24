@@ -34,7 +34,8 @@ const LogoWithText = ({ size = 120, className = '' }: LogoWithTextProps) => {
             </text>
             
             {/* App name */}
-            <text 
+            <text
+                className="logo-app-name" 
                 x="50" 
                 y="36" 
                 fontFamily="system-ui, -apple-system, sans-serif" 

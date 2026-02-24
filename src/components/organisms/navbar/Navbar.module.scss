@@ -16,6 +16,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+
+    @media (max-width: 768px) {
+        padding: 0.75rem 1rem;
+    }
 }
 
 .logoLink {
@@ -24,9 +28,19 @@
     gap: 0.75rem;
     text-decoration: none;
     transition: opacity 0.3s ease;
-    
+
     &:hover {
         opacity: 0.8;
+    }
+
+    @media (max-width: 480px) {
+        gap: 0.5rem;
+    }
+
+    svg {
+        .logo-app-name {
+            display: none !important;
+        }
     }
 }
 
@@ -35,10 +49,26 @@
     font-weight: 700;
     color: #ededed;
     letter-spacing: -0.5px;
+
+    @media (max-width: 768px) {
+        font-size: 1.25rem;
+    }
+
+    @media (max-width: 480px) {
+        font-size: 1.125rem;
+    }
 }
 
 .actions {
     display: flex;
     align-items: center;
     gap: 1rem;
+
+    @media (max-width: 768px) {
+        gap: 0.75rem;
+    }
+
+    @media (max-width: 480px) {
+        gap: 0.5rem;
+    }
 }

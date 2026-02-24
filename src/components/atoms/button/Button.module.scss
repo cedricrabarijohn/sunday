@@ -8,6 +8,7 @@
     transition: all 0.3s ease;
     font-family: inherit;
     width: max-content;
+    white-space: nowrap;
     
     &:hover {
         transform: translateY(-1px);
@@ -15,6 +16,11 @@
     
     &:active {
         transform: translateY(0);
+    }
+    
+    @media (max-width: 480px) {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
     }
 }
 

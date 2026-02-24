@@ -17,14 +17,33 @@
     flex-direction: column;
     align-items: center;
     gap: 20px;
+    max-width: 90%;
     
     p {
         font-size: 2rem;
         font-weight: 200;
         text-align: center;
+        line-height: 1.4;
+        max-width: 800px;
+        
+        @media (max-width: 768px) {
+            font-size: 1.5rem;
+            max-width: 600px;
+        }
+        
+        @media (max-width: 480px) {
+            font-size: 1.25rem;
+            line-height: 1.5;
+            max-width: 100%;
+        }
     }
 
     .logo {
         margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 480px) {
+        gap: 15px;
+        padding: 0 1rem;
     }
 }
