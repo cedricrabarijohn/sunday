@@ -46,12 +46,12 @@
 
 .outline {
     background: transparent;
-    color: #ededed;
-    border: 1px solid #ededed;
+    color: var(--outline-btn-color);
+    border: 1px solid var(--outline-btn-color);
     
     &:hover {
-        background: #ededed;
-        color: #1a1a1a;
+        background: var(--outline-btn-hover-bg);
+        color: var(--outline-btn-hover-color);
     }
 }
 

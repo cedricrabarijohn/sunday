@@ -41,7 +41,7 @@ const LogoWithText = ({ size = 120, className = '' }: LogoWithTextProps) => {
                 fontFamily="system-ui, -apple-system, sans-serif" 
                 fontSize="32" 
                 fontWeight="700" 
-                fill="#ededed" 
+                fill="var(--logo-text-fill, #ededed)" 
                 letterSpacing="-0.5"
             >
                 Sunday
