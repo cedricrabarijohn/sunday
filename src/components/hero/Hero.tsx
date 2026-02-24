@@ -15,7 +15,7 @@ const Hero = () => {
                 {t('subtitle')}
             </p>
             <Button variant="primary" size="medium">
-                Start today
+                {t('cta')}
             </Button>
         </div>
     </div>
