@@ -1,0 +1,175 @@
+.container {
+    min-height: 100vh;
+    padding: 3rem 2rem;
+    background: #0a0a0a;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 4rem;
+    
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(to right, #FF6B6B, #FDB813, #4ECDC4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    p {
+        font-size: 1.1rem;
+        color: #999;
+    }
+}
+
+.section {
+    max-width: 1200px;
+    margin: 0 auto 4rem;
+    
+    h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: #ededed;
+        padding-left: 1rem;
+        border-left: 3px solid #FF6B6B;
+    }
+}
+
+.variants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+.card {
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid #2a2a2a;
+    transition: all 0.3s ease;
+    
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 32px rgba(255, 107, 107, 0.15);
+    }
+}
+
+.dark {
+    background: #1a1a1a;
+}
+
+.light {
+    background: #f5f5f5;
+    
+    .label {
+        color: #333 !important;
+    }
+}
+
+.logoWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    padding: 1rem;
+}
+
+.label {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #999;
+    font-weight: 500;
+}
+
+.sizeGrid {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    background: #1a1a1a;
+    padding: 3rem;
+    border-radius: 16px;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.sizeCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    
+    span {
+        color: #999;
+        font-size: 0.85rem;
+        font-family: monospace;
+    }
+}
+
+.downloadGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.downloadCard {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+        border-color: #FF6B6B;
+        transform: translateY(-2px);
+    }
+    
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    span {
+        color: #999;
+        font-size: 0.9rem;
+        font-family: monospace;
+    }
+}
+
+.downloadBtn {
+    background: #FF6B6B;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    
+    &:hover {
+        background: #ff5252;
+        transform: scale(1.05);
+    }
+}
+
+.footer {
+    text-align: center;
+    margin-top: 4rem;
+    
+    a {
+        color: #4ECDC4;
+        font-size: 1.1rem;
+        text-decoration: none;
+        transition: color 0.3s ease;
+        
+        &:hover {
+            color: #FF6B6B;
+        }
+    }
+}
