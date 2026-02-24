@@ -7,9 +7,9 @@
 .button {
     padding: 0.375rem 0.75rem;
     background: transparent;
-    border: 1px solid rgba(237, 237, 237, 0.2);
+    border: 1px solid var(--border-primary);
     border-radius: 3px;
-    color: #999;
+    color: var(--text-secondary);
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
@@ -17,13 +17,13 @@
     font-family: inherit;
     
     &:hover {
-        color: #ededed;
-        border-color: rgba(237, 237, 237, 0.4);
+        color: var(--text-primary);
+        border-color: var(--text-muted);
     }
     
     &.active {
-        background: #ededed;
-        color: #1a1a1a;
-        border-color: #ededed;
+        background: var(--text-primary);
+        color: var(--bg-primary);
+        border-color: var(--text-primary);
     }
 }

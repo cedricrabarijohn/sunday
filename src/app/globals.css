@@ -1,13 +1,64 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ===== Dark theme (default) ===== */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #000;
+  --bg-secondary: #050726;
+  --bg-surface: rgba(26, 26, 26, 0.98);
+  --bg-surface-hover: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #ededed;
+  --text-secondary: #999;
+  --text-muted: #888;
+
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --navbar-bg: rgba(5, 4, 13, 0.4);
+  --select-bg: rgba(255, 255, 255, 0.03);
+  --select-bg-hover: rgba(255, 255, 255, 0.06);
+  --shadow-dropdown: rgba(0, 0, 0, 0.6);
+
+  --hero-dots-bg: #0a0a0a;
+  --hero-dots-color: #404040;
+
+  --outline-btn-color: #ededed;
+  --outline-btn-hover-bg: #ededed;
+  --outline-btn-hover-color: #1a1a1a;
+
+  --logo-text-fill: #ededed;
+
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ===== Light theme ===== */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #eef0ff;
+  --bg-surface: rgba(255, 255, 255, 0.98);
+  --bg-surface-hover: rgba(0, 0, 0, 0.06);
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #555;
+  --text-muted: #777;
+
+  --border-primary: rgba(0, 0, 0, 0.1);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+
+  --navbar-bg: rgba(255, 255, 255, 0.7);
+  --select-bg: rgba(0, 0, 0, 0.04);
+  --select-bg-hover: rgba(0, 0, 0, 0.08);
+  --shadow-dropdown: rgba(0, 0, 0, 0.12);
+
+  --hero-dots-bg: #f5f5f5;
+  --hero-dots-color: #d0d0d0;
+
+  --outline-btn-color: #1a1a1a;
+  --outline-btn-hover-bg: #1a1a1a;
+  --outline-btn-hover-color: #ffffff;
+
+  --logo-text-fill: #1a1a1a;
+
+  color-scheme: light;
 }
 
 html,
@@ -17,8 +68,8 @@ body {
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  color: var(--text-primary);
+  background: var(--bg-primary);
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -33,10 +84,4 @@ body {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
 }

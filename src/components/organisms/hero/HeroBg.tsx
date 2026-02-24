@@ -6,7 +6,7 @@ const HeroBg = () => {
             left: 0,
             width: '100%',
             height: '100%',
-            opacity: 0.8
+            opacity: 0.85
         }}
         xmlns="http://www.w3.org/2000/svg"
     >
@@ -23,14 +23,14 @@ const HeroBg = () => {
                     cx="15" 
                     cy="15" 
                     r="1.5" 
-                    fill="#404040"
+                    fill="var(--hero-dots-color, #404040)"
                 />
             </pattern>
         </defs>
         <rect 
             width="100%" 
             height="100%" 
-            fill="#0a0a0a"
+            fill="var(--hero-dots-bg, #0a0a0a)"
         />
         <rect 
             width="100%" 

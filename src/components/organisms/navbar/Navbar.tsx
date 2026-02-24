@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import Button from '../../atoms/button/Button';
 import LanguageSwitcher from '../../molecules/language-switcher/LanguageSwitcher';
+import ThemeToggle from '../../atoms/theme-toggle/ThemeToggle';
 import styles from './Navbar.module.scss';
 import LogoWithText from '@/components/molecules/logo/LogoWithText';
 
@@ -19,6 +20,7 @@ const Navbar = () => {
                 </a>
 
                 <div className={styles.actions}>
+                    <ThemeToggle />
                     <LanguageSwitcher />
                     <Button variant="primary" size="medium">
                         {t('getStarted')}
