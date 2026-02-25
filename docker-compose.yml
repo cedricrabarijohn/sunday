@@ -1,8 +1,34 @@
 services:
+  db:
+      image: mariadb:latest
+      container_name: ${NAMESPACE}_db
+      working_dir: /app
+      restart: always
+      environment:
+        MARIADB_ROOT_PASSWORD: password
+        MARIADB_DATABASE: ${NAMESPACE}_db
+        MARIADB_USER: ${NAMESPACE}
+        MARIADB_PASSWORD: password
+      volumes:
+        - mariadb_data:/var/lib/mysql
+      ports:
+        - "3306:3306"
+      healthcheck:
+        test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 30s
+      networks:
+        - sunday-network
+
   app:
     image: node:20.18
     container_name: ${NAMESPACE}_app
     working_dir: /app
+    restart: always
+    environment:
+      - APP_ENV=${APP_ENV:-development}
     volumes:
       - ./:/app
     command: >
@@ -18,8 +44,15 @@ services:
     ports:
       - "3000:3000"
 
+    depends_on:
+      db:
+        condition: service_healthy
+
     networks:
       - sunday-network
+
+volumes:
+  mariadb_data:
 
 networks:
   sunday-network:
