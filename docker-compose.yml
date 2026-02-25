@@ -1,0 +1,26 @@
+services:
+  app:
+    image: node:20.18
+    container_name: ${NAMESPACE}_app
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: >
+      /bin/bash -c "
+        if [[ \${APP_ENV} == 'production' || \${APP_ENV} == 'staging' ]]; then
+          echo 'Using APP_ENV=${APP_ENV}';
+          npm run build && npm run start;
+        else
+          echo 'Using APP_ENV=development';
+          npm run dev;
+        fi
+      "
+    ports:
+      - "3000:3000"
+
+    networks:
+      - sunday-network
+
+networks:
+  sunday-network:
+    name: sunday-network
