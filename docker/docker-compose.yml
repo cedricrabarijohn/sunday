@@ -23,22 +23,32 @@ services:
         - sunday-network
 
   app:
-    image: node:20.18
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: ${NAMESPACE}_app
     working_dir: /app
     restart: always
     environment:
       - APP_ENV=${APP_ENV:-development}
     volumes:
-      - ./:/app
+      - ../:/app
     command: >
       /bin/bash -c "
         if [[ \${APP_ENV} == 'production' || \${APP_ENV} == 'staging' ]]; then
           echo 'Using APP_ENV=${APP_ENV}';
-          npm run build && npm run start;
+          echo 'Installing project dependencies ...';
+          bun install;
+          echo 'Building production ready environment ...';
+          bun run build;
+          echo 'Starting the server ...';
+          bun run start;
         else
           echo 'Using APP_ENV=development';
-          npm run dev;
+          echo 'Installing project dependencies ...';
+          bun install;
+          echo 'Running dev environment ...';
+          bun run dev;
         fi
       "
     ports:
