@@ -1,0 +1,121 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table capabilities {
+  id integer [primary key]
+  label varchar
+}
+
+Table roles {
+  id integer [primary key]
+  label varchar
+}
+
+Table role_capabilities {
+  role_id integer [ref: > roles.id]
+  capability_id integer [ref: > capabilities.id]
+
+  indexes {
+    (role_id, capability_id) [pk]
+  }
+}
+
+Table users {
+  id integer [primary key]
+  role_id integer [ref: > roles.id]
+  firstname varchar
+  lastname varchar
+  email varchar
+}
+
+Table workspaces {
+  id integer [primary key]
+  title varchar
+}
+
+Table workspace_capabilities {
+  id integer [primary key]
+  label varchar
+}
+
+Table workspace_roles {
+  id integer [primary key]
+  label varchar
+}
+
+Table workspace_role_capabilities {
+  workspace_role_id integer [ref: > workspace_roles.id]
+  workspace_capability_id integer [ref: > workspace_capabilities.id]
+
+  indexes {
+    (workspace_role_id, workspace_capability_id) [pk]
+  }
+}
+
+Table workspace_users {
+  workspace_id integer [ref: > workspaces.id]
+  user_id integer [ref: > users.id]
+  workspace_role_id integer [ref: > workspace_roles.id]
+
+  indexes {
+    (workspace_id, user_id) [pk]
+  }
+}
+
+Table boards {
+  id integer [primary key]
+  workspace_id integer [ref: > workspaces.id]
+}
+
+Table board_settings {
+  id integer [primary key]
+  board_id integer [ref: > boards.id]
+}
+
+Table board_views {
+  id integer [primary key]
+  label varchar
+  board_id integer [ref: > boards.id]
+}
+
+Table board_view_settings {
+  id integer [primary key]
+  board_view_id integer [ref: > board_views.id]
+}
+
+Table board_columns {
+  id integer [primary key]
+  label varchar
+  board_id integer [ref: > boards.id]
+}
+
+Table board_columns_settings {
+  id integer [primary key]
+  board_columns_id integer [ref: > board_columns.id]
+}
+
+Table board_tasks {
+  id integer [primary key]
+  board_id integer [ref: > boards.id]
+}
+
+Table board_task_settings {
+  id integer [primary key]
+  board_task_id integer [ref: > board_tasks.id]
+}
+
+Table board_task_columns {
+  id integer [primary key]
+  board_column_id integer [ref: > board_columns.id]
+  board_task_id integer [ref: > board_tasks.id]
+  value JSON
+
+  indexes {
+    (board_column_id, board_task_id)
+  }
+}
+
+Table board_task_column_settings {
+  id integer [primary key]
+  board_task_column_id integer [ref: > board_task_columns.id]
+}
