@@ -3,17 +3,20 @@
 
 Table capabilities {
   id integer [primary key]
-  label varchar
+  label varchar(20)
+  deleted_at datetime
 }
 
 Table roles {
   id integer [primary key]
-  label varchar
+  label varchar(10)
+  deleted_at datetime
 }
 
 Table role_capabilities {
   role_id integer [ref: > roles.id]
   capability_id integer [ref: > capabilities.id]
+  deleted_at datetime
 
   indexes {
     (role_id, capability_id) [pk]
@@ -23,29 +26,34 @@ Table role_capabilities {
 Table users {
   id integer [primary key]
   role_id integer [ref: > roles.id]
-  firstname varchar
-  lastname varchar
-  email varchar
+  firstname varchar(30)
+  lastname varchar(30)
+  email varchar(30)
+  deleted_at datetime
 }
 
 Table workspaces {
   id integer [primary key]
-  title varchar
+  title varchar(50)
+  deleted_at datetime
 }
 
 Table workspace_capabilities {
   id integer [primary key]
-  label varchar
+  label varchar(20)
+  deleted_at datetime
 }
 
 Table workspace_roles {
   id integer [primary key]
-  label varchar
+  label varchar(10)
+  deleted_at datetime
 }
 
 Table workspace_role_capabilities {
   workspace_role_id integer [ref: > workspace_roles.id]
   workspace_capability_id integer [ref: > workspace_capabilities.id]
+  deleted_at datetime
 
   indexes {
     (workspace_role_id, workspace_capability_id) [pk]
@@ -56,6 +64,7 @@ Table workspace_users {
   workspace_id integer [ref: > workspaces.id]
   user_id integer [ref: > users.id]
   workspace_role_id integer [ref: > workspace_roles.id]
+  deleted_at datetime
 
   indexes {
     (workspace_id, user_id) [pk]
@@ -65,6 +74,8 @@ Table workspace_users {
 Table boards {
   id integer [primary key]
   workspace_id integer [ref: > workspaces.id]
+  created_at datetime
+  deleted_at datetime
 }
 
 Table board_settings {
@@ -74,8 +85,9 @@ Table board_settings {
 
 Table board_views {
   id integer [primary key]
-  label varchar
+  label varchar(20)
   board_id integer [ref: > boards.id]
+  deleted_at datetime
 }
 
 Table board_view_settings {
@@ -83,20 +95,46 @@ Table board_view_settings {
   board_view_id integer [ref: > board_views.id]
 }
 
+Table board_column_types {
+  id integer [primary key]
+  label varchar(20)
+  deleted_at datetime
+}
+
 Table board_columns {
   id integer [primary key]
-  label varchar
+  label varchar(20)
   board_id integer [ref: > boards.id]
+  board_column_type_id integer [ref: > board_column_types.id]
+  deleted_at datetime
 }
 
 Table board_columns_settings {
   id integer [primary key]
   board_columns_id integer [ref: > board_columns.id]
+  config JSON
 }
 
 Table board_tasks {
   id integer [primary key]
   board_id integer [ref: > boards.id]
+  position integer
+  created_at datetime
+  updated_at datetime
+  deleted_at datetime
+
+  indexes {
+    (board_id, position) [unique]
+  }
+}
+
+Table board_task_assigned_users {
+  workspace_user_id integer [ref: > workspace_users.user_id]
+  board_task_id integer [ref: > board_tasks.id]
+
+  indexes {
+    (workspace_user_id, board_task_id) [unique]
+  }
 }
 
 Table board_task_settings {
@@ -109,10 +147,22 @@ Table board_task_columns {
   board_column_id integer [ref: > board_columns.id]
   board_task_id integer [ref: > board_tasks.id]
   value JSON
+  position integer
+  deleted_at datetime
 
   indexes {
-    (board_column_id, board_task_id)
+    (board_column_id, board_task_id) [unique]
   }
+
+  /*
+  Note: "
+      MariaDB indexing for JSON values:
+      - Create a STORED generated column for each frequently filtered key:
+        Status: status_value VARCHAR(255) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(value, '$.value'))) STORED;
+        Then index it:
+        CREATE INDEX idx_board_task_columns_status_value ON board_task_columns(status_value);
+    "
+  */
 }
 
 Table board_task_column_settings {
