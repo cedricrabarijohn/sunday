@@ -6,9 +6,19 @@
     "dev": "NODE_ENV=development next dev",
     "build": "NODE_ENV=production next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.38.0",
+    "jose": "^6.0.0",
+    "mysql2": "^3.12.0",
     "next": "16.1.6",
     "next-intl": "^4.8.3",
     "react": "19.2.3",
@@ -16,11 +26,14 @@
     "sass": "^1.97.3"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.30.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }
