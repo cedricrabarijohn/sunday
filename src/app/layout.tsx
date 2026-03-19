@@ -38,7 +38,6 @@ export default async function RootLayout({
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
-  // Await params in Next.js 15+
   const { locale } = await params;
 
   // Fetch messages for the locale
