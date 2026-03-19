@@ -11,12 +11,15 @@ help:
 	@echo " start-f                     Create and start containers"
 	@echo " stop                        Stop containers"
 	@echo " kill                        Kill containers"
-	@echo " generate-init-sql			Generate sql/init.sql"
-	@echo " db							Launch db container and access the database $(DB_NAME)"
-	@echo " db-init						Init the database from sql/init.sql file"
-	@echo " db-dump						Dump the current database in sql/dump.sql"
+	@echo ""
+	@echo "Database Commands:"
+	@echo " generate-init-sql           Generate sql/init.sql"
+	@echo " db                          Launch db container and access the database $(DB_NAME)"
+	@echo " db-init                     Init the database from sql/init.sql file"
+	@echo " db-dump                     Dump the current database in sql/dump.sql"
 	@echo " db-restore                  Restore the database from sql/dump.sql"
-	@echo " db-drop                     Wipe out the container's database and create a fresh one"
+	@echo " db-drop                     Wipe out the database and create a fresh one"
+	@echo " db-logs                     Follow database container logs"
 
 start:
 	@docker compose --env-file .env -f docker/docker-compose.yml up -d
@@ -47,4 +50,6 @@ db-restore:
 
 db-drop:
 	@docker compose --env-file .env -f docker/docker-compose.yml exec -T db mariadb -u root -p${DB_ROOT_PASSWORD} -e "DROP DATABASE ${DB_NAME}; CREATE DATABASE ${DB_NAME};"
-	
+
+db-logs:
+	@docker compose --env-file .env -f docker/docker-compose.yml logs -f db
