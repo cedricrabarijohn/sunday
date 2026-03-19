@@ -153,16 +153,6 @@ Table board_task_columns {
   indexes {
     (board_column_id, board_task_id) [unique]
   }
-
-  /*
-  Note: "
-      MariaDB indexing for JSON values:
-      - Create a STORED generated column for each frequently filtered key:
-        Status: status_value VARCHAR(255) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(value, '$.value'))) STORED;
-        Then index it:
-        CREATE INDEX idx_board_task_columns_status_value ON board_task_columns(status_value);
-    "
-  */
 }
 
 Table board_task_column_settings {
