@@ -1,5 +1,27 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { Geist, Geist_Mono } from "next/font/google";
+import { locales } from '@/i18n';
+import { ThemeProvider } from '@/context/ThemeContext';
+
 import "./globals.css";
+
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
+
 
 export const metadata: Metadata = {
   title: "Sunday",
@@ -9,10 +31,34 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+  params
+}: {
   children: React.ReactNode;
-}>) {
-  return children;
+  params: Promise<{ locale: string }>;
+}) {
+  // Await params in Next.js 15+
+  const { locale } = await params;
+
+  // Fetch messages for the locale
+  const messages = await getMessages();
+  return (
+    <html lang={locale} data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})()`
+          }}
+        />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <NextIntlClientProvider messages={messages}>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  )
 }
