@@ -10,6 +10,13 @@ help:
 	@echo " start                       Create and start containers in detached mode"
 	@echo " start-f                     Create and start containers"
 	@echo " stop                        Stop containers"
+	@echo " kill                        Kill containers"
+	@echo " generate-init-sql			Generate sql/init.sql"
+	@echo " db							Launch db container and access the database $(DB_NAME)"
+	@echo " db-init						Init the database from sql/init.sql file"
+	@echo " db-dump						Dump the current database in sql/dump.sql"
+	@echo " db-restore                  Restore the database from sql/dump.sql"
+	@echo " db-drop                     Wipe out the container's database and create a fresh one"
 
 start:
 	@docker compose --env-file .env -f docker/docker-compose.yml up -d
