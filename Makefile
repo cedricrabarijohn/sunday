@@ -22,3 +22,6 @@ stop:
 
 kill:
 	@docker compose --env-file .env --project-directory docker kill
+
+db:
+	@docker compose --env-file .env -f docker/docker-compose.yml exec -it db mariadb -u root -p${DB_ROOT_PASSWORD} ${DB_NAME}

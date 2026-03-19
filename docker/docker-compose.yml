@@ -1,14 +1,14 @@
 services:
   db:
       image: mariadb:latest
-      container_name: ${NAMESPACE}_db
+      container_name: ${DB_NAME}
       working_dir: /app
       restart: always
       environment:
-        MARIADB_ROOT_PASSWORD: password
-        MARIADB_DATABASE: ${NAMESPACE}_db
-        MARIADB_USER: ${NAMESPACE}
-        MARIADB_PASSWORD: password
+        MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+        MARIADB_DATABASE: ${DB_NAME}
+        MARIADB_USER: ${DB_USER}
+        MARIADB_PASSWORD: ${DB_PASSWORD}
       volumes:
         - sunday_mariadb_data:/var/lib/mysql
       ports:
@@ -46,7 +46,7 @@ services:
         else
           echo 'Using APP_ENV=development';
           echo 'Installing project dependencies ...';
-          bun install;
+          # bun install;
           echo 'Running dev environment ...';
           bun run dev;
         fi
