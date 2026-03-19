@@ -155,6 +155,7 @@ Table board_task_assigned_users {
 Table board_task_settings {
   id integer [primary key, increment]
   board_task_id integer [ref: > board_tasks.id]
+  config JSON
 }
 
 Table board_task_columns {
@@ -173,4 +174,5 @@ Table board_task_columns {
 Table board_task_column_settings {
   id integer [primary key, increment]
   board_task_column_id integer [ref: > board_task_columns.id]
+  config JSON
 }
