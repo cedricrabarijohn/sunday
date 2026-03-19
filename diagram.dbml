@@ -2,13 +2,13 @@
 // Docs: https://dbml.dbdiagram.io/docs
 
 Table capabilities {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(20)
   deleted_at datetime
 }
 
 Table roles {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(10)
   deleted_at datetime
 }
@@ -24,28 +24,41 @@ Table role_capabilities {
 }
 
 Table users {
-  id integer [primary key]
+  id integer [primary key, increment]
   role_id integer [ref: > roles.id]
   firstname varchar(30)
   lastname varchar(30)
   email varchar(30)
   deleted_at datetime
+  hashed_password varchar(255)
+}
+
+Tables user_sessions {
+  id integer [primary key, increment]
+  key varchar(255)
+  user_id [ref: > users.id]
 }
 
 Table workspaces {
-  id integer [primary key]
+  id integer [primary key, increment]
   title varchar(50)
   deleted_at datetime
 }
 
+Table workspace_settings {
+  id integer [primary key, increment]
+  workspace_id integer [ref: > workspaces.id]
+  config JSON
+}
+
 Table workspace_capabilities {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(20)
   deleted_at datetime
 }
 
 Table workspace_roles {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(10)
   deleted_at datetime
 }
@@ -72,37 +85,39 @@ Table workspace_users {
 }
 
 Table boards {
-  id integer [primary key]
+  id integer [primary key, increment]
   workspace_id integer [ref: > workspaces.id]
   created_at datetime
   deleted_at datetime
 }
 
 Table board_settings {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_id integer [ref: > boards.id]
+  config JSON
 }
 
 Table board_views {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(20)
   board_id integer [ref: > boards.id]
   deleted_at datetime
 }
 
 Table board_view_settings {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_view_id integer [ref: > board_views.id]
+  config JSON
 }
 
 Table board_column_types {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(20)
   deleted_at datetime
 }
 
 Table board_columns {
-  id integer [primary key]
+  id integer [primary key, increment]
   label varchar(20)
   board_id integer [ref: > boards.id]
   board_column_type_id integer [ref: > board_column_types.id]
@@ -110,13 +125,13 @@ Table board_columns {
 }
 
 Table board_columns_settings {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_columns_id integer [ref: > board_columns.id]
   config JSON
 }
 
 Table board_tasks {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_id integer [ref: > boards.id]
   position integer
   created_at datetime
@@ -138,12 +153,12 @@ Table board_task_assigned_users {
 }
 
 Table board_task_settings {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_task_id integer [ref: > board_tasks.id]
 }
 
 Table board_task_columns {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_column_id integer [ref: > board_columns.id]
   board_task_id integer [ref: > board_tasks.id]
   value JSON
@@ -156,6 +171,6 @@ Table board_task_columns {
 }
 
 Table board_task_column_settings {
-  id integer [primary key]
+  id integer [primary key, increment]
   board_task_column_id integer [ref: > board_task_columns.id]
 }
