@@ -38,7 +38,7 @@ services:
         if [[ \${APP_ENV} == 'production' || \${APP_ENV} == 'staging' ]]; then
           echo 'Using APP_ENV=${APP_ENV}';
           echo 'Installing project dependencies ...';
-          bun install;
+          # bun install;
           echo 'Building production ready environment ...';
           bun run build;
           echo 'Starting the server ...';
