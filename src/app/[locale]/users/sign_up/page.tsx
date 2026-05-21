@@ -1,10 +1,10 @@
-import SignInForm from "@/components/organisms/auth-forms/SignInForm";
+import SignUpForm from "@/components/organisms/auth-forms/SignUpForm";
 import styles from "@/components/organisms/auth-forms/AuthForm.module.scss";
 
-export default function SignIn() {
+export default function SignUp() {
   return (
     <div className={styles.page}>
-      <SignInForm />
+      <SignUpForm />
     </div>
   );
 }
