@@ -10,7 +10,7 @@ export default function NotFound() {
                 </h1>
                 <div className={styles.divider} />
                 <p className={styles.message}>
-                    This page doesn&apos;t exist — or maybe it never did.
+                    This page doesn&apos;t exist.
                 </p>
                 <a className={styles.message} href="/">← Back to safety</a>
             </div>
