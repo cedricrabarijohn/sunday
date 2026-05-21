@@ -1,0 +1,42 @@
+import { NextResponse } from "next/server";
+import { and, eq, isNull } from "drizzle-orm";
+import { db } from "@/db/client";
+import { workspaces, workspaceUsers } from "@/db/schema";
+import { requireAuth } from "@/lib/require-auth";
+
+async function userInWorkspace(userId: number, workspaceId: number) {
+  const [row] = await db
+    .select({ role: workspaceUsers.workspaceRoleId })
+    .from(workspaceUsers)
+    .where(
+      and(
+        eq(workspaceUsers.userId, userId),
+        eq(workspaceUsers.workspaceId, workspaceId),
+        isNull(workspaceUsers.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { id } = await params;
+  const workspaceId = Number(id);
+  if (!Number.isFinite(workspaceId)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const membership = await userInWorkspace(auth.session.sub, workspaceId);
+  if (!membership) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const [workspace] = await db
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.deletedAt)))
+    .limit(1);
+  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({ workspace, role: membership.role });
+}

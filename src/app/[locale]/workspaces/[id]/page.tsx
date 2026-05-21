@@ -1,0 +1,61 @@
+import { notFound, redirect } from "next/navigation";
+import { and, eq, isNull } from "drizzle-orm";
+import { db } from "@/db/client";
+import { boards, users, workspaceUsers, workspaces } from "@/db/schema";
+import { getSessionFromCookie } from "@/lib/auth";
+import AppShell from "../AppShell";
+import BoardsClient from "./BoardsClient";
+
+export default async function WorkspaceDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await getSessionFromCookie();
+  if (!session) redirect("/users/sign_in");
+
+  const { id } = await params;
+  const workspaceId = Number(id);
+  if (!Number.isFinite(workspaceId)) notFound();
+
+  const [user] = await db
+    .select({ firstname: users.firstname, lastname: users.lastname, email: users.email })
+    .from(users)
+    .where(eq(users.id, session.sub))
+    .limit(1);
+  if (!user) redirect("/users/sign_in");
+
+  const [membership] = await db
+    .select({ id: workspaceUsers.workspaceId })
+    .from(workspaceUsers)
+    .where(
+      and(
+        eq(workspaceUsers.workspaceId, workspaceId),
+        eq(workspaceUsers.userId, session.sub),
+        isNull(workspaceUsers.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!membership) notFound();
+
+  const [workspace] = await db
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), isNull(workspaces.deletedAt)))
+    .limit(1);
+  if (!workspace) notFound();
+
+  const boardRows = await db
+    .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
+    .from(boards)
+    .where(and(eq(boards.workspaceId, workspaceId), isNull(boards.deletedAt)));
+
+  return (
+    <AppShell
+      user={user}
+      crumbs={[{ label: workspace.title || "Workspace" }]}
+    >
+      <BoardsClient workspaceId={workspaceId} initial={boardRows} />
+    </AppShell>
+  );
+}
