@@ -43,12 +43,15 @@ export async function PATCH(
   if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await request.json().catch(() => null);
-  const updates: Partial<{ title: string }> = {};
+  const updates: Partial<{ title: string; done: number }> = {};
   if (typeof body?.title === "string") {
     const t = body.title.trim();
     if (!t) return NextResponse.json({ error: "title cannot be empty" }, { status: 400 });
     if (t.length > 255) return NextResponse.json({ error: "title too long" }, { status: 400 });
     updates.title = t;
+  }
+  if (typeof body?.done === "boolean") {
+    updates.done = body.done ? 1 : 0;
   }
 
   if (Object.keys(updates).length === 0) {
