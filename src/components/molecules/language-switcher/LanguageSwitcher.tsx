@@ -4,6 +4,7 @@ import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import { locales } from '@/i18n';
 import SelectBox from '@/components/atoms/select-box/SelectBox';
+import { gotTo } from '@/lib/goTo';
 
 const languageConfig: Record<string, { name: string; flag: string }> = {
   en: { name: 'English', flag: '🇬🇧' },
@@ -26,7 +27,7 @@ export default function LanguageSwitcher() {
     // Remove current locale from pathname
     const pathWithoutLocale = pathname.replace(`/${locale}`, '');
     // Navigate to new locale
-    router.push(`/${newLocale}${pathWithoutLocale}`);
+    gotTo(`/${newLocale}${pathWithoutLocale}`);
   };
 
   return (

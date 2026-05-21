@@ -6,6 +6,8 @@ import LanguageSwitcher from '../../molecules/language-switcher/LanguageSwitcher
 import ThemeToggle from '../../atoms/theme-toggle/ThemeToggle';
 import styles from './Navbar.module.scss';
 import LogoWithText from '@/components/molecules/logo/LogoWithText';
+import { PAGE_ROUTES } from '@/globals/page-routes';
+import { gotTo } from '@/lib/goTo';
 
 const Navbar = () => {
     const t = useTranslations('navbar');
@@ -22,7 +24,11 @@ const Navbar = () => {
                 <div className={styles.actions}>
                     <ThemeToggle />
                     <LanguageSwitcher />
-                    <Button variant="primary" size="medium">
+                    <Button
+                        onClick={() => {
+                            gotTo(PAGE_ROUTES.AUTH.SIGN_IN());
+                        }}
+                        variant="primary" size="medium">
                         {t('getStarted')}
                     </Button>
                 </div>
