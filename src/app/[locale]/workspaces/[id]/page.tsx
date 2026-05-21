@@ -25,17 +25,19 @@ export default async function WorkspaceDetail({
     .limit(1);
   if (!user) redirect("/users/sign_in");
 
-  const [membership] = await db
-    .select({ id: workspaceUsers.workspaceId })
-    .from(workspaceUsers)
+  const allWorkspaces = await db
+    .select({ id: workspaces.id, title: workspaces.title })
+    .from(workspaces)
+    .innerJoin(workspaceUsers, eq(workspaceUsers.workspaceId, workspaces.id))
     .where(
       and(
-        eq(workspaceUsers.workspaceId, workspaceId),
         eq(workspaceUsers.userId, session.sub),
+        isNull(workspaces.deletedAt),
         isNull(workspaceUsers.deletedAt),
       ),
-    )
-    .limit(1);
+    );
+
+  const membership = allWorkspaces.find((w) => w.id === workspaceId);
   if (!membership) notFound();
 
   const [workspace] = await db
@@ -53,9 +55,15 @@ export default async function WorkspaceDetail({
   return (
     <AppShell
       user={user}
-      crumbs={[{ label: workspace.title || "Workspace" }]}
+      workspaces={allWorkspaces}
+      currentWorkspaceId={workspaceId}
+      workspaceBoards={boardRows}
     >
-      <BoardsClient workspaceId={workspaceId} initial={boardRows} />
+      <BoardsClient
+        workspaceId={workspaceId}
+        workspaceTitle={workspace.title}
+        initial={boardRows}
+      />
     </AppShell>
   );
 }

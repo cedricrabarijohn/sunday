@@ -1,19 +1,28 @@
 "use client";
 
-import { FormEvent, useCallback, useRef, useState, useTransition } from "react";
+import { CSSProperties, FormEvent, useCallback, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
+import { colorForId } from "@/lib/palette";
 import styles from "../../workspaces/AppShell.module.scss";
 
 type Task = {
   id: number;
   title: string | null;
+  done: number;
   position: number | null;
 };
 
 export default function TasksClient({
   boardId,
+  boardTitle,
+  workspaceId,
+  workspaceTitle,
   initial,
 }: {
   boardId: number;
+  boardTitle: string | null;
+  workspaceId: number;
+  workspaceTitle: string | null;
   initial: Task[];
 }) {
   const [tasks, setTasks] = useState(initial);
@@ -22,7 +31,16 @@ export default function TasksClient({
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
+  const boardColor = colorForId(boardId);
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  const stats = useMemo(() => {
+    const total = tasks.length;
+    const done = tasks.reduce((acc, t) => acc + (t.done ? 1 : 0), 0);
+    const open = total - done;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    return { total, done, open, pct };
+  }, [tasks]);
 
   async function onAdd(e: FormEvent) {
     e.preventDefault();
@@ -34,7 +52,7 @@ export default function TasksClient({
     const tempId = -Date.now();
     const nextPos = (tasks.at(-1)?.position ?? 0) + 1;
     startTransition(() => {
-      setTasks((prev) => [...prev, { id: tempId, title: trimmed, position: nextPos }]);
+      setTasks((prev) => [...prev, { id: tempId, title: trimmed, done: 0, position: nextPos }]);
       setNewTitle("");
     });
 
@@ -52,7 +70,9 @@ export default function TasksClient({
       }
       setTasks((prev) =>
         prev.map((t) =>
-          t.id === tempId ? { id: data.task.id, title: data.task.title, position: data.task.position } : t,
+          t.id === tempId
+            ? { id: data.task.id, title: data.task.title, done: 0, position: data.task.position }
+            : t,
         ),
       );
     } catch {
@@ -87,6 +107,26 @@ export default function TasksClient({
     renameTimers.current.set(id, timer);
   }, []);
 
+  async function onToggleDone(id: number, current: number) {
+    const next = current ? 0 : 1;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: next } : t)));
+    if (id < 0) return;
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done: !current }),
+      });
+      if (!res.ok) {
+        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: current } : t)));
+        setError("Could not update task");
+      }
+    } catch {
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: current } : t)));
+      setError("Network error. Please try again.");
+    }
+  }
+
   async function onDelete(id: number) {
     const snapshot = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== id));
@@ -103,63 +143,140 @@ export default function TasksClient({
     }
   }
 
+  const headerStyle = {
+    "--card-hue": boardColor.hue,
+    "--card-soft": boardColor.soft,
+  } as CSSProperties;
+
   return (
     <>
-      <form className={styles.composer} onSubmit={onAdd}>
-        <input
-          className={styles.composerInput}
-          placeholder="Add a task…"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          maxLength={255}
-          aria-label="New task"
-        />
-        <div className={styles.composerActions}>
-          <button type="submit" className={styles.primaryBtn} disabled={!newTitle.trim()}>
-            Add
-          </button>
+      <div className={styles.pageHeader} style={headerStyle}>
+        <div className={styles.pageHeaderText}>
+          <span
+            className={styles.pageBadge}
+            style={{ background: boardColor.soft, color: boardColor.hue }}
+          >
+            {(boardTitle?.[0] || "B").toUpperCase()}
+          </span>
+          <div>
+            <h1 className={styles.pageTitle}>{boardTitle || "Untitled board"}</h1>
+            <div className={styles.pageSubtitle}>
+              in{" "}
+              <Link
+                href={`/workspaces/${workspaceId}`}
+                style={{ color: "var(--text-2)", borderBottom: "1px dotted var(--border-strong)" }}
+              >
+                {workspaceTitle || "workspace"}
+              </Link>
+            </div>
+          </div>
         </div>
-      </form>
+        <span className={styles.pageMeta}>
+          {stats.done}/{stats.total} done
+          {(pending || saving) && <span className={styles.savingDot} />}
+        </span>
+      </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {tasks.length === 0 ? (
-        <div className={styles.empty}>
-          <strong>No tasks yet</strong>
-          Add your first task above.
+      <div className={styles.boardLayout}>
+        <div>
+          <form className={styles.composer} onSubmit={onAdd}>
+            <input
+              className={styles.composerInput}
+              placeholder="Add a task and press enter"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              maxLength={255}
+              aria-label="New task"
+            />
+            <div className={styles.composerActions}>
+              <span className={styles.kbdHint}>↵</span>
+              <button type="submit" className={styles.primaryBtn} disabled={!newTitle.trim()}>
+                Add
+              </button>
+            </div>
+          </form>
+
+          {tasks.length === 0 ? (
+            <div className={styles.empty}>
+              <div className={styles.emptyMark}>✓</div>
+              <strong>Nothing here yet</strong>
+              Type a task above. Hit the box to mark it done.
+            </div>
+          ) : (
+            <div className={styles.tasksList}>
+              {tasks.map((t, i) => (
+                <div key={t.id} className={styles.taskRow}>
+                  <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
+                  <button
+                    type="button"
+                    className={`${styles.taskCheck} ${t.done ? styles.taskCheckDone : ""}`}
+                    onClick={() => onToggleDone(t.id, t.done)}
+                    aria-label={t.done ? "Mark as not done" : "Mark as done"}
+                  />
+                  <input
+                    className={`${styles.taskTitle} ${t.done ? styles.taskTitleDone : ""}`}
+                    defaultValue={t.title || ""}
+                    onChange={(e) => onRename(t.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    }}
+                  />
+                  <button
+                    className={styles.dangerBtn}
+                    onClick={() => onDelete(t.id)}
+                    type="button"
+                    aria-label="Delete task"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <>
-          <div className={styles.pageMeta} style={{ marginBottom: "0.6rem" }}>
-            {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
-            {(pending || saving) && <span className={styles.savingDot} />}
+
+        <aside className={styles.statsCol}>
+          <div className={styles.statsCard}>
+            <div className={styles.statsLabel}>Progress</div>
+            <div className={styles.statsNumber}>{stats.pct}%</div>
+            <div className={styles.statsDelta}>
+              {stats.done} done · {stats.open} open
+            </div>
+            <div className={styles.progressTrack}>
+              <div
+                className={styles.progressFill}
+                style={{ width: `${stats.pct}%` }}
+              />
+            </div>
+            <div className={styles.statsLegend}>
+              <span>0</span>
+              <span>{stats.total}</span>
+            </div>
           </div>
-          <div className={styles.tasksList}>
-            {tasks.map((t, i) => (
-              <div key={t.id} className={styles.taskRow}>
-                <span className={styles.taskNum}>{i + 1}</span>
-                <span className={styles.taskCheck} aria-hidden />
-                <input
-                  className={styles.taskTitle}
-                  defaultValue={t.title || ""}
-                  onChange={(e) => onRename(t.id, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                  }}
-                />
-                <button
-                  className={styles.dangerBtn}
-                  onClick={() => onDelete(t.id)}
-                  type="button"
-                  aria-label="Delete task"
-                >
-                  Delete
-                </button>
+
+          <div className={styles.statsCard}>
+            <div className={styles.statsLabel}>This board</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", fontSize: "13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-3)" }}>Total</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.total}</span>
               </div>
-            ))}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-3)" }}>Done</span>
+                <span style={{ fontVariantNumeric: "tabular-nums", color: boardColor.hue }}>
+                  {stats.done}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-3)" }}>Open</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.open}</span>
+              </div>
+            </div>
           </div>
-        </>
-      )}
+        </aside>
+      </div>
     </>
   );
 }

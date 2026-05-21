@@ -34,7 +34,7 @@ export default async function WorkspacesPage() {
     );
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} workspaces={rows}>
       <WorkspacesClient initial={rows} />
     </AppShell>
   );

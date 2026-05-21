@@ -5,7 +5,6 @@ import { boardTasks, boards, users, workspaceUsers, workspaces } from "@/db/sche
 import { getSessionFromCookie } from "@/lib/auth";
 import AppShell from "../../workspaces/AppShell";
 import TasksClient from "./TasksClient";
-import styles from "../../workspaces/AppShell.module.scss";
 
 export default async function BoardDetail({
   params,
@@ -48,8 +47,30 @@ export default async function BoardDetail({
     .limit(1);
   if (!board) notFound();
 
+  const allWorkspaces = await db
+    .select({ id: workspaces.id, title: workspaces.title })
+    .from(workspaces)
+    .innerJoin(workspaceUsers, eq(workspaceUsers.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(workspaceUsers.userId, session.sub),
+        isNull(workspaces.deletedAt),
+        isNull(workspaceUsers.deletedAt),
+      ),
+    );
+
+  const workspaceBoards = await db
+    .select({ id: boards.id, title: boards.title })
+    .from(boards)
+    .where(and(eq(boards.workspaceId, board.workspaceId!), isNull(boards.deletedAt)));
+
   const tasks = await db
-    .select({ id: boardTasks.id, title: boardTasks.title, position: boardTasks.position })
+    .select({
+      id: boardTasks.id,
+      title: boardTasks.title,
+      done: boardTasks.done,
+      position: boardTasks.position,
+    })
     .from(boardTasks)
     .where(and(eq(boardTasks.boardId, boardId), isNull(boardTasks.deletedAt)))
     .orderBy(asc(boardTasks.position), asc(boardTasks.id));
@@ -57,15 +78,18 @@ export default async function BoardDetail({
   return (
     <AppShell
       user={user}
-      crumbs={[
-        { label: board.workspaceTitle || "Workspace", href: `/workspaces/${board.workspaceId}` },
-        { label: board.title || "Board" },
-      ]}
+      workspaces={allWorkspaces}
+      currentWorkspaceId={board.workspaceId ?? undefined}
+      currentBoardId={boardId}
+      workspaceBoards={workspaceBoards}
     >
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{board.title || "Untitled board"}</h1>
-      </div>
-      <TasksClient boardId={boardId} initial={tasks} />
+      <TasksClient
+        boardId={boardId}
+        boardTitle={board.title}
+        workspaceId={board.workspaceId ?? 0}
+        workspaceTitle={board.workspaceTitle}
+        initial={tasks}
+      />
     </AppShell>
   );
 }

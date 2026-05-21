@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { CSSProperties, FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
+import { colorForId } from "@/lib/palette";
 import styles from "./AppShell.module.scss";
 
 type Workspace = { id: number; title: string | null };
@@ -39,7 +40,9 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
         return;
       }
       setWorkspaces((prev) =>
-        prev.map((w) => (w.id === tempId ? { id: data.workspace.id, title: data.workspace.title } : w)),
+        prev.map((w) =>
+          w.id === tempId ? { id: data.workspace.id, title: data.workspace.title } : w,
+        ),
       );
     } catch {
       setWorkspaces((prev) => prev.filter((w) => w.id !== tempId));
@@ -52,9 +55,17 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
   return (
     <>
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Workspaces</h1>
+        <div className={styles.pageHeaderText}>
+          <div>
+            <h1 className={styles.pageTitle}>Workspaces</h1>
+            <div className={styles.pageSubtitle}>
+              Every project lives in a workspace. Pick one or start a new one.
+            </div>
+          </div>
+        </div>
         <span className={styles.pageMeta}>
-          {workspaces.length} {workspaces.length === 1 ? "workspace" : "workspaces"}
+          {workspaces.length.toString().padStart(2, "0")}{" "}
+          {workspaces.length === 1 ? "workspace" : "workspaces"}
           {(pending || saving) && <span className={styles.savingDot} />}
         </span>
       </div>
@@ -62,13 +73,14 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
       <form className={styles.composer} onSubmit={onCreate}>
         <input
           className={styles.composerInput}
-          placeholder="New workspace name…"
+          placeholder="Name your new workspace and press enter"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={50}
           aria-label="New workspace name"
         />
         <div className={styles.composerActions}>
+          <span className={styles.kbdHint}>↵</span>
           <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
             Create
           </button>
@@ -79,25 +91,36 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
 
       {workspaces.length === 0 ? (
         <div className={styles.empty}>
+          <div className={styles.emptyMark}>＋</div>
           <strong>No workspaces yet</strong>
-          Create one to get started.
+          Type a name above and hit enter to create your first one.
         </div>
       ) : (
         <div className={styles.grid}>
-          {workspaces.map((w) => (
-            <Link
-              key={w.id}
-              href={w.id > 0 ? `/workspaces/${w.id}` : "#"}
-              className={styles.card}
-              prefetch={w.id > 0}
-            >
-              <div className={styles.cardTitle}>{w.title || "Untitled"}</div>
-              <div className={styles.cardFooter}>
-                <span className={styles.cardCount}>workspace</span>
-                <span className={styles.cardArrow}>›</span>
-              </div>
-            </Link>
-          ))}
+          {workspaces.map((w) => {
+            const c = colorForId(w.id);
+            const style = {
+              "--card-hue": c.hue,
+              "--card-soft": c.soft,
+            } as CSSProperties;
+            const letter = (w.title?.[0] || "W").toUpperCase();
+            return (
+              <Link
+                key={w.id}
+                href={w.id > 0 ? `/workspaces/${w.id}` : "#"}
+                className={styles.card}
+                style={style}
+                prefetch={w.id > 0}
+              >
+                <span className={styles.cardBadge}>{letter}</span>
+                <div className={styles.cardTitle}>{w.title || "Untitled"}</div>
+                <div className={styles.cardFooter}>
+                  <span className={styles.cardCount}>{c.name}</span>
+                  <span className={styles.cardArrow}>→</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </>

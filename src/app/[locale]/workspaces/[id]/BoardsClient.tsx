@@ -1,16 +1,19 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { CSSProperties, FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
+import { colorForId } from "@/lib/palette";
 import styles from "../AppShell.module.scss";
 
 type Board = { id: number; title: string | null; createdAt: Date | string | null };
 
 export default function BoardsClient({
   workspaceId,
+  workspaceTitle,
   initial,
 }: {
   workspaceId: number;
+  workspaceTitle: string | null;
   initial: Board[];
 }) {
   const [boards, setBoards] = useState(initial);
@@ -18,6 +21,8 @@ export default function BoardsClient({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
+
+  const wsColor = colorForId(workspaceId);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -63,9 +68,21 @@ export default function BoardsClient({
   return (
     <>
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Boards</h1>
+        <div className={styles.pageHeaderText}>
+          <span
+            className={styles.pageBadge}
+            style={{ background: wsColor.soft, color: wsColor.hue }}
+          >
+            {(workspaceTitle?.[0] || "W").toUpperCase()}
+          </span>
+          <div>
+            <h1 className={styles.pageTitle}>{workspaceTitle || "Untitled"}</h1>
+            <div className={styles.pageSubtitle}>Boards in this workspace</div>
+          </div>
+        </div>
         <span className={styles.pageMeta}>
-          {boards.length} {boards.length === 1 ? "board" : "boards"}
+          {boards.length.toString().padStart(2, "0")}{" "}
+          {boards.length === 1 ? "board" : "boards"}
           {(pending || saving) && <span className={styles.savingDot} />}
         </span>
       </div>
@@ -73,13 +90,14 @@ export default function BoardsClient({
       <form className={styles.composer} onSubmit={onCreate}>
         <input
           className={styles.composerInput}
-          placeholder="New board name…"
+          placeholder="Name a new board and press enter"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={100}
           aria-label="New board name"
         />
         <div className={styles.composerActions}>
+          <span className={styles.kbdHint}>↵</span>
           <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
             Create
           </button>
@@ -90,25 +108,36 @@ export default function BoardsClient({
 
       {boards.length === 0 ? (
         <div className={styles.empty}>
+          <div className={styles.emptyMark}>≡</div>
           <strong>No boards yet</strong>
-          Add a board to organize tasks.
+          A board holds a list of tasks. Create your first one above.
         </div>
       ) : (
         <div className={styles.grid}>
-          {boards.map((b) => (
-            <Link
-              key={b.id}
-              href={b.id > 0 ? `/boards/${b.id}` : "#"}
-              className={styles.card}
-              prefetch={b.id > 0}
-            >
-              <div className={styles.cardTitle}>{b.title || "Untitled"}</div>
-              <div className={styles.cardFooter}>
-                <span className={styles.cardCount}>board</span>
-                <span className={styles.cardArrow}>›</span>
-              </div>
-            </Link>
-          ))}
+          {boards.map((b) => {
+            const c = colorForId(b.id);
+            const style = {
+              "--card-hue": c.hue,
+              "--card-soft": c.soft,
+            } as CSSProperties;
+            const letter = (b.title?.[0] || "B").toUpperCase();
+            return (
+              <Link
+                key={b.id}
+                href={b.id > 0 ? `/boards/${b.id}` : "#"}
+                className={styles.card}
+                style={style}
+                prefetch={b.id > 0}
+              >
+                <span className={styles.cardBadge}>{letter}</span>
+                <div className={styles.cardTitle}>{b.title || "Untitled"}</div>
+                <div className={styles.cardFooter}>
+                  <span className={styles.cardCount}>{c.name}</span>
+                  <span className={styles.cardArrow}>→</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </>

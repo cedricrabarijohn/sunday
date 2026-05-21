@@ -7,37 +7,84 @@
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Soft radial glow behind the card */
+.page::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 620px;
+  height: 620px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, var(--accent-soft), transparent 70%);
+  pointer-events: none;
+}
+
+/* Dotted background pattern */
+.page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--border-strong) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  opacity: 0.4;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 65%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 65%);
 }
 
 .card {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 380px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.75rem 1.6rem 1.6rem;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
 }
 
 .brand {
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
   color: var(--text-1);
   text-transform: lowercase;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.4rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1rem;
 }
 
 .brand::after {
   content: ".";
   color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.02em;
   color: var(--text-1);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.4rem;
 }
 
 .form {

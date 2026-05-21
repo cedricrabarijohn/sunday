@@ -113,3 +113,26 @@ button { font-family: inherit; }
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Custom scrollbar so it stops looking like default chrome */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
+
+/* Dotted grid background, used as a decorative layer on the landing */
+.dotgrid {
+  background-image: radial-gradient(circle, var(--border-strong) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+[data-theme="dark"] .dotgrid {
+  background-image: radial-gradient(circle, #1e1e22 1px, transparent 1.2px);
+}
