@@ -5,7 +5,6 @@ import {
   DragEvent,
   FormEvent,
   Fragment,
-  useCallback,
   useMemo,
   useRef,
   useState,
@@ -74,7 +73,6 @@ export default function TasksClient({
   const [addingPile, setAddingPile] = useState(false);
   const [addPileDragOver, setAddPileDragOver] = useState(false);
 
-  const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pileRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const cardsByPile = useMemo(() => {
@@ -88,30 +86,6 @@ export default function TasksClient({
     for (const [, arr] of map) arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     return map;
   }, [tasks, piles]);
-
-  // --- card rename
-  const onRename = useCallback((id: number, title: string) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
-    if (id < 0) return;
-    const existing = renameTimers.current.get(id);
-    if (existing) clearTimeout(existing);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/tasks/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || "Could not save change");
-        }
-      } catch {
-        setError("Network error. Change not saved.");
-      }
-    }, 400);
-    renameTimers.current.set(id, timer);
-  }, []);
 
   // --- card add (per pile)
   const onAddCard = async (pileId: number, title: string) => {
@@ -426,6 +400,8 @@ export default function TasksClient({
     if (pileId < 0) return;
     const existing = pileRenameTimers.current.get(pileId);
     if (existing) clearTimeout(existing);
+    // Empty titles aren't saved.
+    if (!title.trim()) return;
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/piles/${pileId}`, {
@@ -516,7 +492,6 @@ export default function TasksClient({
               draggingCardId={drag?.cardId ?? null}
               onAddCard={onAddCard}
               onDeleteCard={onDeleteCard}
-              onRenameCard={onRename}
               onOpenCard={(id) => id > 0 && setOpenCardId(id)}
               onRenamePile={onRenamePile}
               onDeletePile={onDeletePile}
@@ -600,7 +575,6 @@ function PileColumn({
   draggingCardId,
   onAddCard,
   onDeleteCard,
-  onRenameCard,
   onOpenCard,
   onRenamePile,
   onDeletePile,
@@ -618,7 +592,6 @@ function PileColumn({
   draggingCardId: number | null;
   onAddCard: (pileId: number, title: string) => Promise<void>;
   onDeleteCard: (id: number) => void;
-  onRenameCard: (id: number, title: string) => void;
   onOpenCard: (id: number) => void;
   onRenamePile: (id: number, title: string) => void;
   onDeletePile: (pile: Pile) => void;
@@ -685,7 +658,6 @@ function PileColumn({
               onDragStart={(e) => onCardDragStart(e, card)}
               onDragEnd={onCardDragEnd}
               onDragOver={(e) => onCardDragOver(e, pile, card)}
-              onRename={onRenameCard}
               onDelete={onDeleteCard}
               onOpen={onOpenCard}
             />
@@ -716,7 +688,6 @@ function KanbanCard({
   onDragStart,
   onDragEnd,
   onDragOver,
-  onRename,
   onDelete,
   onOpen,
 }: {
@@ -725,7 +696,6 @@ function KanbanCard({
   onDragStart: (e: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
-  onRename: (id: number, title: string) => void;
   onDelete: (id: number) => void;
   onOpen: (id: number) => void;
 }) {
@@ -777,16 +747,9 @@ function KanbanCard({
           })}
         </div>
       )}
-      <input
-        className={kStyles.cardTitle}
-        defaultValue={card.title || ""}
-        onChange={(e) => onRename(card.id, e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
-        onDragStart={(e) => e.preventDefault()}
-        placeholder="Untitled"
-      />
+      <div className={kStyles.cardTitle}>
+        {card.title?.trim() ? card.title : <span className={kStyles.cardTitleMute}>Untitled</span>}
+      </div>
       <div className={kStyles.cardFoot}>
         <div className={kStyles.cardBadges}>
           {card.itemsTotal > 0 && (

@@ -149,6 +149,8 @@ export default function CardDrawer({
     setData({ ...data, card: { ...data.card, title } });
     onTitleChange?.(cardId, title);
     if (titleTimer.current) clearTimeout(titleTimer.current);
+    // Empty titles aren't saved (no error shown either).
+    if (!title.trim()) return;
     titleTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/tasks/${cardId}`, {
@@ -224,6 +226,8 @@ export default function CardDrawer({
     if (id < 0) return;
     const existing = renameTimers.current.get(id);
     if (existing) clearTimeout(existing);
+    // Empty titles aren't saved.
+    if (!title.trim()) return;
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/items/${id}`, {

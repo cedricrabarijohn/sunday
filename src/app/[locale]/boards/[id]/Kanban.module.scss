@@ -162,9 +162,8 @@
 .card:hover .cardActions { opacity: 1; }
 .card:active { cursor: grabbing; }
 
-/* Inputs and buttons inside the card keep their own cursor so the
-   card-level pointer doesn't override them. */
-.cardTitle { cursor: text; }
+/* Buttons inside the card keep their own cursor so the card-level
+   pointer doesn't override them. */
 .iconBtn { cursor: pointer; }
 
 .cardDragging {
@@ -216,18 +215,22 @@
   font-weight: 500;
   letter-spacing: -0.005em;
   color: var(--text-1);
-  background: transparent;
-  border: none;
   font-family: inherit;
   padding: 0;
   line-height: 1.35;
   width: 100%;
-  resize: none;
   min-height: 19px;
   overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
-.cardTitle:focus { outline: none; }
-.cardTitle::placeholder { color: var(--text-mute); }
+.cardTitleMute {
+  color: var(--text-mute);
+  font-style: italic;
+}
 
 .cardFoot {
   display: flex;
