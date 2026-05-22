@@ -163,6 +163,28 @@ export const boardTaskColumnSettings = mysqlTable("board_task_column_settings", 
   boardTaskColumnId: int("board_task_column_id"),
 });
 
+export const boardTaskItems = mysqlTable("board_task_items", {
+  id: int("id").autoincrement().primaryKey(),
+  boardTaskId: int("board_task_id").notNull(),
+  title: varchar("title", { length: 255 }),
+  done: tinyint("done").notNull().default(0),
+  position: int("position"),
+  createdAt: datetime("created_at"),
+  updatedAt: datetime("updated_at"),
+  deletedAt: datetime("deleted_at"),
+});
+
+export const boardTaskAttachments = mysqlTable("board_task_attachments", {
+  id: int("id").autoincrement().primaryKey(),
+  boardTaskId: int("board_task_id").notNull(),
+  filename: varchar("filename", { length: 255 }),
+  mimeType: varchar("mime_type", { length: 64 }),
+  sizeBytes: int("size_bytes"),
+  url: varchar("url", { length: 500 }),
+  createdAt: datetime("created_at"),
+  deletedAt: datetime("deleted_at"),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;
