@@ -4,7 +4,6 @@ import {
   CSSProperties,
   DragEvent,
   FormEvent,
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -132,16 +131,17 @@ export default function CardDrawer({
     };
   }, []);
 
-  const reportCounts = useCallback(
-    (next: CardDetail) => {
-      onCountsChange?.(cardId, {
-        itemsTotal: next.items.length,
-        itemsDone: next.items.reduce((a, i) => a + (i.done ? 1 : 0), 0),
-        attachments: next.attachments.length,
-      });
-    },
-    [cardId, onCountsChange],
-  );
+  // Counts are reported to the parent in an effect rather than inline so we
+  // never call the parent's setState during this component's render or
+  // commit (which would trigger React's "setState during render" warning).
+  useEffect(() => {
+    if (!data) return;
+    onCountsChange?.(cardId, {
+      itemsTotal: data.items.length,
+      itemsDone: data.items.reduce((a, i) => a + (i.done ? 1 : 0), 0),
+      attachments: data.attachments.length,
+    });
+  }, [data, cardId, onCountsChange]);
 
   // --- Card title rename ---
   const onCardTitleChange = (title: string) => {
@@ -184,7 +184,6 @@ export default function CardDrawer({
     const next = { ...data, items: [...data.items, optimistic] };
     setData(next);
     setNewItem("");
-    reportCounts(next);
 
     try {
       const res = await fetch(`/api/cards/${cardId}/items`, {
@@ -194,9 +193,7 @@ export default function CardDrawer({
       });
       const json = await res.json();
       if (!res.ok) {
-        const rolled = { ...data, items: data.items };
-        setData(rolled);
-        reportCounts(rolled);
+        setData({ ...data, items: data.items });
         setError(json.error || "Could not add item");
         return;
       }
@@ -208,9 +205,7 @@ export default function CardDrawer({
         };
       });
     } catch {
-      const rolled = { ...data, items: data.items };
-      setData(rolled);
-      reportCounts(rolled);
+      setData({ ...data, items: data.items });
       setError("Network error.");
     } finally {
       setAdding(false);
@@ -246,9 +241,7 @@ export default function CardDrawer({
   const onToggleItem = async (id: number, current: number) => {
     if (!data) return;
     const updatedItems = data.items.map((i) => (i.id === id ? { ...i, done: current ? 0 : 1 } : i));
-    const next = { ...data, items: updatedItems };
-    setData(next);
-    reportCounts(next);
+    setData({ ...data, items: updatedItems });
     if (id < 0) return;
     try {
       const res = await fetch(`/api/items/${id}`, {
@@ -257,12 +250,10 @@ export default function CardDrawer({
         body: JSON.stringify({ done: !current }),
       });
       if (!res.ok) {
-        const rolled = {
+        setData({
           ...data,
           items: data.items.map((i) => (i.id === id ? { ...i, done: current } : i)),
-        };
-        setData(rolled);
-        reportCounts(rolled);
+        });
         setError("Could not update item");
       }
     } catch {
@@ -273,16 +264,12 @@ export default function CardDrawer({
   const onDeleteItem = async (id: number) => {
     if (!data) return;
     const snapshot = data.items;
-    const next = { ...data, items: snapshot.filter((i) => i.id !== id) };
-    setData(next);
-    reportCounts(next);
+    setData({ ...data, items: snapshot.filter((i) => i.id !== id) });
     if (id < 0) return;
     try {
       const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const rolled = { ...data, items: snapshot };
-        setData(rolled);
-        reportCounts(rolled);
+        setData({ ...data, items: snapshot });
         setError("Could not delete item");
       }
     } catch {
@@ -311,12 +298,11 @@ export default function CardDrawer({
         setError(json.error || "Upload failed");
         return;
       }
-      setData((prev) => {
-        if (!prev) return prev;
-        const merged = { ...prev, attachments: [...prev.attachments, json.attachment as Attachment] };
-        reportCounts(merged);
-        return merged;
-      });
+      setData((prev) =>
+        prev
+          ? { ...prev, attachments: [...prev.attachments, json.attachment as Attachment] }
+          : prev,
+      );
     } catch {
       setError("Network error. Upload failed.");
     } finally {
@@ -340,15 +326,11 @@ export default function CardDrawer({
   const onDeleteAttachment = async (id: number) => {
     if (!data) return;
     const snapshot = data.attachments;
-    const next = { ...data, attachments: snapshot.filter((a) => a.id !== id) };
-    setData(next);
-    reportCounts(next);
+    setData({ ...data, attachments: snapshot.filter((a) => a.id !== id) });
     try {
       const res = await fetch(`/api/attachments/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const rolled = { ...data, attachments: snapshot };
-        setData(rolled);
-        reportCounts(rolled);
+        setData({ ...data, attachments: snapshot });
         setError("Could not delete image");
       }
     } catch {
