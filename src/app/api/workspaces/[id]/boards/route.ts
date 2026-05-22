@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boards, workspaceUsers } from "@/db/schema";
+import { boardPiles, boards, workspaceUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
+
+const DEFAULT_PILES: Array<{ title: string; color: string }> = [
+  { title: "To do", color: "slate" },
+  { title: "In progress", color: "amber" },
+  { title: "Done", color: "lime" },
+];
 
 async function memberOf(userId: number, workspaceId: number) {
   const [row] = await db
@@ -59,11 +65,24 @@ export async function POST(
   if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
   if (title.length > 100) return NextResponse.json({ error: "title too long" }, { status: 400 });
 
+  const now = new Date();
   const [result] = await db.insert(boards).values({
     workspaceId,
     title,
-    createdAt: new Date(),
+    createdAt: now,
   });
   const boardId = Number((result as { insertId: number }).insertId);
+
+  await db.insert(boardPiles).values(
+    DEFAULT_PILES.map((p, idx) => ({
+      boardId,
+      title: p.title,
+      color: p.color,
+      position: idx + 1,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  );
+
   return NextResponse.json({ board: { id: boardId, title, workspaceId } }, { status: 201 });
 }

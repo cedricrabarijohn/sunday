@@ -121,6 +121,7 @@ export const boardTasks = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     boardId: int("board_id"),
+    pileId: int("pile_id"),
     title: varchar("title", { length: 255 }),
     position: int("position"),
     createdAt: datetime("created_at"),
@@ -168,6 +169,17 @@ export const boardTaskItems = mysqlTable("board_task_items", {
   title: varchar("title", { length: 255 }),
   done: tinyint("done").notNull().default(0),
   position: int("position"),
+  createdAt: datetime("created_at"),
+  updatedAt: datetime("updated_at"),
+  deletedAt: datetime("deleted_at"),
+});
+
+export const boardPiles = mysqlTable("board_piles", {
+  id: int("id").autoincrement().primaryKey(),
+  boardId: int("board_id").notNull(),
+  title: varchar("title", { length: 60 }).notNull(),
+  color: varchar("color", { length: 20 }),
+  position: int("position").notNull().default(1),
   createdAt: datetime("created_at"),
   updatedAt: datetime("updated_at"),
   deletedAt: datetime("deleted_at"),
