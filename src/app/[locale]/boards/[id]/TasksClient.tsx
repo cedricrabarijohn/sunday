@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { colorForName } from "@/lib/palette";
+import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
 import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
@@ -65,6 +66,7 @@ export default function TasksClient({
   initialLabels: WorkspaceLabel[];
 }) {
   const router = useRouter();
+  const { confirm } = useConfirm();
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [piles, setPiles] = useState<Pile[]>(initialPiles);
   const [labels, setLabels] = useState<WorkspaceLabel[]>(initialLabels);
@@ -448,12 +450,14 @@ export default function TasksClient({
   // --- pile delete
   // --- board delete (hard, cascades on the server) ---
   const onDeleteBoard = async () => {
-    if (
-      !confirm(
-        `Delete board "${title || "Untitled"}"? This permanently removes the board, every card it holds, sub-tasks and uploaded images.`,
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: `Delete "${title || "Untitled"}"?`,
+      message:
+        "The board, every card it holds, sub-tasks and uploaded images will all be permanently removed.",
+      confirmLabel: "Delete board",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/boards/${boardId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -474,7 +478,13 @@ export default function TasksClient({
       setError("Move the cards out of this pile before deleting it.");
       return;
     }
-    if (!confirm(`Delete pile "${pile.title}"?`)) return;
+    const ok = await confirm({
+      title: `Delete "${pile.title}"?`,
+      message: "This pile is empty, so no cards will be lost.",
+      confirmLabel: "Delete pile",
+      danger: true,
+    });
+    if (!ok) return;
     const snapshot = piles;
     setPiles((prev) => prev.filter((p) => p.id !== pile.id));
     try {

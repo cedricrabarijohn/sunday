@@ -3,6 +3,7 @@
 import { CSSProperties, FormEvent, MouseEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { colorForId } from "@/lib/palette";
+import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import styles from "../AppShell.module.scss";
 
 type Board = { id: number; title: string | null; createdAt: Date | string | null };
@@ -23,16 +24,19 @@ export default function BoardsClient({
   const [saving, setSaving] = useState(false);
 
   const wsColor = colorForId(workspaceId);
+  const { confirm } = useConfirm();
 
   async function onDelete(e: MouseEvent, board: Board) {
     e.preventDefault();
     e.stopPropagation();
-    if (
-      !confirm(
-        `Delete "${board.title || "Untitled"}"? This permanently removes the board, every card it holds, sub-tasks and uploaded images.`,
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: `Delete "${board.title || "Untitled"}"?`,
+      message:
+        "The board, every card it holds, sub-tasks and uploaded images will all be permanently removed.",
+      confirmLabel: "Delete board",
+      danger: true,
+    });
+    if (!ok) return;
     const snapshot = boards;
     setBoards((prev) => prev.filter((b) => b.id !== board.id));
     if (board.id < 0) return;

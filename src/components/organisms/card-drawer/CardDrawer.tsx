@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
+import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import styles from "./CardDrawer.module.scss";
 
 type Item = { id: number; title: string | null; done: number; position: number | null };
@@ -93,6 +94,7 @@ export default function CardDrawer({
   const [descEditing, setDescEditing] = useState(false);
   const [descSaving, setDescSaving] = useState(false);
   const [descDragActive, setDescDragActive] = useState(false);
+  const { confirm } = useConfirm();
   const fileInput = useRef<HTMLInputElement>(null);
 
   // When a new card opens, exit any in-progress edit so the next open
@@ -734,8 +736,13 @@ export default function CardDrawer({
   };
 
   const onDeleteLabel = async (label: WorkspaceLabel) => {
-    if (!confirm(`Delete label "${label.title}"? It will be removed from all cards in this workspace.`))
-      return;
+    const ok = await confirm({
+      title: `Delete label "${label.title}"?`,
+      message: "It will be removed from every card in this workspace.",
+      confirmLabel: "Delete label",
+      danger: true,
+    });
+    if (!ok) return;
     const snapshot = workspaceLabels;
     onWorkspaceLabelsChange(workspaceLabels.filter((l) => l.id !== label.id));
     if (data) {
@@ -760,7 +767,13 @@ export default function CardDrawer({
   // --- Delete the whole card ---
   const onDeleteCard = async () => {
     if (!data) return;
-    if (!confirm("Delete this card and all its sub-tasks and images?")) return;
+    const ok = await confirm({
+      title: "Delete this card?",
+      message: "Its sub-tasks and uploaded images will be removed too. This cannot be undone.",
+      confirmLabel: "Delete card",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/tasks/${cardId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -885,7 +898,13 @@ export default function CardDrawer({
                     hasContent={Boolean(data.card.description?.trim())}
                     onEdit={enterEdit}
                     onClear={async () => {
-                      if (!confirm("Clear this description?")) return;
+                      const ok = await confirm({
+                        title: "Clear this description?",
+                        message: "The content will be removed. You can write a new one any time.",
+                        confirmLabel: "Clear",
+                        danger: true,
+                      });
+                      if (!ok) return;
                       try {
                         const res = await fetch(`/api/tasks/${cardId}`, {
                           method: "PATCH",
