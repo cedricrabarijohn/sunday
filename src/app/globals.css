@@ -136,3 +136,60 @@ button { font-family: inherit; }
 [data-theme="dark"] .dotgrid {
   background-image: radial-gradient(circle, #1e1e22 1px, transparent 1.2px);
 }
+
+/* ============================================================
+   Motion primitives. Reusable keyframes and a few base utility
+   animation classes. All durations stay under 500ms to feel
+   responsive even on a slow machine.
+   ============================================================ */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes riseSm {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50%      { box-shadow: 0 0 0 6px transparent; }
+}
+
+@keyframes checkPop {
+  0%   { transform: scale(0.65); }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50%      { box-shadow: 0 0 0 6px transparent; }
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+@keyframes shine {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}

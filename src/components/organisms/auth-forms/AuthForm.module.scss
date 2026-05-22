@@ -48,6 +48,7 @@
   padding: 1.75rem 1.6rem 1.6rem;
   box-shadow: var(--shadow-md);
   overflow: hidden;
+  animation: scaleIn 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .card::before {
@@ -55,9 +56,11 @@
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  width: 60%;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: sweep 1400ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: 220ms;
 }
 
 .brand {
@@ -70,6 +73,8 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.1rem;
+  animation: rise 360ms ease-out both;
+  animation-delay: 100ms;
 }
 
 .brand::after {
@@ -85,6 +90,22 @@
   letter-spacing: -0.02em;
   color: var(--text-1);
   margin-bottom: 1.4rem;
+  animation: rise 360ms ease-out both;
+  animation-delay: 160ms;
+}
+
+.form > * {
+  animation: riseSm 360ms ease-out both;
+}
+.form > *:nth-child(1) { animation-delay: 220ms; }
+.form > *:nth-child(2) { animation-delay: 270ms; }
+.form > *:nth-child(3) { animation-delay: 320ms; }
+.form > *:nth-child(4) { animation-delay: 370ms; }
+.form > *:nth-child(5) { animation-delay: 420ms; }
+
+.footer {
+  animation: rise 360ms ease-out both;
+  animation-delay: 460ms;
 }
 
 .form {

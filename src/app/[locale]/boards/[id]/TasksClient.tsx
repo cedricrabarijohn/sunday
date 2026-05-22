@@ -1,9 +1,44 @@
 "use client";
 
-import { CSSProperties, FormEvent, useCallback, useMemo, useRef, useState, useTransition } from "react";
+import {
+  CSSProperties,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { colorForId } from "@/lib/palette";
 import styles from "../../workspaces/AppShell.module.scss";
+
+function useAnimatedNumber(target: number, duration = 480) {
+  const [value, setValue] = useState(target);
+  const prev = useRef(target);
+  useEffect(() => {
+    const from = prev.current;
+    const to = target;
+    if (from === to) return;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const elapsed = t - start;
+      const p = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(from + (to - from) * eased));
+      if (p < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        prev.current = to;
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
 
 type Task = {
   id: number;
@@ -41,6 +76,11 @@ export default function TasksClient({
     const pct = total === 0 ? 0 : Math.round((done / total) * 100);
     return { total, done, open, pct };
   }, [tasks]);
+
+  const animatedPct = useAnimatedNumber(stats.pct);
+  const animatedDone = useAnimatedNumber(stats.done, 320);
+  const animatedOpen = useAnimatedNumber(stats.open, 320);
+  const celebrate = stats.total > 0 && stats.pct === 100;
 
   async function onAdd(e: FormEvent) {
     e.preventDefault();
@@ -238,11 +278,11 @@ export default function TasksClient({
         </div>
 
         <aside className={styles.statsCol}>
-          <div className={styles.statsCard}>
+          <div className={`${styles.statsCard} ${celebrate ? styles.celebrate : ""}`}>
             <div className={styles.statsLabel}>Progress</div>
-            <div className={styles.statsNumber}>{stats.pct}%</div>
+            <div className={styles.statsNumber}>{animatedPct}%</div>
             <div className={styles.statsDelta}>
-              {stats.done} done · {stats.open} open
+              {celebrate ? "All clear. Time for a coffee." : `${stats.done} done · ${stats.open} open`}
             </div>
             <div className={styles.progressTrack}>
               <div
@@ -266,12 +306,12 @@ export default function TasksClient({
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-3)" }}>Done</span>
                 <span style={{ fontVariantNumeric: "tabular-nums", color: boardColor.hue }}>
-                  {stats.done}
+                  {animatedDone}
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-3)" }}>Open</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.open}</span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{animatedOpen}</span>
               </div>
             </div>
           </div>

@@ -110,7 +110,10 @@ const Hero = () => {
                 <span className={styles.previewBadge}>4/6 done</span>
               </div>
               <div className={styles.previewProgressTrack}>
-                <div className={styles.previewProgressFill} style={{ width: "66%" }} />
+                <div
+                  className={styles.previewProgressFill}
+                  style={{ ["--fill" as string]: "66%" }}
+                />
               </div>
               <div className={styles.previewList}>
                 <div className={styles.previewRow}>
