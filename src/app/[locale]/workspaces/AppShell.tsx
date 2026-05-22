@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ReactNode } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { ReactNode, useEffect, useState } from "react";
 import { colorForId } from "@/lib/palette";
 import styles from "./AppShell.module.scss";
 
@@ -15,6 +15,7 @@ type Props = {
   currentWorkspaceId?: number;
   currentBoardId?: number;
   workspaceBoards?: SidebarBoard[];
+  wide?: boolean;
   children: ReactNode;
 };
 
@@ -31,9 +32,27 @@ export default function AppShell({
   currentWorkspaceId,
   currentBoardId,
   workspaceBoards = [],
+  wide = false,
   children,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close the mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Esc to close on mobile
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
 
   async function onLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -47,9 +66,42 @@ export default function AppShell({
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.sidebar}>
+      <header className={styles.mobileBar}>
+        <button
+          type="button"
+          className={styles.menuBtn}
+          aria-label="Open menu"
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen(true)}
+        >
+          <span className={styles.menuIcon}>☰</span>
+        </button>
+        <Link href="/workspaces" className={styles.brand}>sunday</Link>
+        <span className={styles.avatar} aria-hidden>{initials(user)}</span>
+      </header>
+
+      <button
+        type="button"
+        className={`${styles.mobileBackdrop} ${mobileOpen ? styles.mobileBackdropOpen : ""}`}
+        aria-label="Close menu"
+        onClick={() => setMobileOpen(false)}
+        tabIndex={mobileOpen ? 0 : -1}
+      />
+
+      <aside
+        className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ""}`}
+        aria-hidden={!mobileOpen ? undefined : false}
+      >
         <div className={styles.sidebarTop}>
           <Link href="/workspaces" className={styles.brand}>sunday</Link>
+          <button
+            type="button"
+            className={styles.sidebarClose}
+            aria-label="Close menu"
+            onClick={() => setMobileOpen(false)}
+          >
+            ✕
+          </button>
         </div>
 
         <div className={styles.sidebarScroll}>
@@ -113,7 +165,11 @@ export default function AppShell({
       </aside>
 
       <div className={styles.content}>
-        <main className={`${styles.main} ${styles.fadeIn}`}>{children}</main>
+        <main
+          className={`${wide ? styles.mainWide : styles.main} ${styles.fadeIn}`}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

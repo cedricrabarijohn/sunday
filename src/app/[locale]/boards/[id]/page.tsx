@@ -192,6 +192,7 @@ export default async function BoardDetail({
       currentWorkspaceId={board.workspaceId ?? undefined}
       currentBoardId={boardId}
       workspaceBoards={workspaceBoards}
+      wide
     >
       <TasksClient
         boardId={boardId}
