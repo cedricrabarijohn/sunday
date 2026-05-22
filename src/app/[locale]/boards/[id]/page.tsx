@@ -1,7 +1,15 @@
 import { notFound, redirect } from "next/navigation";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardTasks, boards, users, workspaceUsers, workspaces } from "@/db/schema";
+import {
+  boardTaskAttachments,
+  boardTaskItems,
+  boardTasks,
+  boards,
+  users,
+  workspaceUsers,
+  workspaces,
+} from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
 import AppShell from "../../workspaces/AppShell";
 import TasksClient from "./TasksClient";
@@ -64,7 +72,7 @@ export default async function BoardDetail({
     .from(boards)
     .where(and(eq(boards.workspaceId, board.workspaceId!), isNull(boards.deletedAt)));
 
-  const tasks = await db
+  const rawTasks = await db
     .select({
       id: boardTasks.id,
       title: boardTasks.title,
@@ -74,6 +82,54 @@ export default async function BoardDetail({
     .from(boardTasks)
     .where(and(eq(boardTasks.boardId, boardId), isNull(boardTasks.deletedAt)))
     .orderBy(asc(boardTasks.position), asc(boardTasks.id));
+
+  const taskIds = rawTasks.map((t) => t.id);
+  const itemStats = taskIds.length
+    ? await db
+        .select({
+          cardId: boardTaskItems.boardTaskId,
+          total: sql<number>`COUNT(*)`.as("total"),
+          done: sql<number>`SUM(CASE WHEN ${boardTaskItems.done} = 1 THEN 1 ELSE 0 END)`.as("done"),
+        })
+        .from(boardTaskItems)
+        .where(
+          and(
+            sql`${boardTaskItems.boardTaskId} IN (${sql.join(taskIds, sql`, `)})`,
+            isNull(boardTaskItems.deletedAt),
+          ),
+        )
+        .groupBy(boardTaskItems.boardTaskId)
+    : [];
+
+  const attachmentStats = taskIds.length
+    ? await db
+        .select({
+          cardId: boardTaskAttachments.boardTaskId,
+          total: sql<number>`COUNT(*)`.as("total"),
+        })
+        .from(boardTaskAttachments)
+        .where(
+          and(
+            sql`${boardTaskAttachments.boardTaskId} IN (${sql.join(taskIds, sql`, `)})`,
+            isNull(boardTaskAttachments.deletedAt),
+          ),
+        )
+        .groupBy(boardTaskAttachments.boardTaskId)
+    : [];
+
+  const itemsById = new Map(itemStats.map((s) => [s.cardId, s]));
+  const attachmentsById = new Map(attachmentStats.map((s) => [s.cardId, s]));
+
+  const tasks = rawTasks.map((t) => {
+    const itemStat = itemsById.get(t.id);
+    const attachmentStat = attachmentsById.get(t.id);
+    return {
+      ...t,
+      itemsTotal: Number(itemStat?.total ?? 0),
+      itemsDone: Number(itemStat?.done ?? 0),
+      attachments: Number(attachmentStat?.total ?? 0),
+    };
+  });
 
   return (
     <AppShell

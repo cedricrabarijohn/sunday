@@ -12,6 +12,8 @@ import {
 } from "react";
 import Link from "next/link";
 import { colorForId } from "@/lib/palette";
+import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
+import rowStyles from "./Task.module.scss";
 import styles from "../../workspaces/AppShell.module.scss";
 
 function useAnimatedNumber(target: number, duration = 480) {
@@ -45,6 +47,9 @@ type Task = {
   title: string | null;
   done: number;
   position: number | null;
+  itemsTotal: number;
+  itemsDone: number;
+  attachments: number;
 };
 
 export default function TasksClient({
@@ -65,6 +70,7 @@ export default function TasksClient({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
+  const [openCardId, setOpenCardId] = useState<number | null>(null);
 
   const boardColor = colorForId(boardId);
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -92,7 +98,18 @@ export default function TasksClient({
     const tempId = -Date.now();
     const nextPos = (tasks.at(-1)?.position ?? 0) + 1;
     startTransition(() => {
-      setTasks((prev) => [...prev, { id: tempId, title: trimmed, done: 0, position: nextPos }]);
+      setTasks((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          title: trimmed,
+          done: 0,
+          position: nextPos,
+          itemsTotal: 0,
+          itemsDone: 0,
+          attachments: 0,
+        },
+      ]);
       setNewTitle("");
     });
 
@@ -111,7 +128,13 @@ export default function TasksClient({
       setTasks((prev) =>
         prev.map((t) =>
           t.id === tempId
-            ? { id: data.task.id, title: data.task.title, done: 0, position: data.task.position }
+            ? {
+                ...t,
+                id: data.task.id,
+                title: data.task.title,
+                done: 0,
+                position: data.task.position,
+              }
             : t,
         ),
       );
@@ -246,33 +269,79 @@ export default function TasksClient({
             </div>
           ) : (
             <div className={styles.tasksList}>
-              {tasks.map((t, i) => (
-                <div key={t.id} className={styles.taskRow}>
-                  <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
-                  <button
-                    type="button"
-                    className={`${styles.taskCheck} ${t.done ? styles.taskCheckDone : ""}`}
-                    onClick={() => onToggleDone(t.id, t.done)}
-                    aria-label={t.done ? "Mark as not done" : "Mark as done"}
-                  />
-                  <input
-                    className={`${styles.taskTitle} ${t.done ? styles.taskTitleDone : ""}`}
-                    defaultValue={t.title || ""}
-                    onChange={(e) => onRename(t.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                    }}
-                  />
-                  <button
-                    className={styles.dangerBtn}
-                    onClick={() => onDelete(t.id)}
-                    type="button"
-                    aria-label="Delete task"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
+              {tasks.map((t, i) => {
+                const itemPct =
+                  t.itemsTotal === 0 ? 0 : Math.round((t.itemsDone / t.itemsTotal) * 100);
+                return (
+                  <div key={t.id} className={styles.taskRow}>
+                    <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
+                    <button
+                      type="button"
+                      className={`${styles.taskCheck} ${t.done ? styles.taskCheckDone : ""}`}
+                      onClick={() => onToggleDone(t.id, t.done)}
+                      aria-label={t.done ? "Mark as not done" : "Mark as done"}
+                    />
+                    <input
+                      className={`${styles.taskTitle} ${t.done ? styles.taskTitleDone : ""}`}
+                      defaultValue={t.title || ""}
+                      onChange={(e) => onRename(t.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                    />
+                    <div className={rowStyles.badges}>
+                      {t.itemsTotal > 0 && (
+                        <button
+                          type="button"
+                          className={rowStyles.badge}
+                          onClick={() => t.id > 0 && setOpenCardId(t.id)}
+                          aria-label="Open card sub-tasks"
+                          title={`${t.itemsDone} of ${t.itemsTotal} sub-tasks done`}
+                          data-complete={t.itemsTotal === t.itemsDone}
+                        >
+                          <span className={rowStyles.badgeIcon} aria-hidden>✓</span>
+                          <span>{t.itemsDone}/{t.itemsTotal}</span>
+                          <span className={rowStyles.miniBar} aria-hidden>
+                            <span
+                              className={rowStyles.miniBarFill}
+                              style={{ width: `${itemPct}%` }}
+                            />
+                          </span>
+                        </button>
+                      )}
+                      {t.attachments > 0 && (
+                        <button
+                          type="button"
+                          className={rowStyles.badge}
+                          onClick={() => t.id > 0 && setOpenCardId(t.id)}
+                          aria-label="Open card images"
+                          title={`${t.attachments} ${t.attachments === 1 ? "image" : "images"}`}
+                        >
+                          <span className={rowStyles.badgeIcon} aria-hidden>▣</span>
+                          <span>{t.attachments}</span>
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={rowStyles.openBtn}
+                      onClick={() => t.id > 0 && setOpenCardId(t.id)}
+                      aria-label="Open card details"
+                      title="Open card"
+                    >
+                      ›
+                    </button>
+                    <button
+                      className={styles.dangerBtn}
+                      onClick={() => onDelete(t.id)}
+                      type="button"
+                      aria-label="Delete task"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -317,6 +386,34 @@ export default function TasksClient({
           </div>
         </aside>
       </div>
+
+      {openCardId !== null && (
+        <CardDrawer
+          cardId={openCardId}
+          onClose={() => setOpenCardId(null)}
+          onCountsChange={(id, counts: CardCounts) =>
+            setTasks((prev) =>
+              prev.map((t) =>
+                t.id === id
+                  ? {
+                      ...t,
+                      itemsTotal: counts.itemsTotal,
+                      itemsDone: counts.itemsDone,
+                      attachments: counts.attachments,
+                    }
+                  : t,
+              ),
+            )
+          }
+          onTitleChange={(id, title) =>
+            setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)))
+          }
+          onDoneChange={(id, done) =>
+            setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done } : t)))
+          }
+          onDelete={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
+        />
+      )}
     </>
   );
 }
