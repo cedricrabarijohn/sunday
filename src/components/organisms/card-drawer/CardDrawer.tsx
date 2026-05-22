@@ -89,25 +89,36 @@ export default function CardDrawer({
 
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const descTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const descRef = useRef<HTMLDivElement | null>(null);
-  const descInitializedRef = useRef(false);
+  const [descEditing, setDescEditing] = useState(false);
+  const [descSaving, setDescSaving] = useState(false);
   const [descDragActive, setDescDragActive] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Re-initialize the description editor whenever a new card opens.
+  // When a new card opens, exit any in-progress edit so the next open
+  // starts from a clean read-only view.
   useEffect(() => {
-    descInitializedRef.current = false;
+    setDescEditing(false);
+    setDescDragActive(false);
   }, [cardId]);
 
-  // Populate the contentEditable with the initial description HTML once,
-  // when data first loads for this card. After that the DOM is owned by
-  // the editor — React does not touch it.
+  // Whenever we enter edit mode, seed the editor with the persisted
+  // description as real DOM. The editor is uncontrolled from then on;
+  // React does not touch it again until the next entry into edit mode.
   useEffect(() => {
-    if (!data || descInitializedRef.current || !descRef.current) return;
+    if (!descEditing || !descRef.current || !data) return;
     descRef.current.innerHTML = descriptionToHtml(data.card.description ?? "");
-    descInitializedRef.current = true;
-  }, [data]);
+    descRef.current.focus();
+    // Place caret at end so the user can immediately keep typing.
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(descRef.current);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }, [descEditing, data]);
 
   // Fetch detail on mount
   useEffect(() => {
@@ -191,33 +202,45 @@ export default function CardDrawer({
   };
 
   // --- Description ---
-  // The description is stored as a small markdown subset:
-  //   - paragraphs separated by blank lines
-  //   - `![alt](url)` for an inline image
-  // The editor below is a contentEditable div: text is rendered as text,
-  // images as real <img> elements. We serialize the DOM back to markdown
-  // on every input and debounce-save to the API.
+  // The description is stored as a small markdown subset. The editor is
+  // a contentEditable div that's only shown in edit mode. Saving is
+  // explicit (Save button); Cancel discards the in-editor changes.
 
-  const persistDesc = (description: string) => {
-    setData((prev) => (prev ? { ...prev, card: { ...prev.card, description } } : prev));
-    if (descTimer.current) clearTimeout(descTimer.current);
-    descTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/tasks/${cardId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ description }),
-        });
-        if (!res.ok) setError("Could not save description");
-      } catch {
-        setError("Network error. Description not saved.");
-      }
-    }, 400);
+  const enterEdit = () => setDescEditing(true);
+
+  const cancelEdit = () => {
+    setDescEditing(false);
+    setDescDragActive(false);
   };
 
-  const onDescInput = () => {
-    if (!descRef.current) return;
-    persistDesc(serializeDescription(descRef.current));
+  const saveEdit = async () => {
+    if (!descRef.current || !data) return;
+    const next = serializeDescription(descRef.current);
+    setDescSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tasks/${cardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: next }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Could not save description");
+        return;
+      }
+      setData((prev) => (prev ? { ...prev, card: { ...prev.card, description: next } } : prev));
+      setDescEditing(false);
+    } catch {
+      setError("Network error. Description not saved.");
+    } finally {
+      setDescSaving(false);
+    }
+  };
+
+  const applyCommand = (command: string, value?: string) => {
+    descRef.current?.focus();
+    document.execCommand(command, false, value);
   };
 
   // Upload a single image and push the new attachment to local state so
@@ -304,7 +327,6 @@ export default function CardDrawer({
         const up = await uploadImageForDescription(file);
         if (up) insertImageAtCursor(up.url, up.alt);
       }
-      onDescInput();
       return;
     }
 
@@ -314,7 +336,6 @@ export default function CardDrawer({
     if (text) {
       e.preventDefault();
       document.execCommand("insertText", false, text);
-      onDescInput();
     }
   };
 
@@ -364,13 +385,22 @@ export default function CardDrawer({
         dropRange.collapse(true);
       }
     }
+    // If the caret landed outside the editor (e.g. on the toolbar / footer
+    // / overlay) fall back to inserting at the end of the editor.
+    if (dropRange && descRef.current && !descRef.current.contains(dropRange.startContainer)) {
+      dropRange = null;
+    }
+    if (!dropRange && descRef.current) {
+      dropRange = document.createRange();
+      dropRange.selectNodeContents(descRef.current);
+      dropRange.collapse(false);
+    }
     focusEditorAtRange(dropRange);
 
     for (const file of files) {
       const up = await uploadImageForDescription(file);
       if (up) insertImageAtCursor(up.url, up.alt);
     }
-    onDescInput();
   };
 
   // --- Items ---
@@ -533,15 +563,61 @@ export default function CardDrawer({
 
   const onDeleteAttachment = async (id: number) => {
     if (!data) return;
-    const snapshot = data.attachments;
-    setData({ ...data, attachments: snapshot.filter((a) => a.id !== id) });
+    const attachment = data.attachments.find((a) => a.id === id);
+    const snapshotAttachments = data.attachments;
+    const snapshotDescription = data.card.description ?? "";
+
+    const scrubbedDescription = attachment?.url
+      ? stripImageFromDescription(snapshotDescription, attachment.url)
+      : snapshotDescription;
+    const descriptionChanged = scrubbedDescription !== snapshotDescription;
+
+    // Optimistic: drop the attachment row and scrub the description.
+    setData({
+      ...data,
+      attachments: snapshotAttachments.filter((a) => a.id !== id),
+      card: { ...data.card, description: scrubbedDescription },
+    });
+
+    // If the editor is open, also remove the matching <img> from the DOM
+    // so the user doesn't see a broken reference while editing.
+    if (descEditing && descRef.current && attachment?.url) {
+      const imgs = descRef.current.querySelectorAll("img");
+      for (const img of Array.from(imgs)) {
+        if ((img as HTMLImageElement).src === attachment.url) img.remove();
+      }
+    }
+
     try {
       const res = await fetch(`/api/attachments/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        setData({ ...data, attachments: snapshot });
+        setData({
+          ...data,
+          attachments: snapshotAttachments,
+          card: { ...data.card, description: snapshotDescription },
+        });
         setError("Could not delete image");
+        return;
+      }
+      // Also persist the cleaned description so a refresh stays clean.
+      if (descriptionChanged) {
+        try {
+          await fetch(`/api/tasks/${cardId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: scrubbedDescription }),
+          });
+        } catch {
+          // Non-fatal: the attachment is gone, the description will catch
+          // up next time the user saves the description.
+        }
       }
     } catch {
+      setData({
+        ...data,
+        attachments: snapshotAttachments,
+        card: { ...data.card, description: snapshotDescription },
+      });
       setError("Network error.");
     }
   };
@@ -775,31 +851,65 @@ export default function CardDrawer({
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Description</span>
-                <span className={styles.descHint}>Paste or drop an image to embed it</span>
+                {!descEditing && (
+                  <button type="button" className={styles.linkBtn} onClick={enterEdit}>
+                    {data.card.description ? "Edit" : "Add"}
+                  </button>
+                )}
               </div>
-              <div className={styles.descShell}>
+
+              {descEditing ? (
                 <div
-                  ref={descRef}
-                  className={`${styles.descEditor} ${descDragActive ? styles.descEditorDrop : ""}`}
-                  contentEditable
-                  suppressContentEditableWarning
-                  spellCheck
-                  onInput={onDescInput}
-                  onPaste={onDescPaste}
+                  className={`${styles.descShell} ${descDragActive ? styles.descShellDrop : ""}`}
                   onDragEnter={onDescDragEnter}
                   onDragOver={onDescDragOver}
                   onDragLeave={onDescDragLeave}
                   onDrop={onDescDrop}
-                  data-placeholder="Write a description. Paste or drop images right here to embed them inline."
-                />
-                <div
-                  className={`${styles.descDropOverlay} ${descDragActive ? styles.descDropOverlayActive : ""}`}
-                  aria-hidden
                 >
-                  <span className={styles.descDropMark}>↧</span>
-                  Drop image to embed
+                  <DescToolbar onCmd={applyCommand} />
+                  <div
+                    ref={descRef}
+                    className={styles.descEditor}
+                    contentEditable
+                    suppressContentEditableWarning
+                    spellCheck
+                    onPaste={onDescPaste}
+                    data-placeholder="Write a description. Use the toolbar to format. Paste or drop an image anywhere here to embed it."
+                  />
+                  <div className={styles.descFooter}>
+                    <span className={styles.descFooterHint}>
+                      Paste or drop an image to embed it inline
+                    </span>
+                    <div className={styles.descFooterActions}>
+                      <button
+                        type="button"
+                        className={styles.descBtnGhost}
+                        onClick={cancelEdit}
+                        disabled={descSaving}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.descBtnPrimary}
+                        onClick={saveEdit}
+                        disabled={descSaving}
+                      >
+                        {descSaving ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className={`${styles.descDropOverlay} ${descDragActive ? styles.descDropOverlayActive : ""}`}
+                    aria-hidden
+                  >
+                    <span className={styles.descDropMark}>↧</span>
+                    Drop image to embed
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <DescriptionView text={data.card.description ?? ""} onEdit={enterEdit} />
+              )}
             </section>
 
             <section className={styles.section}>
@@ -1188,13 +1298,15 @@ function LabelCreator({
 /* ------------------------------------------------------- *
  *   Description <-> markdown converters.
  *
- *   The description is stored as a tiny markdown subset:
- *     - paragraphs are separated by blank lines
- *     - a line "![alt](url)" is an inline image
+ *   Stored as a small markdown subset:
+ *     - paragraphs separated by blank lines
+ *     - **bold**, *italic*, __underline__, ~~strike~~, `code`
+ *     - "- " unordered list line, "1. " ordered list line
+ *     - "![alt](url)" image
  *
- *   The WYSIWYG editor displays them as real <p> and <img> elements.
- *   On every input we serialize the DOM back to that markdown shape
- *   so the persisted shape stays simple and safe.
+ *   The WYSIWYG editor renders these as real DOM nodes. On Save we
+ *   serialize the DOM back to markdown so the stored form stays
+ *   portable and we never have to trust raw HTML.
  * ------------------------------------------------------- */
 
 const IMAGE_LINE = /^!\[([^\]]*)\]\((\S+)\)\s*$/;
@@ -1207,92 +1319,290 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Allow only http(s) and root-relative URLs in <img src>. */
+function safeUrl(url: string): string | null {
+  const t = url.trim();
+  if (!t) return null;
+  if (t.startsWith("/")) return t;
+  if (/^https?:\/\//i.test(t)) return t;
+  return null;
+}
+
+function inlineMd(text: string): string {
+  let t = escapeHtml(text);
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/__([^_]+)__/g, "<u>$1</u>");
+  t = t.replace(/~~([^~]+)~~/g, "<s>$1</s>");
+  t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt: string, url: string) => {
+    const safe = safeUrl(url);
+    if (!safe) return "";
+    return `<img src="${escapeHtml(safe)}" alt="${escapeHtml(alt)}" draggable="false" />`;
+  });
+  return t;
+}
+
 function descriptionToHtml(text: string): string {
   if (!text.trim()) return "";
   const blocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
   return blocks
     .map((block) => {
       const lines = block.split("\n");
-      // If every line in the block is an image-only line, render as an
-      // image row. Otherwise emit a paragraph with <br> between lines.
-      const matches = lines.map((l) => l.match(IMAGE_LINE));
-      if (matches.every((m) => m !== null)) {
+
+      const imgMatches = lines.map((l) => l.match(IMAGE_LINE));
+      if (imgMatches.every((m) => m !== null)) {
         return (
           "<p>" +
-          matches
-            .map((m) =>
-              m ? `<img src="${escapeHtml(m[2])}" alt="${escapeHtml(m[1])}" draggable="false" />` : "",
-            )
+          imgMatches
+            .map((m) => {
+              if (!m) return "";
+              const safe = safeUrl(m[2]);
+              if (!safe) return "";
+              return `<img src="${escapeHtml(safe)}" alt="${escapeHtml(m[1])}" draggable="false" />`;
+            })
             .join("") +
           "</p>"
         );
       }
-      return (
-        "<p>" +
-        lines
-          .map((l) => escapeHtml(l))
-          .join("<br>") +
-        "</p>"
-      );
+
+      if (lines.every((l) => /^- /.test(l))) {
+        return (
+          "<ul>" +
+          lines.map((l) => `<li>${inlineMd(l.replace(/^- /, ""))}</li>`).join("") +
+          "</ul>"
+        );
+      }
+
+      if (lines.every((l) => /^\d+\. /.test(l))) {
+        return (
+          "<ol>" +
+          lines.map((l) => `<li>${inlineMd(l.replace(/^\d+\.\s+/, ""))}</li>`).join("") +
+          "</ol>"
+        );
+      }
+
+      return "<p>" + lines.map(inlineMd).join("<br>") + "</p>";
     })
     .join("");
+}
+
+function inlineToMarkdown(el: Node): string {
+  let out = "";
+  for (const child of Array.from(el.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      out += child.textContent ?? "";
+      continue;
+    }
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const c = child as HTMLElement;
+    const tag = c.tagName;
+    if (tag === "BR") {
+      out += "\n";
+    } else if (tag === "STRONG" || tag === "B") {
+      out += `**${inlineToMarkdown(c)}**`;
+    } else if (tag === "EM" || tag === "I") {
+      out += `*${inlineToMarkdown(c)}*`;
+    } else if (tag === "U") {
+      out += `__${inlineToMarkdown(c)}__`;
+    } else if (tag === "S" || tag === "STRIKE" || tag === "DEL") {
+      out += `~~${inlineToMarkdown(c)}~~`;
+    } else if (tag === "CODE") {
+      out += `\`${inlineToMarkdown(c)}\``;
+    } else if (tag === "IMG") {
+      const img = c as HTMLImageElement;
+      const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
+      out += `\n![${alt}](${img.src})\n`;
+    } else {
+      out += inlineToMarkdown(c);
+    }
+  }
+  return out;
 }
 
 function serializeDescription(editor: HTMLElement): string {
   const blocks: string[] = [];
 
-  const flushText = (buf: string) => {
-    const trimmed = buf.replace(/ /g, " ").replace(/[ \t]+$/gm, "");
-    if (trimmed.trim()) blocks.push(trimmed.trim());
-  };
-
-  const visitBlock = (el: Element) => {
-    let buf = "";
-    for (const child of Array.from(el.childNodes)) {
-      if (child.nodeType === Node.TEXT_NODE) {
-        buf += child.textContent ?? "";
-        continue;
-      }
-      if (child.nodeType !== Node.ELEMENT_NODE) continue;
-      const c = child as HTMLElement;
-      const tag = c.tagName;
-      if (tag === "BR") {
-        buf += "\n";
-      } else if (tag === "IMG") {
-        flushText(buf);
-        buf = "";
-        const img = c as HTMLImageElement;
-        const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
-        blocks.push(`![${alt}](${img.src})`);
-      } else if (tag === "DIV" || tag === "P") {
-        // Nested block — finish current text and recurse.
-        flushText(buf);
-        buf = "";
-        visitBlock(c);
+  const pushParagraph = (markdown: string) => {
+    const lines = markdown.split("\n");
+    let buf: string[] = [];
+    const flush = () => {
+      if (buf.length === 0) return;
+      const text = buf.join("\n").trim();
+      if (text) blocks.push(text);
+      buf = [];
+    };
+    for (const line of lines) {
+      if (IMAGE_LINE.test(line.trim())) {
+        flush();
+        blocks.push(line.trim());
       } else {
-        // Anything else: keep its text content.
-        buf += c.textContent ?? "";
+        buf.push(line);
       }
     }
-    flushText(buf);
+    flush();
   };
 
-  for (const node of Array.from(editor.childNodes)) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const t = (node.textContent ?? "").trim();
-      if (t) blocks.push(t);
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
+  const visit = (parent: Node) => {
+    for (const node of Array.from(parent.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const t = (node.textContent ?? "").trim();
+        if (t) blocks.push(t);
+        continue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
       const el = node as HTMLElement;
-      if (el.tagName === "BR") continue;
-      if (el.tagName === "IMG") {
+      const tag = el.tagName;
+      if (tag === "BR") continue;
+      if (tag === "IMG") {
         const img = el as HTMLImageElement;
         const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
         blocks.push(`![${alt}](${img.src})`);
-      } else {
-        visitBlock(el);
+        continue;
       }
+      if (tag === "UL") {
+        const items = Array.from(el.children).filter((c) => c.tagName === "LI") as HTMLElement[];
+        for (const li of items) blocks.push(`- ${inlineToMarkdown(li).trim()}`);
+        continue;
+      }
+      if (tag === "OL") {
+        const items = Array.from(el.children).filter((c) => c.tagName === "LI") as HTMLElement[];
+        items.forEach((li, i) => blocks.push(`${i + 1}. ${inlineToMarkdown(li).trim()}`));
+        continue;
+      }
+      if (tag === "P" || tag === "DIV") {
+        pushParagraph(inlineToMarkdown(el));
+        continue;
+      }
+      pushParagraph(inlineToMarkdown(el));
     }
-  }
+  };
 
-  return blocks.join("\n\n");
+  visit(editor);
+  return blocks.join("\n\n").trim();
+}
+
+/** Strip every occurrence of an image URL from a description. */
+function stripImageFromDescription(text: string, url: string): string {
+  if (!text || !url) return text ?? "";
+  const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const inlinePattern = new RegExp(`!\\[[^\\]]*\\]\\(${escaped}\\)`, "g");
+  const lines = text.split("\n").map((l) => l.replace(inlinePattern, ""));
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/* ------------------------------------------------------- *
+ *   Read-only renderer for the description.
+ *   Re-uses the markdown -> HTML pass; the HTML is safe because we
+ *   produced it ourselves from a known-controlled markdown shape.
+ * ------------------------------------------------------- */
+
+function DescriptionView({ text, onEdit }: { text: string; onEdit: () => void }) {
+  if (!text.trim()) {
+    return (
+      <button type="button" className={styles.descEmpty} onClick={onEdit}>
+        No description yet. Click to add one.
+      </button>
+    );
+  }
+  return (
+    <div
+      className={styles.descView}
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+      dangerouslySetInnerHTML={{ __html: descriptionToHtml(text) }}
+    />
+  );
+}
+
+/* ------------------------------------------------------- *
+ *   Description toolbar: minimal formatting commands.
+ *   The buttons use mousedown + preventDefault so the focus stays on
+ *   the editor and the current selection is preserved.
+ * ------------------------------------------------------- */
+
+const TOOLBAR_BUTTONS: ReadonlyArray<{
+  cmd: string;
+  label: string;
+  title: string;
+  weight?: number;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  mono?: boolean;
+}> = [
+  { cmd: "bold", label: "B", title: "Bold (Ctrl/Cmd+B)", weight: 700 },
+  { cmd: "italic", label: "I", title: "Italic (Ctrl/Cmd+I)", italic: true },
+  { cmd: "underline", label: "U", title: "Underline (Ctrl/Cmd+U)", underline: true },
+  { cmd: "strikeThrough", label: "S", title: "Strikethrough", strike: true },
+  { cmd: "insertUnorderedList", label: "•", title: "Bullet list" },
+  { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
+];
+
+function DescToolbar({ onCmd }: { onCmd: (cmd: string, value?: string) => void }) {
+  const wrapCode = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const text = range.toString();
+    if (!text) return;
+    const node = document.createElement("code");
+    node.textContent = text;
+    range.deleteContents();
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.setEndAfter(node);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  return (
+    <div className={styles.toolbar} role="toolbar" aria-label="Formatting">
+      {TOOLBAR_BUTTONS.map((b) => (
+        <button
+          key={b.cmd}
+          type="button"
+          className={styles.toolbarBtn}
+          title={b.title}
+          aria-label={b.title}
+          style={{
+            fontWeight: b.weight ?? 500,
+            fontStyle: b.italic ? "italic" : undefined,
+            textDecoration: b.underline
+              ? "underline"
+              : b.strike
+              ? "line-through"
+              : undefined,
+            fontFamily: b.mono ? "var(--font-mono)" : undefined,
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onCmd(b.cmd);
+          }}
+        >
+          {b.label}
+        </button>
+      ))}
+      <button
+        type="button"
+        className={styles.toolbarBtn}
+        title="Inline code"
+        aria-label="Inline code"
+        style={{ fontFamily: "var(--font-mono)" }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          wrapCode();
+        }}
+      >
+        &lt;/&gt;
+      </button>
+    </div>
+  );
 }
