@@ -148,7 +148,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   position: relative;
   box-shadow: var(--shadow-sm);
@@ -161,6 +161,11 @@
 }
 .card:hover .cardActions { opacity: 1; }
 .card:active { cursor: grabbing; }
+
+/* Inputs and buttons inside the card keep their own cursor so the
+   card-level pointer doesn't override them. */
+.cardTitle { cursor: text; }
+.iconBtn { cursor: pointer; }
 
 .cardDragging {
   opacity: 0.4;

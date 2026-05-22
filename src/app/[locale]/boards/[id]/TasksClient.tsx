@@ -730,6 +730,15 @@ function KanbanCard({
   onOpen: (id: number) => void;
 }) {
   const itemPct = card.itemsTotal === 0 ? 0 : Math.round((card.itemsDone / card.itemsTotal) * 100);
+  const onCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (card.id < 0) return;
+    const target = e.target as HTMLElement;
+    // Don't open the drawer when the click landed on something interactive
+    // inside the card (title input, action buttons, label chips, etc.)
+    if (target.closest("input, textarea, button, a, [contenteditable]")) return;
+    onOpen(card.id);
+  };
+
   return (
     <div
       className={`${kStyles.card} ${dragging ? kStyles.cardDragging : ""}`}
@@ -737,7 +746,18 @@ function KanbanCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
-      onDoubleClick={() => onOpen(card.id)}
+      onClick={onCardClick}
+      role="button"
+      tabIndex={card.id > 0 ? 0 : -1}
+      onKeyDown={(e) => {
+        if (card.id < 0) return;
+        if (e.key === "Enter" || e.key === " ") {
+          const target = e.target as HTMLElement;
+          if (target.closest("input, textarea, button, a, [contenteditable]")) return;
+          e.preventDefault();
+          onOpen(card.id);
+        }
+      }}
     >
       {card.labels.length > 0 && (
         <div className={kStyles.cardChips}>
