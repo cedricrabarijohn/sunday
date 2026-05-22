@@ -1330,7 +1330,15 @@ function safeUrl(url: string): string | null {
 
 function inlineMd(text: string): string {
   let t = escapeHtml(text);
-  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  // Extract `code` spans into placeholders so bold/italic/etc. don't
+  // eat markers that happen to live inside code.
+  const codes: string[] = [];
+  t = t.replace(/`([^`]+)`/g, (_m, c: string) => {
+    const i = codes.push(`<code>${c}</code>`) - 1;
+    return ` ${i} `;
+  });
+
   t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   t = t.replace(/__([^_]+)__/g, "<u>$1</u>");
   t = t.replace(/~~([^~]+)~~/g, "<s>$1</s>");
@@ -1340,6 +1348,10 @@ function inlineMd(text: string): string {
     if (!safe) return "";
     return `<img src="${escapeHtml(safe)}" alt="${escapeHtml(alt)}" draggable="false" />`;
   });
+
+  // Restore protected code spans.
+  t = t.replace(/ (\d+) /g, (_m, idx: string) => codes[Number(idx)] ?? "");
+
   return t;
 }
 
@@ -1420,6 +1432,25 @@ function inlineToMarkdown(el: Node): string {
   return out;
 }
 
+const INLINE_TAGS = new Set([
+  "STRONG",
+  "B",
+  "EM",
+  "I",
+  "U",
+  "S",
+  "STRIKE",
+  "DEL",
+  "CODE",
+  "A",
+  "SPAN",
+  "FONT",
+  "SUB",
+  "SUP",
+  "MARK",
+  "SMALL",
+]);
+
 function serializeDescription(editor: HTMLElement): string {
   const blocks: string[] = [];
 
@@ -1444,38 +1475,77 @@ function serializeDescription(editor: HTMLElement): string {
   };
 
   const visit = (parent: Node) => {
+    let inlineBuf: string[] = [];
+    const flushInline = () => {
+      const md = inlineBuf.join("").trim();
+      if (md) pushParagraph(md);
+      inlineBuf = [];
+    };
+
     for (const node of Array.from(parent.childNodes)) {
       if (node.nodeType === Node.TEXT_NODE) {
-        const t = (node.textContent ?? "").trim();
-        if (t) blocks.push(t);
+        inlineBuf.push(node.textContent ?? "");
         continue;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) continue;
       const el = node as HTMLElement;
       const tag = el.tagName;
-      if (tag === "BR") continue;
+
+      if (tag === "BR") {
+        inlineBuf.push("\n");
+        continue;
+      }
+      if (INLINE_TAGS.has(tag)) {
+        inlineBuf.push(inlineToMarkdown(el));
+        continue;
+      }
       if (tag === "IMG") {
+        // Top-level image: its own block.
+        flushInline();
         const img = el as HTMLImageElement;
         const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
         blocks.push(`![${alt}](${img.src})`);
         continue;
       }
+
+      // Block elements from here on: flush any pending inline content.
+      flushInline();
+
       if (tag === "UL") {
         const items = Array.from(el.children).filter((c) => c.tagName === "LI") as HTMLElement[];
-        for (const li of items) blocks.push(`- ${inlineToMarkdown(li).trim()}`);
+        if (items.length) {
+          // Whole list = one block so the renderer sees consecutive
+          // "- " lines and groups them back into a single <ul>.
+          blocks.push(items.map((li) => `- ${inlineToMarkdown(li).trim()}`).join("\n"));
+        }
         continue;
       }
       if (tag === "OL") {
         const items = Array.from(el.children).filter((c) => c.tagName === "LI") as HTMLElement[];
-        items.forEach((li, i) => blocks.push(`${i + 1}. ${inlineToMarkdown(li).trim()}`));
+        if (items.length) {
+          blocks.push(items.map((li, i) => `${i + 1}. ${inlineToMarkdown(li).trim()}`).join("\n"));
+        }
         continue;
       }
-      if (tag === "P" || tag === "DIV") {
-        pushParagraph(inlineToMarkdown(el));
+      if (
+        tag === "P" ||
+        tag === "DIV" ||
+        tag === "BLOCKQUOTE" ||
+        tag === "SECTION" ||
+        tag === "ARTICLE" ||
+        tag === "HEADER" ||
+        tag === "FOOTER"
+      ) {
+        // Recurse so nested lists, images, etc. are picked up correctly.
+        visit(el);
         continue;
       }
+
+      // Unknown block: just keep its inline content as a paragraph.
       pushParagraph(inlineToMarkdown(el));
     }
+
+    flushInline();
   };
 
   visit(editor);
