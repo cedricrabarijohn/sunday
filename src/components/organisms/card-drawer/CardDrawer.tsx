@@ -404,50 +404,79 @@ export default function CardDrawer({
   };
 
   // --- Items ---
-  const onAddItem = async (e: FormEvent) => {
-    e.preventDefault();
+  // Shared add path. Accepts one or many titles so we can create one
+  // sub-task per pasted line in a single user action.
+  const createItems = async (rawTitles: string[]) => {
     if (!data) return;
-    const trimmed = newItem.trim();
-    if (!trimmed) return;
+    const titles = rawTitles.map((s) => s.trim()).filter(Boolean);
+    if (titles.length === 0) return;
+
     setAdding(true);
     setError(null);
 
-    const tempId = -Date.now();
-    const optimistic: Item = {
-      id: tempId,
-      title: trimmed,
+    let nextPos = data.items.at(-1)?.position ?? 0;
+    const baseId = -Date.now();
+    const optimistic: Item[] = titles.map((title, i) => ({
+      id: baseId - i,
+      title,
       done: 0,
-      position: (data.items.at(-1)?.position ?? 0) + 1,
-    };
-    const next = { ...data, items: [...data.items, optimistic] };
-    setData(next);
-    setNewItem("");
+      position: ++nextPos,
+    }));
+    const snapshot = data;
+    setData({ ...data, items: [...data.items, ...optimistic] });
 
     try {
-      const res = await fetch(`/api/cards/${cardId}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: trimmed }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setData({ ...data, items: data.items });
-        setError(json.error || "Could not add item");
-        return;
+      // Sequential so each insert sees the previous one's position and the
+      // server can re-pack cleanly. The optimistic items keep the UI lively.
+      for (const opt of optimistic) {
+        const res = await fetch(`/api/cards/${cardId}/items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: opt.title }),
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          setError(json.error || "Could not add some items");
+          break;
+        }
+        const json = await res.json();
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                items: prev.items.map((i) => (i.id === opt.id ? (json.item as Item) : i)),
+              }
+            : prev,
+        );
       }
-      setData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((i) => (i.id === tempId ? (json.item as Item) : i)),
-        };
-      });
     } catch {
-      setData({ ...data, items: data.items });
+      setData(snapshot);
       setError("Network error.");
     } finally {
       setAdding(false);
     }
+  };
+
+  const onAddItem = (e: FormEvent) => {
+    e.preventDefault();
+    const text = newItem;
+    setNewItem("");
+    void createItems([text]);
+  };
+
+  // Pasting multi-line text into the composer creates one sub-task per
+  // line. The text currently typed in the input (if any) gets merged into
+  // the first new line so nothing is lost.
+  const onItemPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData("text/plain");
+    if (!text || !/\r?\n/.test(text)) return; // single-line: default paste
+    e.preventDefault();
+    const lines = text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    const typed = newItem.trim();
+    const all = typed ? [`${typed} ${lines[0]}`, ...lines.slice(1)] : lines;
+    setNewItem("");
+    void createItems(all);
   };
 
   const onRenameItem = (id: number, title: string) => {
@@ -979,7 +1008,8 @@ export default function CardDrawer({
                   className={styles.composerInput}
                   value={newItem}
                   onChange={(e) => setNewItem(e.target.value)}
-                  placeholder="Add a sub-task and press enter"
+                  onPaste={onItemPaste}
+                  placeholder="Add a sub-task and press enter (paste a list to add many)"
                   maxLength={255}
                 />
                 <button
