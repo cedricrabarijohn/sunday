@@ -66,6 +66,7 @@ export default function TasksClient({
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [piles, setPiles] = useState<Pile[]>(initialPiles);
   const [labels, setLabels] = useState<WorkspaceLabel[]>(initialLabels);
+  const [title, setTitle] = useState<string>(boardTitle || "");
   const [error, setError] = useState<string | null>(null);
   const [openCardId, setOpenCardId] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState>(null);
@@ -74,6 +75,28 @@ export default function TasksClient({
   const [addPileDragOver, setAddPileDragOver] = useState(false);
 
   const pileRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const titleRenameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onRenameBoard = (next: string) => {
+    setTitle(next);
+    if (titleRenameTimer.current) clearTimeout(titleRenameTimer.current);
+    if (!next.trim()) return;
+    titleRenameTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/boards/${boardId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: next }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || "Could not rename board");
+        }
+      } catch {
+        setError("Network error. Board name not saved.");
+      }
+    }, 400);
+  };
 
   const cardsByPile = useMemo(() => {
     const map = new Map<number, Task[]>();
@@ -457,10 +480,20 @@ export default function TasksClient({
             className={styles.pageBadge}
             style={{ background: boardColor.soft, color: boardColor.hue }}
           >
-            {(boardTitle?.[0] || "B").toUpperCase()}
+            {(title?.[0] || "B").toUpperCase()}
           </span>
-          <div>
-            <h1 className={styles.pageTitle}>{boardTitle || "Untitled board"}</h1>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input
+              className={styles.pageTitleInput}
+              value={title}
+              onChange={(e) => onRenameBoard(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+              placeholder="Untitled board"
+              maxLength={100}
+              aria-label="Board name"
+            />
             <div className={styles.pageSubtitle}>
               in{" "}
               <Link

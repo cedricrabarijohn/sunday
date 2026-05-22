@@ -395,6 +395,31 @@
   line-height: 1.15;
 }
 
+.pageTitleInput {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  color: var(--text-1);
+  line-height: 1.15;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.05rem 0.4rem;
+  margin-left: -0.4rem;
+  font-family: inherit;
+  width: 100%;
+  min-width: 0;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.pageTitleInput:hover { background: var(--surface-2); }
+.pageTitleInput:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.pageTitleInput::placeholder { color: var(--text-mute); font-weight: 600; }
+
 .pageSubtitle {
   font-size: 13px;
   color: var(--text-3);
