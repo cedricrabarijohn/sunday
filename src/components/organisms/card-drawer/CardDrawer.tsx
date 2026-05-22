@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import styles from "./CardDrawer.module.scss";
 
@@ -79,6 +80,13 @@ export default function CardDrawer({
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Render via portal so the drawer escapes any ancestor that has a
+  // transform/filter/will-change and would otherwise trap position: fixed.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -481,7 +489,9 @@ export default function CardDrawer({
     : { total: 0, done: 0 };
   const pct = stats.total === 0 ? 0 : Math.round((stats.done / stats.total) * 100);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div className={styles.backdrop} onClick={onClose} />
       <aside className={styles.drawer} style={drawerStyle} role="dialog" aria-modal="true">
@@ -706,7 +716,8 @@ export default function CardDrawer({
           </button>
         </footer>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
 
