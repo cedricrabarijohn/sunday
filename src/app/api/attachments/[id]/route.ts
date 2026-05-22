@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boardTaskAttachments, boardTasks, boards, workspaceUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
+import { getStorage } from "@/lib/storage";
 
 async function loadAttachmentForUser(attachmentId: number, userId: number) {
   const [row] = await db
     .select({
       id: boardTaskAttachments.id,
       url: boardTaskAttachments.url,
+      storageKey: boardTaskAttachments.storageKey,
       boardTaskId: boardTaskAttachments.boardTaskId,
     })
     .from(boardTaskAttachments)
@@ -47,10 +47,18 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     .set({ deletedAt: new Date() })
     .where(eq(boardTaskAttachments.id, attachmentId));
 
-  // Best-effort cleanup of the file on disk; ignore failures.
-  if (attachment.url && attachment.url.startsWith("/uploads/")) {
-    const onDisk = path.join(process.cwd(), "public", attachment.url.slice(1));
-    fs.unlink(onDisk).catch(() => {});
+  // Best-effort delete from object storage.
+  // Prefer the stable storage_key; fall back to deriving a key from
+  // legacy local-disk URLs (/uploads/...) for rows uploaded before the
+  // abstraction was added.
+  let key = attachment.storageKey ?? null;
+  if (!key && attachment.url && attachment.url.startsWith("/uploads/")) {
+    key = attachment.url.replace(/^\/+/, "");
+  }
+  if (key) {
+    getStorage()
+      .delete(key)
+      .catch(() => {});
   }
 
   return NextResponse.json({ ok: true });

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import crypto from "crypto";
 import { db } from "@/db/client";
 import { boardTaskAttachments } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { loadCardForUser } from "@/lib/card-access";
+import { getStorage } from "@/lib/storage";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME = new Set([
@@ -60,13 +59,17 @@ export async function POST(
 
   const ext = EXT_FOR_MIME[file.type] ?? "bin";
   const name = `${crypto.randomUUID()}.${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads", String(cardId));
-  await fs.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, name);
+  const key = `uploads/${cardId}/${name}`;
   const buf = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(filePath, buf);
 
-  const url = `/uploads/${cardId}/${name}`;
+  let put: { url: string; key: string };
+  try {
+    put = await getStorage().put({ key, buffer: buf, mimeType: file.type });
+  } catch (err) {
+    console.error("[attachments] upload failed", err);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  }
+
   const original = (file.name || "image").slice(0, 255);
 
   const [result] = await db.insert(boardTaskAttachments).values({
@@ -74,7 +77,8 @@ export async function POST(
     filename: original,
     mimeType: file.type,
     sizeBytes: file.size,
-    url,
+    url: put.url,
+    storageKey: put.key,
     createdAt: new Date(),
   });
   const attachmentId = Number((result as { insertId: number }).insertId);
@@ -86,7 +90,7 @@ export async function POST(
         filename: original,
         mimeType: file.type,
         sizeBytes: file.size,
-        url,
+        url: put.url,
       },
     },
     { status: 201 },

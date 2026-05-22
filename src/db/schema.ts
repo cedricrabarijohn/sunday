@@ -215,6 +215,7 @@ export const boardTaskAttachments = mysqlTable("board_task_attachments", {
   mimeType: varchar("mime_type", { length: 64 }),
   sizeBytes: int("size_bytes"),
   url: varchar("url", { length: 500 }),
+  storageKey: varchar("storage_key", { length: 500 }),
   createdAt: datetime("created_at"),
   deletedAt: datetime("deleted_at"),
 });
