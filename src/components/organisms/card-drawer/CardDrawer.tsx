@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { colorForId } from "@/lib/palette";
+import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import styles from "./CardDrawer.module.scss";
 
 type Item = { id: number; title: string | null; done: number; position: number | null };
@@ -20,11 +20,20 @@ type Attachment = {
   sizeBytes: number | null;
   url: string | null;
 };
+export type WorkspaceLabel = {
+  id: number;
+  title: string;
+  color: string;
+  position: number | null;
+  isDefault: number;
+};
+type CardLabel = { id: number; title: string; color: string; position?: number | null };
 
 type CardDetail = {
-  card: { id: number; title: string | null; done: number };
+  card: { id: number; title: string | null };
   items: Item[];
   attachments: Attachment[];
+  labels: CardLabel[];
 };
 
 export type CardCounts = {
@@ -35,10 +44,13 @@ export type CardCounts = {
 
 type Props = {
   cardId: number;
+  workspaceId: number;
+  workspaceLabels: WorkspaceLabel[];
+  onWorkspaceLabelsChange: (next: WorkspaceLabel[]) => void;
   onClose: () => void;
   onCountsChange?: (cardId: number, counts: CardCounts) => void;
   onTitleChange?: (cardId: number, title: string) => void;
-  onDoneChange?: (cardId: number, done: number) => void;
+  onLabelsChange?: (cardId: number, labels: CardLabel[]) => void;
   onDelete?: (cardId: number) => void;
 };
 
@@ -51,10 +63,13 @@ function formatBytes(n: number | null) {
 
 export default function CardDrawer({
   cardId,
+  workspaceId,
+  workspaceLabels,
+  onWorkspaceLabelsChange,
   onClose,
   onCountsChange,
   onTitleChange,
-  onDoneChange,
+  onLabelsChange,
   onDelete,
 }: Props) {
   const [data, setData] = useState<CardDetail | null>(null);
@@ -63,6 +78,7 @@ export default function CardDrawer({
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,11 +106,14 @@ export default function CardDrawer({
   // Esc closes the drawer
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (pickerOpen) setPickerOpen(false);
+        else onClose();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, pickerOpen]);
 
   // Lock body scroll while drawer is open
   useEffect(() => {
@@ -116,7 +135,7 @@ export default function CardDrawer({
     [cardId, onCountsChange],
   );
 
-  // --- Card title rename (debounced) ---
+  // --- Card title rename ---
   const onCardTitleChange = (title: string) => {
     if (!data) return;
     setData({ ...data, card: { ...data.card, title } });
@@ -134,27 +153,6 @@ export default function CardDrawer({
         setError("Network error. Title not saved.");
       }
     }, 400);
-  };
-
-  const onCardDoneToggle = async () => {
-    if (!data) return;
-    const next = data.card.done ? 0 : 1;
-    setData({ ...data, card: { ...data.card, done: next } });
-    onDoneChange?.(cardId, next);
-    try {
-      const res = await fetch(`/api/tasks/${cardId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ done: !data.card.done }),
-      });
-      if (!res.ok) {
-        setError("Could not update card");
-        setData({ ...data, card: { ...data.card, done: data.card.done } });
-        onDoneChange?.(cardId, data.card.done);
-      }
-    } catch {
-      setError("Network error.");
-    }
   };
 
   // --- Items ---
@@ -194,11 +192,10 @@ export default function CardDrawer({
       }
       setData((prev) => {
         if (!prev) return prev;
-        const merged = {
+        return {
           ...prev,
           items: prev.items.map((i) => (i.id === tempId ? (json.item as Item) : i)),
         };
-        return merged;
       });
     } catch {
       const rolled = { ...data, items: data.items };
@@ -212,7 +209,9 @@ export default function CardDrawer({
 
   const onRenameItem = (id: number, title: string) => {
     setData((prev) =>
-      prev ? { ...prev, items: prev.items.map((i) => (i.id === id ? { ...i, title } : i)) } : prev,
+      prev
+        ? { ...prev, items: prev.items.map((i) => (i.id === id ? { ...i, title } : i)) }
+        : prev,
     );
     if (id < 0) return;
     const existing = renameTimers.current.get(id);
@@ -345,6 +344,112 @@ export default function CardDrawer({
     }
   };
 
+  // --- Labels ---
+  const persistCardLabels = async (cardLabels: CardLabel[]) => {
+    try {
+      const res = await fetch(`/api/cards/${cardId}/labels`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ labelIds: cardLabels.map((l) => l.id) }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Could not update labels");
+      }
+    } catch {
+      setError("Network error.");
+    }
+  };
+
+  const onToggleLabel = (label: WorkspaceLabel) => {
+    if (!data) return;
+    const has = data.labels.some((l) => l.id === label.id);
+    const nextLabels = has
+      ? data.labels.filter((l) => l.id !== label.id)
+      : [...data.labels, { id: label.id, title: label.title, color: label.color }];
+    const next = { ...data, labels: nextLabels };
+    setData(next);
+    onLabelsChange?.(cardId, nextLabels);
+    persistCardLabels(nextLabels);
+  };
+
+  const onCreateLabel = async (title: string, color: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/labels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed, color }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Could not create label");
+        return;
+      }
+      const next: WorkspaceLabel = { ...json.label };
+      onWorkspaceLabelsChange([...workspaceLabels, next]);
+    } catch {
+      setError("Network error.");
+    }
+  };
+
+  const onEditLabel = async (label: WorkspaceLabel, patch: Partial<WorkspaceLabel>) => {
+    const optimistic = workspaceLabels.map((l) => (l.id === label.id ? { ...l, ...patch } : l));
+    onWorkspaceLabelsChange(optimistic);
+    if (data) {
+      const inCard = data.labels.some((l) => l.id === label.id);
+      if (inCard) {
+        const nextCardLabels = data.labels.map((l) =>
+          l.id === label.id
+            ? { ...l, title: patch.title ?? l.title, color: patch.color ?? l.color }
+            : l,
+        );
+        setData({ ...data, labels: nextCardLabels });
+        onLabelsChange?.(cardId, nextCardLabels);
+      }
+    }
+    try {
+      const res = await fetch(`/api/labels/${label.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        onWorkspaceLabelsChange(workspaceLabels);
+        setError(json.error || "Could not update label");
+      }
+    } catch {
+      onWorkspaceLabelsChange(workspaceLabels);
+      setError("Network error.");
+    }
+  };
+
+  const onDeleteLabel = async (label: WorkspaceLabel) => {
+    if (!confirm(`Delete label "${label.title}"? It will be removed from all cards in this workspace.`))
+      return;
+    const snapshot = workspaceLabels;
+    onWorkspaceLabelsChange(workspaceLabels.filter((l) => l.id !== label.id));
+    if (data) {
+      const nextLabels = data.labels.filter((l) => l.id !== label.id);
+      if (nextLabels.length !== data.labels.length) {
+        setData({ ...data, labels: nextLabels });
+        onLabelsChange?.(cardId, nextLabels);
+      }
+    }
+    try {
+      const res = await fetch(`/api/labels/${label.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        onWorkspaceLabelsChange(snapshot);
+        setError("Could not delete label");
+      }
+    } catch {
+      onWorkspaceLabelsChange(snapshot);
+      setError("Network error.");
+    }
+  };
+
   // --- Delete the whole card ---
   const onDeleteCard = async () => {
     if (!data) return;
@@ -388,7 +493,7 @@ export default function CardDrawer({
             <span className={styles.headMeta}>Card · #{cardId.toString().padStart(3, "0")}</span>
             {data ? (
               <input
-                className={`${styles.headTitle} ${data.card.done ? styles.headTitleDone : ""}`}
+                className={styles.headTitle}
                 defaultValue={data.card.title || ""}
                 onChange={(e) => onCardTitleChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -400,15 +505,6 @@ export default function CardDrawer({
               <div className={styles.loadBlock} style={{ width: "70%" }} />
             )}
           </div>
-          {data && (
-            <button
-              type="button"
-              className={`${styles.itemCheck} ${data.card.done ? styles.itemCheckDone : ""}`}
-              style={{ width: 22, height: 22, borderRadius: 5 }}
-              onClick={onCardDoneToggle}
-              aria-label="Toggle card done"
-            />
-          )}
           <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -424,6 +520,53 @@ export default function CardDrawer({
         ) : (
           <div className={styles.body}>
             {error && <div className={styles.error}>{error}</div>}
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionLabel}>Labels</span>
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={() => setPickerOpen((o) => !o)}
+                  aria-expanded={pickerOpen}
+                >
+                  {pickerOpen ? "Close" : "Edit labels"}
+                </button>
+              </div>
+              <div className={styles.cardLabels}>
+                {data.labels.length === 0 ? (
+                  <span className={styles.cardLabelsEmpty}>No labels yet. Add one to categorize this card.</span>
+                ) : (
+                  data.labels.map((l) => {
+                    const c = colorForName(l.color);
+                    return (
+                      <span
+                        key={l.id}
+                        className={styles.labelChip}
+                        style={{ background: c.soft, color: c.hue }}
+                      >
+                        <span
+                          className={styles.labelDot}
+                          style={{ background: c.hue }}
+                          aria-hidden
+                        />
+                        {l.title}
+                      </span>
+                    );
+                  })
+                )}
+              </div>
+              {pickerOpen && (
+                <LabelsPicker
+                  workspaceLabels={workspaceLabels}
+                  selected={new Set(data.labels.map((l) => l.id))}
+                  onToggle={onToggleLabel}
+                  onCreate={onCreateLabel}
+                  onEdit={onEditLabel}
+                  onDelete={onDeleteLabel}
+                />
+              )}
+            </section>
 
             <section className={styles.section}>
               <div className={styles.sectionHead}>
@@ -556,7 +699,7 @@ export default function CardDrawer({
 
         <footer className={styles.foot}>
           <span className={styles.footMeta}>
-            {data ? `${data.attachments.length} images · ${stats.total} sub-tasks` : ""}
+            {data ? `${data.labels.length} labels · ${stats.total} sub-tasks · ${data.attachments.length} images` : ""}
           </span>
           <button type="button" className={styles.deleteCard} onClick={onDeleteCard}>
             Delete card
@@ -564,5 +707,245 @@ export default function CardDrawer({
         </footer>
       </aside>
     </>
+  );
+}
+
+/* ------------------------------------------------------- *
+ *   Labels picker: list, toggle, edit, create, delete     *
+ * ------------------------------------------------------- */
+
+function LabelsPicker({
+  workspaceLabels,
+  selected,
+  onToggle,
+  onCreate,
+  onEdit,
+  onDelete,
+}: {
+  workspaceLabels: WorkspaceLabel[];
+  selected: Set<number>;
+  onToggle: (l: WorkspaceLabel) => void;
+  onCreate: (title: string, color: string) => Promise<void>;
+  onEdit: (l: WorkspaceLabel, patch: Partial<WorkspaceLabel>) => Promise<void>;
+  onDelete: (l: WorkspaceLabel) => Promise<void>;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newColor, setNewColor] = useState<string>(PALETTE[0].name);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  return (
+    <div className={styles.picker}>
+      <div className={styles.pickerList}>
+        {workspaceLabels.length === 0 && (
+          <div className={styles.pickerEmpty}>No labels in this workspace yet.</div>
+        )}
+        {workspaceLabels.map((l) =>
+          editingId === l.id ? (
+            <LabelEditor
+              key={l.id}
+              label={l}
+              onCancel={() => setEditingId(null)}
+              onSave={async (patch) => {
+                await onEdit(l, patch);
+                setEditingId(null);
+              }}
+              onDelete={async () => {
+                await onDelete(l);
+                setEditingId(null);
+              }}
+            />
+          ) : (
+            <div key={l.id} className={styles.pickerRow}>
+              <button
+                type="button"
+                className={styles.pickerToggle}
+                onClick={() => onToggle(l)}
+                aria-pressed={selected.has(l.id)}
+              >
+                <span
+                  className={`${styles.pickerCheck} ${selected.has(l.id) ? styles.pickerCheckOn : ""}`}
+                  aria-hidden
+                />
+                <span
+                  className={styles.labelChip}
+                  style={{
+                    background: colorForName(l.color).soft,
+                    color: colorForName(l.color).hue,
+                  }}
+                >
+                  <span
+                    className={styles.labelDot}
+                    style={{ background: colorForName(l.color).hue }}
+                    aria-hidden
+                  />
+                  {l.title}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={styles.pickerEdit}
+                onClick={() => setEditingId(l.id)}
+                aria-label="Edit label"
+              >
+                Edit
+              </button>
+            </div>
+          ),
+        )}
+      </div>
+
+      {creating ? (
+        <LabelCreator
+          color={newColor}
+          title={newTitle}
+          onTitleChange={setNewTitle}
+          onColorChange={setNewColor}
+          onCancel={() => {
+            setCreating(false);
+            setNewTitle("");
+          }}
+          onSave={async () => {
+            await onCreate(newTitle, newColor);
+            setCreating(false);
+            setNewTitle("");
+            setNewColor(PALETTE[0].name);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className={styles.pickerCreate}
+          onClick={() => setCreating(true)}
+        >
+          ＋ New label
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ColorSwatch({
+  color,
+  active,
+  onClick,
+}: {
+  color: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const c = colorForName(color);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${styles.swatch} ${active ? styles.swatchActive : ""}`}
+      style={{ background: c.hue }}
+      aria-label={`Color: ${color}`}
+      aria-pressed={active}
+    />
+  );
+}
+
+function LabelEditor({
+  label,
+  onCancel,
+  onSave,
+  onDelete,
+}: {
+  label: WorkspaceLabel;
+  onCancel: () => void;
+  onSave: (patch: Partial<WorkspaceLabel>) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [title, setTitle] = useState(label.title);
+  const [color, setColor] = useState(label.color);
+  return (
+    <div className={styles.editor}>
+      <div className={styles.editorRow}>
+        <input
+          className={styles.editorInput}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={50}
+          autoFocus
+        />
+      </div>
+      <div className={styles.swatchRow}>
+        {PALETTE.map((p) => (
+          <ColorSwatch key={p.name} color={p.name} active={color === p.name} onClick={() => setColor(p.name)} />
+        ))}
+      </div>
+      <div className={styles.editorActions}>
+        <button type="button" className={styles.editorDelete} onClick={onDelete}>
+          Delete
+        </button>
+        <div style={{ display: "flex", gap: "0.4rem" }}>
+          <button type="button" className={styles.editorCancel} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.editorSave}
+            disabled={!title.trim()}
+            onClick={() => onSave({ title: title.trim(), color })}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LabelCreator({
+  title,
+  color,
+  onTitleChange,
+  onColorChange,
+  onCancel,
+  onSave,
+}: {
+  title: string;
+  color: string;
+  onTitleChange: (s: string) => void;
+  onColorChange: (s: string) => void;
+  onCancel: () => void;
+  onSave: () => Promise<void>;
+}) {
+  return (
+    <div className={styles.editor}>
+      <div className={styles.editorRow}>
+        <input
+          className={styles.editorInput}
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          placeholder="Label name"
+          maxLength={50}
+          autoFocus
+        />
+      </div>
+      <div className={styles.swatchRow}>
+        {PALETTE.map((p) => (
+          <ColorSwatch key={p.name} color={p.name} active={color === p.name} onClick={() => onColorChange(p.name)} />
+        ))}
+      </div>
+      <div className={styles.editorActions}>
+        <div />
+        <div style={{ display: "flex", gap: "0.4rem" }}>
+          <button type="button" className={styles.editorCancel} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.editorSave}
+            disabled={!title.trim()}
+            onClick={onSave}
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

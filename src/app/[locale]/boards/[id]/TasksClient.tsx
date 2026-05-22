@@ -1,55 +1,30 @@
 "use client";
 
-import {
-  CSSProperties,
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { CSSProperties, FormEvent, useCallback, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { colorForId } from "@/lib/palette";
+import { colorForName } from "@/lib/palette";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
 import rowStyles from "./Task.module.scss";
 import styles from "../../workspaces/AppShell.module.scss";
 
-function useAnimatedNumber(target: number, duration = 480) {
-  const [value, setValue] = useState(target);
-  const prev = useRef(target);
-  useEffect(() => {
-    const from = prev.current;
-    const to = target;
-    if (from === to) return;
-    const start = performance.now();
-    let raf = 0;
-    const tick = (t: number) => {
-      const elapsed = t - start;
-      const p = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setValue(Math.round(from + (to - from) * eased));
-      if (p < 1) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        prev.current = to;
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return value;
-}
+type CardLabel = { id: number; title: string; color: string };
+
+export type WorkspaceLabel = {
+  id: number;
+  title: string;
+  color: string;
+  position: number | null;
+  isDefault: number;
+};
 
 type Task = {
   id: number;
   title: string | null;
-  done: number;
   position: number | null;
   itemsTotal: number;
   itemsDone: number;
   attachments: number;
+  labels: CardLabel[];
 };
 
 export default function TasksClient({
@@ -58,35 +33,26 @@ export default function TasksClient({
   workspaceId,
   workspaceTitle,
   initial,
+  initialLabels,
 }: {
   boardId: number;
   boardTitle: string | null;
   workspaceId: number;
   workspaceTitle: string | null;
   initial: Task[];
+  initialLabels: WorkspaceLabel[];
 }) {
   const [tasks, setTasks] = useState(initial);
+  const [labels, setLabels] = useState<WorkspaceLabel[]>(initialLabels);
   const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
   const [openCardId, setOpenCardId] = useState<number | null>(null);
 
-  const boardColor = colorForId(boardId);
+  const boardColorName = "indigo";
+  const boardColor = colorForName(boardColorName);
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-
-  const stats = useMemo(() => {
-    const total = tasks.length;
-    const done = tasks.reduce((acc, t) => acc + (t.done ? 1 : 0), 0);
-    const open = total - done;
-    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-    return { total, done, open, pct };
-  }, [tasks]);
-
-  const animatedPct = useAnimatedNumber(stats.pct);
-  const animatedDone = useAnimatedNumber(stats.done, 320);
-  const animatedOpen = useAnimatedNumber(stats.open, 320);
-  const celebrate = stats.total > 0 && stats.pct === 100;
 
   async function onAdd(e: FormEvent) {
     e.preventDefault();
@@ -103,11 +69,11 @@ export default function TasksClient({
         {
           id: tempId,
           title: trimmed,
-          done: 0,
           position: nextPos,
           itemsTotal: 0,
           itemsDone: 0,
           attachments: 0,
+          labels: [],
         },
       ]);
       setNewTitle("");
@@ -128,13 +94,7 @@ export default function TasksClient({
       setTasks((prev) =>
         prev.map((t) =>
           t.id === tempId
-            ? {
-                ...t,
-                id: data.task.id,
-                title: data.task.title,
-                done: 0,
-                position: data.task.position,
-              }
+            ? { ...t, id: data.task.id, title: data.task.title, position: data.task.position }
             : t,
         ),
       );
@@ -169,26 +129,6 @@ export default function TasksClient({
     }, 400);
     renameTimers.current.set(id, timer);
   }, []);
-
-  async function onToggleDone(id: number, current: number) {
-    const next = current ? 0 : 1;
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: next } : t)));
-    if (id < 0) return;
-    try {
-      const res = await fetch(`/api/tasks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ done: !current }),
-      });
-      if (!res.ok) {
-        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: current } : t)));
-        setError("Could not update task");
-      }
-    } catch {
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: current } : t)));
-      setError("Network error. Please try again.");
-    }
-  }
 
   async function onDelete(id: number) {
     const snapshot = tasks;
@@ -235,161 +175,138 @@ export default function TasksClient({
           </div>
         </div>
         <span className={styles.pageMeta}>
-          {stats.done}/{stats.total} done
+          {tasks.length} {tasks.length === 1 ? "card" : "cards"}
           {(pending || saving) && <span className={styles.savingDot} />}
         </span>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div className={styles.boardLayout}>
-        <div>
-          <form className={styles.composer} onSubmit={onAdd}>
-            <input
-              className={styles.composerInput}
-              placeholder="Add a task and press enter"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              maxLength={255}
-              aria-label="New task"
-            />
-            <div className={styles.composerActions}>
-              <span className={styles.kbdHint}>↵</span>
-              <button type="submit" className={styles.primaryBtn} disabled={!newTitle.trim()}>
-                Add
-              </button>
-            </div>
-          </form>
-
-          {tasks.length === 0 ? (
-            <div className={styles.empty}>
-              <div className={styles.emptyMark}>✓</div>
-              <strong>Nothing here yet</strong>
-              Type a task above. Hit the box to mark it done.
-            </div>
-          ) : (
-            <div className={styles.tasksList}>
-              {tasks.map((t, i) => {
-                const itemPct =
-                  t.itemsTotal === 0 ? 0 : Math.round((t.itemsDone / t.itemsTotal) * 100);
-                return (
-                  <div key={t.id} className={styles.taskRow}>
-                    <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
-                    <button
-                      type="button"
-                      className={`${styles.taskCheck} ${t.done ? styles.taskCheckDone : ""}`}
-                      onClick={() => onToggleDone(t.id, t.done)}
-                      aria-label={t.done ? "Mark as not done" : "Mark as done"}
-                    />
-                    <input
-                      className={`${styles.taskTitle} ${t.done ? styles.taskTitleDone : ""}`}
-                      defaultValue={t.title || ""}
-                      onChange={(e) => onRename(t.id, e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                      }}
-                    />
-                    <div className={rowStyles.badges}>
-                      {t.itemsTotal > 0 && (
-                        <button
-                          type="button"
-                          className={rowStyles.badge}
-                          onClick={() => t.id > 0 && setOpenCardId(t.id)}
-                          aria-label="Open card sub-tasks"
-                          title={`${t.itemsDone} of ${t.itemsTotal} sub-tasks done`}
-                          data-complete={t.itemsTotal === t.itemsDone}
-                        >
-                          <span className={rowStyles.badgeIcon} aria-hidden>✓</span>
-                          <span>{t.itemsDone}/{t.itemsTotal}</span>
-                          <span className={rowStyles.miniBar} aria-hidden>
-                            <span
-                              className={rowStyles.miniBarFill}
-                              style={{ width: `${itemPct}%` }}
-                            />
-                          </span>
-                        </button>
-                      )}
-                      {t.attachments > 0 && (
-                        <button
-                          type="button"
-                          className={rowStyles.badge}
-                          onClick={() => t.id > 0 && setOpenCardId(t.id)}
-                          aria-label="Open card images"
-                          title={`${t.attachments} ${t.attachments === 1 ? "image" : "images"}`}
-                        >
-                          <span className={rowStyles.badgeIcon} aria-hidden>▣</span>
-                          <span>{t.attachments}</span>
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className={rowStyles.openBtn}
-                      onClick={() => t.id > 0 && setOpenCardId(t.id)}
-                      aria-label="Open card details"
-                      title="Open card"
-                    >
-                      ›
-                    </button>
-                    <button
-                      className={styles.dangerBtn}
-                      onClick={() => onDelete(t.id)}
-                      type="button"
-                      aria-label="Delete task"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      <form className={styles.composer} onSubmit={onAdd}>
+        <input
+          className={styles.composerInput}
+          placeholder="Add a card and press enter"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          maxLength={255}
+          aria-label="New card"
+        />
+        <div className={styles.composerActions}>
+          <span className={styles.kbdHint}>↵</span>
+          <button type="submit" className={styles.primaryBtn} disabled={!newTitle.trim()}>
+            Add
+          </button>
         </div>
+      </form>
 
-        <aside className={styles.statsCol}>
-          <div className={`${styles.statsCard} ${celebrate ? styles.celebrate : ""}`}>
-            <div className={styles.statsLabel}>Progress</div>
-            <div className={styles.statsNumber}>{animatedPct}%</div>
-            <div className={styles.statsDelta}>
-              {celebrate ? "All clear. Time for a coffee." : `${stats.done} done · ${stats.open} open`}
-            </div>
-            <div className={styles.progressTrack}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${stats.pct}%` }}
-              />
-            </div>
-            <div className={styles.statsLegend}>
-              <span>0</span>
-              <span>{stats.total}</span>
-            </div>
-          </div>
-
-          <div className={styles.statsCard}>
-            <div className={styles.statsLabel}>This board</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", fontSize: "13px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-3)" }}>Total</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{stats.total}</span>
+      {tasks.length === 0 ? (
+        <div className={styles.empty}>
+          <div className={styles.emptyMark}>＋</div>
+          <strong>No cards yet</strong>
+          Type a title above to add your first card.
+        </div>
+      ) : (
+        <div className={styles.tasksList}>
+          {tasks.map((t, i) => {
+            const itemPct =
+              t.itemsTotal === 0 ? 0 : Math.round((t.itemsDone / t.itemsTotal) * 100);
+            return (
+              <div key={t.id} className={styles.taskRow}>
+                <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
+                <input
+                  className={styles.taskTitle}
+                  defaultValue={t.title || ""}
+                  onChange={(e) => onRename(t.id, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  }}
+                />
+                {t.labels.length > 0 && (
+                  <div className={rowStyles.chips}>
+                    {t.labels.map((l) => {
+                      const c = colorForName(l.color);
+                      return (
+                        <span
+                          key={l.id}
+                          className={rowStyles.chip}
+                          style={{ background: c.soft, color: c.hue, borderColor: c.soft }}
+                          title={l.title}
+                        >
+                          <span
+                            className={rowStyles.chipDot}
+                            style={{ background: c.hue }}
+                            aria-hidden
+                          />
+                          <span className={rowStyles.chipText}>{l.title}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className={rowStyles.badges}>
+                  {t.itemsTotal > 0 && (
+                    <button
+                      type="button"
+                      className={rowStyles.badge}
+                      onClick={() => t.id > 0 && setOpenCardId(t.id)}
+                      aria-label="Open card sub-tasks"
+                      title={`${t.itemsDone} of ${t.itemsTotal} sub-tasks done`}
+                      data-complete={t.itemsTotal === t.itemsDone}
+                    >
+                      <span className={rowStyles.badgeIcon} aria-hidden>✓</span>
+                      <span>
+                        {t.itemsDone}/{t.itemsTotal}
+                      </span>
+                      <span className={rowStyles.miniBar} aria-hidden>
+                        <span
+                          className={rowStyles.miniBarFill}
+                          style={{ width: `${itemPct}%` }}
+                        />
+                      </span>
+                    </button>
+                  )}
+                  {t.attachments > 0 && (
+                    <button
+                      type="button"
+                      className={rowStyles.badge}
+                      onClick={() => t.id > 0 && setOpenCardId(t.id)}
+                      aria-label="Open card images"
+                      title={`${t.attachments} ${t.attachments === 1 ? "image" : "images"}`}
+                    >
+                      <span className={rowStyles.badgeIcon} aria-hidden>▣</span>
+                      <span>{t.attachments}</span>
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className={rowStyles.openBtn}
+                  onClick={() => t.id > 0 && setOpenCardId(t.id)}
+                  aria-label="Open card details"
+                  title="Open card"
+                >
+                  ›
+                </button>
+                <button
+                  className={styles.dangerBtn}
+                  onClick={() => onDelete(t.id)}
+                  type="button"
+                  aria-label="Delete card"
+                >
+                  Delete
+                </button>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-3)" }}>Done</span>
-                <span style={{ fontVariantNumeric: "tabular-nums", color: boardColor.hue }}>
-                  {animatedDone}
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-3)" }}>Open</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{animatedOpen}</span>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {openCardId !== null && (
         <CardDrawer
           cardId={openCardId}
+          workspaceId={workspaceId}
+          workspaceLabels={labels}
+          onWorkspaceLabelsChange={setLabels}
           onClose={() => setOpenCardId(null)}
           onCountsChange={(id, counts: CardCounts) =>
             setTasks((prev) =>
@@ -408,8 +325,8 @@ export default function TasksClient({
           onTitleChange={(id, title) =>
             setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)))
           }
-          onDoneChange={(id, done) =>
-            setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done } : t)))
+          onLabelsChange={(id, cardLabels) =>
+            setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, labels: cardLabels } : t)))
           }
           onDelete={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
         />

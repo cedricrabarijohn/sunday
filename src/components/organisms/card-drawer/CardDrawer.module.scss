@@ -393,6 +393,260 @@
   font-size: 12.5px;
 }
 
+/* --- Labels --- */
+.linkBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.55rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.linkBtn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
+
+.cardLabels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 28px;
+}
+
+.cardLabelsEmpty {
+  font-size: 12.5px;
+  color: var(--text-mute);
+  font-style: italic;
+}
+
+.labelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.labelDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.picker {
+  margin-top: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+  animation: pickerIn 200ms ease-out both;
+}
+@keyframes pickerIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.pickerList { display: flex; flex-direction: column; }
+
+.pickerEmpty {
+  padding: 0.85rem 1rem;
+  font-size: 12.5px;
+  color: var(--text-mute);
+  font-style: italic;
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 100ms ease;
+}
+.pickerRow:last-child { border-bottom: none; }
+.pickerRow:hover { background: var(--surface-2); }
+.pickerRow:hover .pickerEdit { opacity: 1; }
+
+.pickerToggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: transparent;
+  border: none;
+  padding: 0.15rem 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pickerCheck {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.pickerToggle:hover .pickerCheck { border-color: var(--text-2); }
+.pickerCheckOn {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pickerCheckOn::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  width: 4px;
+  height: 7px;
+  border-right: 1.5px solid var(--accent-fg);
+  border-bottom: 1.5px solid var(--accent-fg);
+  transform: rotate(45deg);
+}
+
+.pickerEdit {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.pickerEdit:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
+
+.pickerCreate {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  padding: 0.55rem 0.75rem;
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms ease, color 100ms ease;
+}
+.pickerCreate:hover { background: var(--surface-2); color: var(--text-1); }
+
+/* Inline create / edit editor */
+.editor {
+  padding: 0.65rem 0.75rem;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.pickerRow + .editor { border-top: none; }
+
+.editorRow { display: flex; align-items: center; gap: 0.4rem; }
+
+.editorInput {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0.4rem 0.55rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.editorInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.swatch:hover { transform: scale(1.08); }
+.swatchActive {
+  border-color: var(--text-1);
+  transform: scale(1.08);
+}
+
+.editorActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.editorCancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0.3rem 0.65rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.editorCancel:hover { background: var(--surface); color: var(--text-1); }
+
+.editorSave {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0.3rem 0.7rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.editorSave:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.editorSave:disabled { background: var(--inset); color: var(--text-mute); border-color: var(--border); cursor: not-allowed; }
+
+.editorDelete {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--danger);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.editorDelete:hover { background: var(--danger-soft); border-color: var(--danger); }
+
 /* --- Loading state --- */
 .loading {
   flex: 1;

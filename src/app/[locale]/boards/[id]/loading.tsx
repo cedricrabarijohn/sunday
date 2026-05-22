@@ -24,28 +24,16 @@ export default function Loading() {
               </div>
             </div>
           </div>
-          <div className={styles.boardLayout}>
-            <div className={styles.tasksList}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className={styles.taskRow}>
-                  <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
-                  <span className={styles.taskCheck} aria-hidden />
-                  <div
-                    className={styles.skeleton}
-                    style={{ height: 14, width: `${45 + (i * 11) % 35}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-            <aside className={styles.statsCol}>
-              <div className={styles.statsCard}>
-                <div className={styles.statsLabel}>Progress</div>
-                <div className={styles.skeleton} style={{ height: 32, width: 80, marginTop: 4 }} />
-                <div className={styles.progressTrack} style={{ marginTop: "1rem" }}>
-                  <div className={styles.progressFill} style={{ width: "30%" }} />
-                </div>
+          <div className={styles.tasksList}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className={styles.taskRow}>
+                <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
+                <div
+                  className={styles.skeleton}
+                  style={{ height: 14, width: `${45 + (i * 11) % 35}%` }}
+                />
               </div>
-            </aside>
+            ))}
           </div>
         </main>
       </div>

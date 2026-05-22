@@ -4,8 +4,10 @@ import { db } from "@/db/client";
 import {
   boardTaskAttachments,
   boardTaskItems,
+  boardTaskLabels,
   boardTasks,
   boards,
+  labels,
   users,
   workspaceUsers,
   workspaces,
@@ -76,7 +78,6 @@ export default async function BoardDetail({
     .select({
       id: boardTasks.id,
       title: boardTasks.title,
-      done: boardTasks.done,
       position: boardTasks.position,
     })
     .from(boardTasks)
@@ -120,6 +121,33 @@ export default async function BoardDetail({
   const itemsById = new Map(itemStats.map((s) => [s.cardId, s]));
   const attachmentsById = new Map(attachmentStats.map((s) => [s.cardId, s]));
 
+  const labelRows = taskIds.length
+    ? await db
+        .select({
+          cardId: boardTaskLabels.boardTaskId,
+          id: labels.id,
+          title: labels.title,
+          color: labels.color,
+          position: labels.position,
+        })
+        .from(boardTaskLabels)
+        .innerJoin(labels, eq(labels.id, boardTaskLabels.labelId))
+        .where(
+          and(
+            sql`${boardTaskLabels.boardTaskId} IN (${sql.join(taskIds, sql`, `)})`,
+            isNull(labels.deletedAt),
+          ),
+        )
+        .orderBy(asc(labels.position), asc(labels.id))
+    : [];
+
+  const labelsByCard = new Map<number, Array<{ id: number; title: string; color: string }>>();
+  for (const row of labelRows) {
+    const arr = labelsByCard.get(row.cardId) ?? [];
+    arr.push({ id: row.id, title: row.title, color: row.color });
+    labelsByCard.set(row.cardId, arr);
+  }
+
   const tasks = rawTasks.map((t) => {
     const itemStat = itemsById.get(t.id);
     const attachmentStat = attachmentsById.get(t.id);
@@ -128,8 +156,21 @@ export default async function BoardDetail({
       itemsTotal: Number(itemStat?.total ?? 0),
       itemsDone: Number(itemStat?.done ?? 0),
       attachments: Number(attachmentStat?.total ?? 0),
+      labels: labelsByCard.get(t.id) ?? [],
     };
   });
+
+  const workspaceLabels = await db
+    .select({
+      id: labels.id,
+      title: labels.title,
+      color: labels.color,
+      position: labels.position,
+      isDefault: labels.isDefault,
+    })
+    .from(labels)
+    .where(and(eq(labels.workspaceId, board.workspaceId!), isNull(labels.deletedAt)))
+    .orderBy(asc(labels.position), asc(labels.id));
 
   return (
     <AppShell
@@ -145,6 +186,7 @@ export default async function BoardDetail({
         workspaceId={board.workspaceId ?? 0}
         workspaceTitle={board.workspaceTitle}
         initial={tasks}
+        initialLabels={workspaceLabels}
       />
     </AppShell>
   );
