@@ -7,9 +7,15 @@ export const PALETTE = [
   { name: "sky",    hue: "#0ea5e9", soft: "rgba(14, 165, 233, 0.16)" },
   { name: "pink",   hue: "#ec4899", soft: "rgba(236, 72, 153, 0.16)" },
   { name: "violet", hue: "#a855f7", soft: "rgba(168, 85, 247, 0.16)" },
+  { name: "slate",  hue: "#64748b", soft: "rgba(100, 116, 139, 0.18)" },
 ] as const;
 
 export function colorForId(id: number) {
   const idx = Math.abs(id) % PALETTE.length;
   return PALETTE[idx];
+}
+
+export function colorForName(name: string) {
+  const found = PALETTE.find((c) => c.name === name);
+  return found ?? PALETTE[0];
 }

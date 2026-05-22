@@ -7,7 +7,6 @@ export async function loadCardForUser(cardId: number, userId: number) {
     .select({
       id: boardTasks.id,
       title: boardTasks.title,
-      done: boardTasks.done,
       position: boardTasks.position,
       boardId: boardTasks.boardId,
     })

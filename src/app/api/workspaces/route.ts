@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { workspaces, workspaceUsers } from "@/db/schema";
+import { labels, workspaces, workspaceUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 
 const WORKSPACE_ADMIN_ROLE_ID = 1;
+
+const DEFAULT_LABELS: Array<{ title: string; color: string }> = [
+  { title: "To do", color: "slate" },
+  { title: "In progress", color: "amber" },
+  { title: "Review", color: "sky" },
+  { title: "Blocked", color: "coral" },
+  { title: "Done", color: "lime" },
+];
 
 export async function GET() {
   const auth = await requireAuth();
@@ -46,6 +54,19 @@ export async function POST(request: NextRequest) {
     userId: auth.session.sub,
     workspaceRoleId: WORKSPACE_ADMIN_ROLE_ID,
   });
+
+  const now = new Date();
+  await db.insert(labels).values(
+    DEFAULT_LABELS.map((d, idx) => ({
+      workspaceId: id,
+      title: d.title,
+      color: d.color,
+      position: idx + 1,
+      isDefault: 1,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  );
 
   return NextResponse.json({ workspace: { id, title } }, { status: 201 });
 }

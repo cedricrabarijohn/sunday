@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardTaskAttachments, boardTaskItems } from "@/db/schema";
+import {
+  boardTaskAttachments,
+  boardTaskItems,
+  boardTaskLabels,
+  labels,
+} from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { loadCardForUser } from "@/lib/card-access";
 
@@ -45,5 +50,17 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     )
     .orderBy(asc(boardTaskAttachments.id));
 
-  return NextResponse.json({ card, items, attachments });
+  const cardLabels = await db
+    .select({
+      id: labels.id,
+      title: labels.title,
+      color: labels.color,
+      position: labels.position,
+    })
+    .from(boardTaskLabels)
+    .innerJoin(labels, eq(labels.id, boardTaskLabels.labelId))
+    .where(and(eq(boardTaskLabels.boardTaskId, cardId), isNull(labels.deletedAt)))
+    .orderBy(asc(labels.position), asc(labels.id));
+
+  return NextResponse.json({ card, items, attachments, labels: cardLabels });
 }

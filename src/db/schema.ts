@@ -122,7 +122,6 @@ export const boardTasks = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     boardId: int("board_id"),
     title: varchar("title", { length: 255 }),
-    done: tinyint("done").notNull().default(0),
     position: int("position"),
     createdAt: datetime("created_at"),
     updatedAt: datetime("updated_at"),
@@ -173,6 +172,29 @@ export const boardTaskItems = mysqlTable("board_task_items", {
   updatedAt: datetime("updated_at"),
   deletedAt: datetime("deleted_at"),
 });
+
+export const labels = mysqlTable("labels", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspace_id").notNull(),
+  title: varchar("title", { length: 50 }).notNull(),
+  color: varchar("color", { length: 20 }).notNull(),
+  description: varchar("description", { length: 120 }),
+  position: int("position"),
+  isDefault: tinyint("is_default").notNull().default(0),
+  createdAt: datetime("created_at"),
+  updatedAt: datetime("updated_at"),
+  deletedAt: datetime("deleted_at"),
+});
+
+export const boardTaskLabels = mysqlTable(
+  "board_task_labels",
+  {
+    boardTaskId: int("board_task_id").notNull(),
+    labelId: int("label_id").notNull(),
+    createdAt: datetime("created_at"),
+  },
+  (t) => [primaryKey({ columns: [t.boardTaskId, t.labelId] })],
+);
 
 export const boardTaskAttachments = mysqlTable("board_task_attachments", {
   id: int("id").autoincrement().primaryKey(),

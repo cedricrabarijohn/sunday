@@ -20,7 +20,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .select({
       id: boardTasks.id,
       title: boardTasks.title,
-      done: boardTasks.done,
       position: boardTasks.position,
       createdAt: boardTasks.createdAt,
       updatedAt: boardTasks.updatedAt,
@@ -68,7 +67,7 @@ export async function POST(
   const taskId = Number((result as { insertId: number }).insertId);
 
   return NextResponse.json(
-    { task: { id: taskId, title, done: 0, position, boardId, createdAt: now, updatedAt: now } },
+    { task: { id: taskId, title, position, boardId, createdAt: now, updatedAt: now } },
     { status: 201 },
   );
 }
