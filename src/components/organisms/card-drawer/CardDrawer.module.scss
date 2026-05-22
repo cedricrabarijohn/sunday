@@ -417,6 +417,75 @@
   font-size: 12.5px;
 }
 
+/* --- Description: kebab menu --- */
+.kebabWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.kebabBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 0 4px;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.kebabBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border);
+}
+.kebabBtn[aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border);
+}
+
+.kebabMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  animation: kebabIn 140ms ease-out both;
+}
+@keyframes kebabIn {
+  from { opacity: 0; transform: translateY(-2px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.kebabItem {
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+  padding: 0.45rem 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+.kebabItem:hover { background: var(--surface-2); }
+.kebabItemDanger { color: var(--danger); }
+.kebabItemDanger:hover { background: var(--danger-soft); }
+
 /* --- Description (view + WYSIWYG editor) --- */
 
 .descView {
@@ -466,8 +535,6 @@
 }
 
 .descEmpty {
-  width: 100%;
-  text-align: left;
   background: var(--bg);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
@@ -475,14 +542,6 @@
   color: var(--text-mute);
   font-style: italic;
   font-size: 13.5px;
-  cursor: text;
-  font-family: inherit;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
-}
-.descEmpty:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text-2);
 }
 
 /* --- Editor shell (entire drop zone) --- */

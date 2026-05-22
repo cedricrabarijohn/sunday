@@ -852,9 +852,29 @@ export default function CardDrawer({
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Description</span>
                 {!descEditing && (
-                  <button type="button" className={styles.linkBtn} onClick={enterEdit}>
-                    {data.card.description ? "Edit" : "Add"}
-                  </button>
+                  <DescMenu
+                    hasContent={Boolean(data.card.description?.trim())}
+                    onEdit={enterEdit}
+                    onClear={async () => {
+                      if (!confirm("Clear this description?")) return;
+                      try {
+                        const res = await fetch(`/api/tasks/${cardId}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ description: "" }),
+                        });
+                        if (!res.ok) {
+                          setError("Could not clear description");
+                          return;
+                        }
+                        setData((prev) =>
+                          prev ? { ...prev, card: { ...prev.card, description: "" } } : prev,
+                        );
+                      } catch {
+                        setError("Network error.");
+                      }
+                    }}
+                  />
                 )}
               </div>
 
@@ -908,7 +928,7 @@ export default function CardDrawer({
                   </div>
                 </div>
               ) : (
-                <DescriptionView text={data.card.description ?? ""} onEdit={enterEdit} />
+                <DescriptionView text={data.card.description ?? ""} />
               )}
             </section>
 
@@ -1567,26 +1587,86 @@ function stripImageFromDescription(text: string, url: string): string {
  *   produced it ourselves from a known-controlled markdown shape.
  * ------------------------------------------------------- */
 
-function DescriptionView({ text, onEdit }: { text: string; onEdit: () => void }) {
-  if (!text.trim()) {
-    return (
-      <button type="button" className={styles.descEmpty} onClick={onEdit}>
-        No description yet. Click to add one.
+function DescMenu({
+  hasContent,
+  onEdit,
+  onClear,
+}: {
+  hasContent: boolean;
+  onEdit: () => void;
+  onClear: () => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className={styles.kebabWrap} ref={wrapRef}>
+      <button
+        type="button"
+        className={styles.kebabBtn}
+        aria-label="Description actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        ⋯
       </button>
-    );
+      {open && (
+        <div className={styles.kebabMenu} role="menu">
+          <button
+            type="button"
+            className={styles.kebabItem}
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            {hasContent ? "Edit description" : "Add description"}
+          </button>
+          {hasContent && (
+            <button
+              type="button"
+              className={`${styles.kebabItem} ${styles.kebabItemDanger}`}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                void onClear();
+              }}
+            >
+              Clear description
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DescriptionView({ text }: { text: string }) {
+  if (!text.trim()) {
+    return <div className={styles.descEmpty}>No description yet.</div>;
   }
   return (
     <div
       className={styles.descView}
-      role="button"
-      tabIndex={0}
-      onClick={onEdit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onEdit();
-        }
-      }}
       dangerouslySetInnerHTML={{ __html: descriptionToHtml(text) }}
     />
   );
