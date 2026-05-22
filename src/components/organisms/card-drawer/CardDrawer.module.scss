@@ -39,7 +39,7 @@
     top: 16px;
     right: 16px;
     bottom: 16px;
-    width: min(560px, calc(100vw - 32px));
+    width: min(1100px, calc(100vw - 32px));
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -535,6 +535,8 @@
 }
 
 .descEmpty {
+  width: 100%;
+  text-align: left;
   background: var(--bg);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
@@ -542,6 +544,14 @@
   color: var(--text-mute);
   font-style: italic;
   font-size: 13.5px;
+  cursor: text;
+  font-family: inherit;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.descEmpty:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-2);
 }
 
 /* --- Editor shell (entire drop zone) --- */

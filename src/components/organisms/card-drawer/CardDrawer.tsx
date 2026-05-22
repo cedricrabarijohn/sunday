@@ -928,7 +928,7 @@ export default function CardDrawer({
                   </div>
                 </div>
               ) : (
-                <DescriptionView text={data.card.description ?? ""} />
+                <DescriptionView text={data.card.description ?? ""} onEdit={enterEdit} />
               )}
             </section>
 
@@ -1660,10 +1660,17 @@ function DescMenu({
   );
 }
 
-function DescriptionView({ text }: { text: string }) {
+function DescriptionView({ text, onEdit }: { text: string; onEdit: () => void }) {
   if (!text.trim()) {
-    return <div className={styles.descEmpty}>No description yet.</div>;
+    // Empty state stays clickable so the user can jump straight into the
+    // editor without going through the kebab menu.
+    return (
+      <button type="button" className={styles.descEmpty} onClick={onEdit}>
+        No description yet. Click to add one.
+      </button>
+    );
   }
+  // Content state is a plain div so the user can select and copy text.
   return (
     <div
       className={styles.descView}
