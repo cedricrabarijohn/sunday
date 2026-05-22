@@ -59,12 +59,25 @@ export async function PATCH(
 
   const body = await request.json().catch(() => null);
 
-  const updates: Partial<{ title: string }> = {};
+  const updates: Partial<{ title: string; description: string | null }> = {};
   if (typeof body?.title === "string") {
     const t = body.title.trim();
     if (!t) return NextResponse.json({ error: "title cannot be empty" }, { status: 400 });
     if (t.length > 255) return NextResponse.json({ error: "title too long" }, { status: 400 });
     updates.title = t;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, "description")) {
+    if (body.description === null || body.description === "") {
+      updates.description = null;
+    } else if (typeof body.description === "string") {
+      // Plain text only. Hard cap so a runaway paste cannot blow up the column.
+      if (body.description.length > 20000) {
+        return NextResponse.json({ error: "description too long" }, { status: 400 });
+      }
+      updates.description = body.description;
+    } else {
+      return NextResponse.json({ error: "description must be a string" }, { status: 400 });
+    }
   }
 
   // Move (pileId + optional afterCardId)

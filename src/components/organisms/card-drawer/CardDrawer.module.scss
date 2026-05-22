@@ -417,6 +417,86 @@
   font-size: 12.5px;
 }
 
+/* --- Description --- */
+.descEditor {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 0.7rem 0.8rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.descEditor:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.descEditor::placeholder { color: var(--text-mute); }
+
+.descRender {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 0.95rem;
+  color: var(--text-1);
+  font-size: 14px;
+  line-height: 1.55;
+  cursor: text;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.descRender:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.descRender:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.descParagraph {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-1);
+}
+
+.descImageGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.descImage {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--inset);
+  cursor: zoom-in;
+}
+
+.descEmpty {
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.85rem;
+  color: var(--text-mute);
+  font-style: italic;
+  font-size: 13.5px;
+  cursor: text;
+  font-family: inherit;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.descEmpty:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--text-2); }
+
 /* --- Labels --- */
 .linkBtn {
   background: transparent;

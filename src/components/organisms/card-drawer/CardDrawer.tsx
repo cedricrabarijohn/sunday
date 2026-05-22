@@ -30,7 +30,7 @@ export type WorkspaceLabel = {
 type CardLabel = { id: number; title: string; color: string; position?: number | null };
 
 type CardDetail = {
-  card: { id: number; title: string | null };
+  card: { id: number; title: string | null; description?: string | null };
   items: Item[];
   attachments: Attachment[];
   labels: CardLabel[];
@@ -89,6 +89,9 @@ export default function CardDrawer({
 
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const descTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const descRef = useRef<HTMLTextAreaElement | null>(null);
+  const [descEditing, setDescEditing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Fetch detail on mount
@@ -170,6 +173,105 @@ export default function CardDrawer({
         setError("Network error. Title not saved.");
       }
     }, 400);
+  };
+
+  // --- Description ---
+  const onDescChange = (description: string) => {
+    if (!data) return;
+    setData({ ...data, card: { ...data.card, description } });
+    if (descTimer.current) clearTimeout(descTimer.current);
+    descTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/tasks/${cardId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description }),
+        });
+        if (!res.ok) setError("Could not save description");
+      } catch {
+        setError("Network error. Description not saved.");
+      }
+    }, 400);
+  };
+
+  // Upload a single image and return the markdown snippet to insert into
+  // the description. Also pushes the new attachment to local state so the
+  // Images section shows the same file.
+  const uploadImageForDescription = async (file: File): Promise<string | null> => {
+    if (!file.type.startsWith("image/")) {
+      setError("Only image files are allowed");
+      return null;
+    }
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/cards/${cardId}/attachments`, {
+        method: "POST",
+        body: form,
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Upload failed");
+        return null;
+      }
+      setData((prev) =>
+        prev
+          ? { ...prev, attachments: [...prev.attachments, json.attachment as Attachment] }
+          : prev,
+      );
+      const alt = (json.attachment.filename || "image").replace(/[\]\[]/g, "");
+      return `![${alt}](${json.attachment.url})`;
+    } catch {
+      setError("Network error. Upload failed.");
+      return null;
+    }
+  };
+
+  const insertSnippetAtCursor = (snippet: string) => {
+    const el = descRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    const needsLeadingBreak = before && !before.endsWith("\n");
+    const needsTrailingBreak = !after.startsWith("\n");
+    const wrapped =
+      (needsLeadingBreak ? "\n\n" : "") + snippet + (needsTrailingBreak ? "\n\n" : "\n");
+    const next = before + wrapped + after;
+    onDescChange(next);
+    // Restore focus and place cursor after the inserted snippet on the next tick.
+    const caret = (before + wrapped).length;
+    requestAnimationFrame(() => {
+      if (!descRef.current) return;
+      descRef.current.focus();
+      descRef.current.setSelectionRange(caret, caret);
+    });
+  };
+
+  const onDescPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const imageItems = items.filter((it) => it.kind === "file" && it.type.startsWith("image/"));
+    if (imageItems.length === 0) return;
+    e.preventDefault();
+    for (const it of imageItems) {
+      const file = it.getAsFile();
+      if (!file) continue;
+      const snippet = await uploadImageForDescription(file);
+      if (snippet) insertSnippetAtCursor(snippet);
+    }
+  };
+
+  const onDescDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (files.length === 0) return;
+    e.preventDefault();
+    for (const file of files) {
+      const snippet = await uploadImageForDescription(file);
+      if (snippet) insertSnippetAtCursor(snippet);
+    }
   };
 
   // --- Items ---
@@ -573,6 +675,34 @@ export default function CardDrawer({
 
             <section className={styles.section}>
               <div className={styles.sectionHead}>
+                <span className={styles.sectionLabel}>Description</span>
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={() => setDescEditing((e) => !e)}
+                >
+                  {descEditing ? "Done" : data.card.description ? "Edit" : "Add"}
+                </button>
+              </div>
+              {descEditing ? (
+                <textarea
+                  ref={descRef}
+                  className={styles.descEditor}
+                  value={data.card.description ?? ""}
+                  onChange={(e) => onDescChange(e.target.value)}
+                  onPaste={onDescPaste}
+                  onDrop={onDescDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  placeholder="Write a description. Paste or drop images right here to embed them inline."
+                  rows={6}
+                />
+              ) : (
+                <DescriptionRender text={data.card.description ?? ""} onEdit={() => setDescEditing(true)} />
+              )}
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Sub-tasks</span>
                 <span className={styles.sectionCount}>
                   {stats.done}/{stats.total} done
@@ -950,6 +1080,73 @@ function LabelCreator({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- *
+ *   Description renderer: a tiny markdown subset.
+ *   - blank line -> new paragraph
+ *   - a line equal to "![alt](url)" renders as an inline image
+ *   - plain text otherwise
+ * ------------------------------------------------------- */
+
+const IMAGE_LINE = /^!\[([^\]]*)\]\((\S+)\)\s*$/;
+
+function DescriptionRender({ text, onEdit }: { text: string; onEdit: () => void }) {
+  if (!text.trim()) {
+    return (
+      <button type="button" className={styles.descEmpty} onClick={onEdit}>
+        No description yet. Click to add one.
+      </button>
+    );
+  }
+  const blocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+  return (
+    <div
+      className={styles.descRender}
+      onClick={onEdit}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+    >
+      {blocks.map((block, i) => {
+        const lines = block.split("\n");
+        const imageMatches = lines.map((l) => l.match(IMAGE_LINE));
+        if (imageMatches.every((m) => m !== null)) {
+          return (
+            <div key={i} className={styles.descImageGroup}>
+              {imageMatches.map((m, j) =>
+                m ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={j}
+                    src={m[2]}
+                    alt={m[1]}
+                    className={styles.descImage}
+                    loading="lazy"
+                  />
+                ) : null,
+              )}
+            </div>
+          );
+        }
+        return (
+          <p key={i} className={styles.descParagraph}>
+            {block.split("\n").map((line, j, arr) => (
+              <span key={j}>
+                {line}
+                {j < arr.length - 1 ? <br /> : null}
+              </span>
+            ))}
+          </p>
+        );
+      })}
     </div>
   );
 }

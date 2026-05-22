@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, datetime, json, uniqueIndex, primaryKey, tinyint } from "drizzle-orm/mysql-core";
+import { mysqlTable, int, varchar, text, datetime, json, uniqueIndex, primaryKey, tinyint } from "drizzle-orm/mysql-core";
 
 export const roles = mysqlTable("roles", {
   id: int("id").autoincrement().primaryKey(),
@@ -123,6 +123,7 @@ export const boardTasks = mysqlTable(
     boardId: int("board_id"),
     pileId: int("pile_id"),
     title: varchar("title", { length: 255 }),
+    description: text("description"),
     position: int("position"),
     createdAt: datetime("created_at"),
     updatedAt: datetime("updated_at"),
