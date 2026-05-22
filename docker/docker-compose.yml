@@ -22,6 +22,50 @@ services:
       networks:
         - sunday-network
 
+  minio:
+    image: minio/minio:latest
+    container_name: ${NAMESPACE}_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    volumes:
+      - sunday_minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sunday-network
+
+  # One-shot job that creates the bucket and makes it public-read so the
+  # browser can GET attachments directly via the S3 URL. Re-running it
+  # is safe: every command is idempotent.
+  minio-init:
+    image: minio/mc:latest
+    container_name: ${NAMESPACE}_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        mc alias set local http://minio:9000 "${S3_ACCESS_KEY_ID:-minioadmin}" "${S3_SECRET_ACCESS_KEY:-minioadmin}"
+        mc mb --ignore-existing "local/${S3_BUCKET:-sunday-uploads}"
+        mc anonymous set download "local/${S3_BUCKET:-sunday-uploads}"
+        echo "MinIO bucket ${S3_BUCKET:-sunday-uploads} ready."
+    restart: "no"
+    networks:
+      - sunday-network
+
   app:
     build:
       context: .
@@ -31,6 +75,14 @@ services:
     restart: always
     environment:
       - APP_ENV=${APP_ENV:-development}
+      - STORAGE_DRIVER=${STORAGE_DRIVER:-local}
+      - S3_BUCKET=${S3_BUCKET:-sunday-uploads}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-minioadmin}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-minioadmin}
+      - S3_PUBLIC_BASE_URL=${S3_PUBLIC_BASE_URL:-http://localhost:9000}
     volumes:
       - ../:/app
     command: >
@@ -57,12 +109,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
 
     networks:
       - sunday-network
 
 volumes:
   sunday_mariadb_data:
+  sunday_minio_data:
 
 networks:
   sunday-network:
