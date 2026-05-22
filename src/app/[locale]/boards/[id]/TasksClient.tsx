@@ -72,6 +72,7 @@ export default function TasksClient({
   const [drag, setDrag] = useState<DragState>(null);
   const [hint, setHint] = useState<DropHint>(null);
   const [addingPile, setAddingPile] = useState(false);
+  const [addPileDragOver, setAddPileDragOver] = useState(false);
 
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pileRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -303,6 +304,89 @@ export default function TasksClient({
     }
   };
 
+  // --- drop a card on Add pile: create a new pile and drop the card into it
+  const onDropOnAddPile = async (e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!drag) return;
+    const cardId = drag.cardId;
+    const fromPileId = drag.fromPileId;
+    setDrag(null);
+    setHint(null);
+    setAddPileDragOver(false);
+
+    const tasksSnapshot = tasks;
+    const pilesSnapshot = piles;
+
+    const tempPileId = -Date.now();
+    const newPileTitle = "New pile";
+    const nextPos = (piles.at(-1)?.position ?? 0) + 1;
+
+    // Optimistically add the pile and move the card
+    setPiles((prev) => [
+      ...prev,
+      { id: tempPileId, title: newPileTitle, color: "slate", position: nextPos },
+    ]);
+    setTasks((prev) => {
+      const remainingInSource =
+        fromPileId !== null
+          ? prev
+              .filter((t) => t.pileId === fromPileId && t.id !== cardId)
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((t, i) => ({ ...t, position: i + 1 }))
+          : [];
+      return prev.map((t) => {
+        if (t.id === cardId) return { ...t, pileId: tempPileId, position: 1 };
+        if (fromPileId !== null && t.pileId === fromPileId) {
+          const repacked = remainingInSource.find((r) => r.id === t.id);
+          return repacked ?? t;
+        }
+        return t;
+      });
+    });
+
+    try {
+      const pileRes = await fetch(`/api/boards/${boardId}/piles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newPileTitle, color: "slate" }),
+      });
+      const pileData = await pileRes.json();
+      if (!pileRes.ok) {
+        setPiles(pilesSnapshot);
+        setTasks(tasksSnapshot);
+        setError(pileData.error || "Could not create pile");
+        return;
+      }
+      const realPileId = pileData.pile.id as number;
+
+      // Swap the temp pile id for the real one in both states
+      setPiles((prev) =>
+        prev.map((p) =>
+          p.id === tempPileId
+            ? { id: realPileId, title: pileData.pile.title, color: pileData.pile.color, position: pileData.pile.position }
+            : p,
+        ),
+      );
+      setTasks((prev) =>
+        prev.map((t) => (t.pileId === tempPileId ? { ...t, pileId: realPileId } : t)),
+      );
+
+      const moveRes = await fetch(`/api/tasks/${cardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pileId: realPileId, afterCardId: null }),
+      });
+      if (!moveRes.ok) {
+        const data = await moveRes.json().catch(() => ({}));
+        setError(data.error || "Card move failed");
+      }
+    } catch {
+      setPiles(pilesSnapshot);
+      setTasks(tasksSnapshot);
+      setError("Network error.");
+    }
+  };
+
   // --- pile create
   const onCreatePile = async (title: string) => {
     const trimmed = title.trim();
@@ -449,11 +533,24 @@ export default function TasksClient({
           ) : (
             <button
               type="button"
-              className={kStyles.addPile}
+              className={`${kStyles.addPile} ${addPileDragOver ? kStyles.addPileDragOver : ""}`}
               onClick={() => setAddingPile(true)}
+              onDragOver={(e) => {
+                if (!drag) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (!addPileDragOver) setAddPileDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                if (!drag) return;
+                const related = e.relatedTarget as Node | null;
+                if (related && (e.currentTarget as Node).contains(related)) return;
+                setAddPileDragOver(false);
+              }}
+              onDrop={onDropOnAddPile}
             >
               <span className={kStyles.addPileMark}>＋</span>
-              Add another pile
+              {drag ? "Drop here to create a new pile" : "Add another pile"}
             </button>
           )}
         </div>

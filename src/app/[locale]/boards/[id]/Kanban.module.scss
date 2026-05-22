@@ -323,10 +323,17 @@
   min-height: 100px;
   font-family: inherit;
 }
-.addPile:hover {
+.addPile:hover,
+.addPileDragOver {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.addPileDragOver {
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  transform: scale(1.02);
 }
 
 .addPileMark {
