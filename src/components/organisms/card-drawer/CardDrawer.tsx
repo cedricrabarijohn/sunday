@@ -134,14 +134,21 @@ export default function CardDrawer({
   // Counts are reported to the parent in an effect rather than inline so we
   // never call the parent's setState during this component's render or
   // commit (which would trigger React's "setState during render" warning).
+  // We pin the latest callback in a ref so the effect doesn't re-run when
+  // the parent passes a fresh function each render, which would loop.
+  const onCountsChangeRef = useRef(onCountsChange);
+  useEffect(() => {
+    onCountsChangeRef.current = onCountsChange;
+  }, [onCountsChange]);
+
   useEffect(() => {
     if (!data) return;
-    onCountsChange?.(cardId, {
+    onCountsChangeRef.current?.(cardId, {
       itemsTotal: data.items.length,
       itemsDone: data.items.reduce((a, i) => a + (i.done ? 1 : 0), 0),
       attachments: data.attachments.length,
     });
-  }, [data, cardId, onCountsChange]);
+  }, [data, cardId]);
 
   // --- Card title rename ---
   const onCardTitleChange = (title: string) => {
