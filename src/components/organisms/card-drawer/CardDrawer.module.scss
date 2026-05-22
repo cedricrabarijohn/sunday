@@ -417,85 +417,119 @@
   font-size: 12.5px;
 }
 
-/* --- Description --- */
+/* --- Description editor (WYSIWYG) --- */
+.descHint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+
+.descShell {
+  position: relative;
+  isolation: isolate;
+}
+
 .descEditor {
-  width: 100%;
-  min-height: 120px;
-  resize: vertical;
-  background: var(--surface);
+  min-height: 110px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-1);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.55;
-  padding: 0.7rem 0.8rem;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 0.75rem 0.9rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  word-break: break-word;
 }
+.descEditor:hover { border-color: var(--border-strong); }
 .descEditor:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--surface);
 }
-.descEditor::placeholder { color: var(--text-mute); }
 
-.descRender {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.85rem 0.95rem;
-  color: var(--text-1);
-  font-size: 14px;
-  line-height: 1.55;
-  cursor: text;
-  text-align: left;
-  width: 100%;
-  font-family: inherit;
-  transition: border-color 140ms ease, background 140ms ease;
-}
-.descRender:hover { border-color: var(--border-strong); background: var(--surface-2); }
-.descRender:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-
-.descParagraph {
-  margin: 0;
+.descEditor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-mute);
+  font-style: italic;
+  pointer-events: none;
   white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--text-1);
 }
 
-.descImageGroup {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+/* Tags rendered inside the editor */
+.descEditor p {
+  margin: 0;
 }
-
-.descImage {
+.descEditor p + p {
+  margin-top: 0.5rem;
+}
+.descEditor img,
+.descInlineImage {
+  display: block;
   max-width: 100%;
   max-height: 280px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--inset);
-  cursor: zoom-in;
+  margin: 0.35rem 0;
+  cursor: default;
 }
 
-.descEmpty {
-  width: 100%;
-  text-align: left;
-  background: var(--bg);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.7rem 0.85rem;
-  color: var(--text-mute);
-  font-style: italic;
-  font-size: 13.5px;
-  cursor: text;
-  font-family: inherit;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+/* Drop-over state */
+.descEditorDrop {
+  border-style: dashed;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.descEmpty:hover { border-color: var(--border-strong); background: var(--surface-2); color: var(--text-2); }
+
+.descDropOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--accent-soft) 90%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.005em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 160ms ease, transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.descDropOverlayActive {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.descDropMark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  animation: bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
 
 /* --- Labels --- */
 .linkBtn {

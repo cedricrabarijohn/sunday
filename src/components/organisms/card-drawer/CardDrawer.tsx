@@ -90,9 +90,24 @@ export default function CardDrawer({
   const renameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const descTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const descRef = useRef<HTMLTextAreaElement | null>(null);
-  const [descEditing, setDescEditing] = useState(false);
+  const descRef = useRef<HTMLDivElement | null>(null);
+  const descInitializedRef = useRef(false);
+  const [descDragActive, setDescDragActive] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Re-initialize the description editor whenever a new card opens.
+  useEffect(() => {
+    descInitializedRef.current = false;
+  }, [cardId]);
+
+  // Populate the contentEditable with the initial description HTML once,
+  // when data first loads for this card. After that the DOM is owned by
+  // the editor — React does not touch it.
+  useEffect(() => {
+    if (!data || descInitializedRef.current || !descRef.current) return;
+    descRef.current.innerHTML = descriptionToHtml(data.card.description ?? "");
+    descInitializedRef.current = true;
+  }, [data]);
 
   // Fetch detail on mount
   useEffect(() => {
@@ -176,9 +191,15 @@ export default function CardDrawer({
   };
 
   // --- Description ---
-  const onDescChange = (description: string) => {
-    if (!data) return;
-    setData({ ...data, card: { ...data.card, description } });
+  // The description is stored as a small markdown subset:
+  //   - paragraphs separated by blank lines
+  //   - `![alt](url)` for an inline image
+  // The editor below is a contentEditable div: text is rendered as text,
+  // images as real <img> elements. We serialize the DOM back to markdown
+  // on every input and debounce-save to the API.
+
+  const persistDesc = (description: string) => {
+    setData((prev) => (prev ? { ...prev, card: { ...prev.card, description } } : prev));
     if (descTimer.current) clearTimeout(descTimer.current);
     descTimer.current = setTimeout(async () => {
       try {
@@ -194,10 +215,14 @@ export default function CardDrawer({
     }, 400);
   };
 
-  // Upload a single image and return the markdown snippet to insert into
-  // the description. Also pushes the new attachment to local state so the
-  // Images section shows the same file.
-  const uploadImageForDescription = async (file: File): Promise<string | null> => {
+  const onDescInput = () => {
+    if (!descRef.current) return;
+    persistDesc(serializeDescription(descRef.current));
+  };
+
+  // Upload a single image and push the new attachment to local state so
+  // the Images section reflects it. Returns the public URL on success.
+  const uploadImageForDescription = async (file: File): Promise<{ url: string; alt: string } | null> => {
     if (!file.type.startsWith("image/")) {
       setError("Only image files are allowed");
       return null;
@@ -220,58 +245,132 @@ export default function CardDrawer({
           : prev,
       );
       const alt = (json.attachment.filename || "image").replace(/[\]\[]/g, "");
-      return `![${alt}](${json.attachment.url})`;
+      return { url: json.attachment.url as string, alt };
     } catch {
       setError("Network error. Upload failed.");
       return null;
     }
   };
 
-  const insertSnippetAtCursor = (snippet: string) => {
-    const el = descRef.current;
-    if (!el) return;
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const before = el.value.slice(0, start);
-    const after = el.value.slice(end);
-    const needsLeadingBreak = before && !before.endsWith("\n");
-    const needsTrailingBreak = !after.startsWith("\n");
-    const wrapped =
-      (needsLeadingBreak ? "\n\n" : "") + snippet + (needsTrailingBreak ? "\n\n" : "\n");
-    const next = before + wrapped + after;
-    onDescChange(next);
-    // Restore focus and place cursor after the inserted snippet on the next tick.
-    const caret = (before + wrapped).length;
-    requestAnimationFrame(() => {
-      if (!descRef.current) return;
-      descRef.current.focus();
-      descRef.current.setSelectionRange(caret, caret);
-    });
+  const focusEditorAtRange = (range: Range | null) => {
+    if (!descRef.current) return;
+    descRef.current.focus();
+    if (range) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
   };
 
-  const onDescPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const insertImageAtCursor = (url: string, alt: string) => {
+    const editor = descRef.current;
+    if (!editor) return;
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = alt;
+    img.draggable = false;
+    img.className = styles.descInlineImage;
+
+    let range: Range | null = null;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && editor.contains(sel.anchorNode)) {
+      range = sel.getRangeAt(0);
+    }
+    if (range) {
+      range.deleteContents();
+      range.insertNode(img);
+      // Give the image its own paragraph so it always sits on its own line.
+      const after = document.createElement("br");
+      img.after(after);
+      range.setStartAfter(after);
+      range.setEndAfter(after);
+      sel!.removeAllRanges();
+      sel!.addRange(range);
+    } else {
+      editor.appendChild(img);
+      editor.appendChild(document.createElement("br"));
+    }
+  };
+
+  const onDescPaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = Array.from(e.clipboardData?.items ?? []);
     const imageItems = items.filter((it) => it.kind === "file" && it.type.startsWith("image/"));
-    if (imageItems.length === 0) return;
-    e.preventDefault();
-    for (const it of imageItems) {
-      const file = it.getAsFile();
-      if (!file) continue;
-      const snippet = await uploadImageForDescription(file);
-      if (snippet) insertSnippetAtCursor(snippet);
+
+    if (imageItems.length > 0) {
+      e.preventDefault();
+      for (const it of imageItems) {
+        const file = it.getAsFile();
+        if (!file) continue;
+        const up = await uploadImageForDescription(file);
+        if (up) insertImageAtCursor(up.url, up.alt);
+      }
+      onDescInput();
+      return;
+    }
+
+    // Force plain-text paste so fancy formatting from other apps does not
+    // bleed into the editor. We keep newlines.
+    const text = e.clipboardData.getData("text/plain");
+    if (text) {
+      e.preventDefault();
+      document.execCommand("insertText", false, text);
+      onDescInput();
     }
   };
 
-  const onDescDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
-      f.type.startsWith("image/"),
-    );
-    if (files.length === 0) return;
+  const onDescDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
     e.preventDefault();
-    for (const file of files) {
-      const snippet = await uploadImageForDescription(file);
-      if (snippet) insertSnippetAtCursor(snippet);
+    setDescDragActive(true);
+  };
+
+  const onDescDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    if (!descDragActive) setDescDragActive(true);
+  };
+
+  const onDescDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    const related = e.relatedTarget as Node | null;
+    if (related && (e.currentTarget as Node).contains(related)) return;
+    setDescDragActive(false);
+  };
+
+  const onDescDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDescDragActive(false);
+    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) return;
+
+    // Place the cursor at the drop position so the image lands where
+    // the user dropped it, not at the end of the document.
+    let dropRange: Range | null = null;
+    type CaretFromPoint = (x: number, y: number) => Range | null;
+    type CaretPosition = { offsetNode: Node; offset: number };
+    type CaretPositionFromPoint = (x: number, y: number) => CaretPosition | null;
+    type DocWithCaret = Document & {
+      caretRangeFromPoint?: CaretFromPoint;
+      caretPositionFromPoint?: CaretPositionFromPoint;
+    };
+    const doc = document as DocWithCaret;
+    if (typeof doc.caretRangeFromPoint === "function") {
+      dropRange = doc.caretRangeFromPoint(e.clientX, e.clientY);
+    } else if (typeof doc.caretPositionFromPoint === "function") {
+      const pos = doc.caretPositionFromPoint(e.clientX, e.clientY);
+      if (pos) {
+        dropRange = document.createRange();
+        dropRange.setStart(pos.offsetNode, pos.offset);
+        dropRange.collapse(true);
+      }
     }
+    focusEditorAtRange(dropRange);
+
+    for (const file of files) {
+      const up = await uploadImageForDescription(file);
+      if (up) insertImageAtCursor(up.url, up.alt);
+    }
+    onDescInput();
   };
 
   // --- Items ---
@@ -676,29 +775,31 @@ export default function CardDrawer({
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Description</span>
-                <button
-                  type="button"
-                  className={styles.linkBtn}
-                  onClick={() => setDescEditing((e) => !e)}
-                >
-                  {descEditing ? "Done" : data.card.description ? "Edit" : "Add"}
-                </button>
+                <span className={styles.descHint}>Paste or drop an image to embed it</span>
               </div>
-              {descEditing ? (
-                <textarea
+              <div className={styles.descShell}>
+                <div
                   ref={descRef}
-                  className={styles.descEditor}
-                  value={data.card.description ?? ""}
-                  onChange={(e) => onDescChange(e.target.value)}
+                  className={`${styles.descEditor} ${descDragActive ? styles.descEditorDrop : ""}`}
+                  contentEditable
+                  suppressContentEditableWarning
+                  spellCheck
+                  onInput={onDescInput}
                   onPaste={onDescPaste}
+                  onDragEnter={onDescDragEnter}
+                  onDragOver={onDescDragOver}
+                  onDragLeave={onDescDragLeave}
                   onDrop={onDescDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  placeholder="Write a description. Paste or drop images right here to embed them inline."
-                  rows={6}
+                  data-placeholder="Write a description. Paste or drop images right here to embed them inline."
                 />
-              ) : (
-                <DescriptionRender text={data.card.description ?? ""} onEdit={() => setDescEditing(true)} />
-              )}
+                <div
+                  className={`${styles.descDropOverlay} ${descDragActive ? styles.descDropOverlayActive : ""}`}
+                  aria-hidden
+                >
+                  <span className={styles.descDropMark}>↧</span>
+                  Drop image to embed
+                </div>
+              </div>
             </section>
 
             <section className={styles.section}>
@@ -1085,68 +1186,113 @@ function LabelCreator({
 }
 
 /* ------------------------------------------------------- *
- *   Description renderer: a tiny markdown subset.
- *   - blank line -> new paragraph
- *   - a line equal to "![alt](url)" renders as an inline image
- *   - plain text otherwise
+ *   Description <-> markdown converters.
+ *
+ *   The description is stored as a tiny markdown subset:
+ *     - paragraphs are separated by blank lines
+ *     - a line "![alt](url)" is an inline image
+ *
+ *   The WYSIWYG editor displays them as real <p> and <img> elements.
+ *   On every input we serialize the DOM back to that markdown shape
+ *   so the persisted shape stays simple and safe.
  * ------------------------------------------------------- */
 
 const IMAGE_LINE = /^!\[([^\]]*)\]\((\S+)\)\s*$/;
 
-function DescriptionRender({ text, onEdit }: { text: string; onEdit: () => void }) {
-  if (!text.trim()) {
-    return (
-      <button type="button" className={styles.descEmpty} onClick={onEdit}>
-        No description yet. Click to add one.
-      </button>
-    );
-  }
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function descriptionToHtml(text: string): string {
+  if (!text.trim()) return "";
   const blocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
-  return (
-    <div
-      className={styles.descRender}
-      onClick={onEdit}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onEdit();
-        }
-      }}
-    >
-      {blocks.map((block, i) => {
-        const lines = block.split("\n");
-        const imageMatches = lines.map((l) => l.match(IMAGE_LINE));
-        if (imageMatches.every((m) => m !== null)) {
-          return (
-            <div key={i} className={styles.descImageGroup}>
-              {imageMatches.map((m, j) =>
-                m ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={j}
-                    src={m[2]}
-                    alt={m[1]}
-                    className={styles.descImage}
-                    loading="lazy"
-                  />
-                ) : null,
-              )}
-            </div>
-          );
-        }
+  return blocks
+    .map((block) => {
+      const lines = block.split("\n");
+      // If every line in the block is an image-only line, render as an
+      // image row. Otherwise emit a paragraph with <br> between lines.
+      const matches = lines.map((l) => l.match(IMAGE_LINE));
+      if (matches.every((m) => m !== null)) {
         return (
-          <p key={i} className={styles.descParagraph}>
-            {block.split("\n").map((line, j, arr) => (
-              <span key={j}>
-                {line}
-                {j < arr.length - 1 ? <br /> : null}
-              </span>
-            ))}
-          </p>
+          "<p>" +
+          matches
+            .map((m) =>
+              m ? `<img src="${escapeHtml(m[2])}" alt="${escapeHtml(m[1])}" draggable="false" />` : "",
+            )
+            .join("") +
+          "</p>"
         );
-      })}
-    </div>
-  );
+      }
+      return (
+        "<p>" +
+        lines
+          .map((l) => escapeHtml(l))
+          .join("<br>") +
+        "</p>"
+      );
+    })
+    .join("");
+}
+
+function serializeDescription(editor: HTMLElement): string {
+  const blocks: string[] = [];
+
+  const flushText = (buf: string) => {
+    const trimmed = buf.replace(/ /g, " ").replace(/[ \t]+$/gm, "");
+    if (trimmed.trim()) blocks.push(trimmed.trim());
+  };
+
+  const visitBlock = (el: Element) => {
+    let buf = "";
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        buf += child.textContent ?? "";
+        continue;
+      }
+      if (child.nodeType !== Node.ELEMENT_NODE) continue;
+      const c = child as HTMLElement;
+      const tag = c.tagName;
+      if (tag === "BR") {
+        buf += "\n";
+      } else if (tag === "IMG") {
+        flushText(buf);
+        buf = "";
+        const img = c as HTMLImageElement;
+        const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
+        blocks.push(`![${alt}](${img.src})`);
+      } else if (tag === "DIV" || tag === "P") {
+        // Nested block — finish current text and recurse.
+        flushText(buf);
+        buf = "";
+        visitBlock(c);
+      } else {
+        // Anything else: keep its text content.
+        buf += c.textContent ?? "";
+      }
+    }
+    flushText(buf);
+  };
+
+  for (const node of Array.from(editor.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const t = (node.textContent ?? "").trim();
+      if (t) blocks.push(t);
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      if (el.tagName === "BR") continue;
+      if (el.tagName === "IMG") {
+        const img = el as HTMLImageElement;
+        const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
+        blocks.push(`![${alt}](${img.src})`);
+      } else {
+        visitBlock(el);
+      }
+    }
+  }
+
+  return blocks.join("\n\n");
 }
