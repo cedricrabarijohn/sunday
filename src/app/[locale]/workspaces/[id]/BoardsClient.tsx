@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, FormEvent, useState, useTransition } from "react";
+import { CSSProperties, FormEvent, MouseEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { colorForId } from "@/lib/palette";
 import styles from "../AppShell.module.scss";
@@ -23,6 +23,31 @@ export default function BoardsClient({
   const [saving, setSaving] = useState(false);
 
   const wsColor = colorForId(workspaceId);
+
+  async function onDelete(e: MouseEvent, board: Board) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (
+      !confirm(
+        `Delete "${board.title || "Untitled"}"? This permanently removes the board, every card it holds, sub-tasks and uploaded images.`,
+      )
+    )
+      return;
+    const snapshot = boards;
+    setBoards((prev) => prev.filter((b) => b.id !== board.id));
+    if (board.id < 0) return;
+    try {
+      const res = await fetch(`/api/boards/${board.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setBoards(snapshot);
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Could not delete board");
+      }
+    } catch {
+      setBoards(snapshot);
+      setError("Network error. Please try again.");
+    }
+  }
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -135,6 +160,15 @@ export default function BoardsClient({
                   <span className={styles.cardCount}>{c.name}</span>
                   <span className={styles.cardArrow}>→</span>
                 </div>
+                <button
+                  type="button"
+                  className={styles.cardDelete}
+                  onClick={(e) => onDelete(e, b)}
+                  aria-label="Delete board"
+                  title="Delete board"
+                >
+                  ×
+                </button>
               </Link>
             );
           })}

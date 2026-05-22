@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boards, workspaceUsers } from "@/db/schema";
+import {
+  boardPiles,
+  boardTaskAttachments,
+  boardTaskItems,
+  boardTaskLabels,
+  boardTasks,
+  boards,
+  workspaceUsers,
+} from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
+import { getStorage } from "@/lib/storage";
 
 export async function loadBoardForUser(boardId: number, userId: number) {
   const [row] = await db
@@ -71,6 +80,16 @@ export async function PATCH(
   return NextResponse.json({ ok: true });
 }
 
+/**
+ * Boards are hard-deleted with their dependents (piles, cards,
+ * sub-tasks, attachments, label assignments). Every other entity in
+ * the system still uses soft-delete so individual deletes stay safe
+ * to undo, but a board is treated as a container: dropping it should
+ * drop everything inside.
+ *
+ * Storage objects are deleted after the database transaction commits.
+ * A failed storage delete only leaks bytes, never breaks the DB.
+ */
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
@@ -83,6 +102,55 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const board = await loadBoardForUser(boardId, auth.session.sub);
   if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await db.update(boards).set({ deletedAt: new Date() }).where(eq(boards.id, boardId));
+  // Collect everything we need before the destructive part.
+  const taskRows = await db
+    .select({ id: boardTasks.id })
+    .from(boardTasks)
+    .where(eq(boardTasks.boardId, boardId));
+  const taskIds = taskRows.map((t) => t.id);
+
+  const attachments = taskIds.length
+    ? await db
+        .select({
+          id: boardTaskAttachments.id,
+          storageKey: boardTaskAttachments.storageKey,
+          url: boardTaskAttachments.url,
+        })
+        .from(boardTaskAttachments)
+        .where(inArray(boardTaskAttachments.boardTaskId, taskIds))
+    : [];
+
+  await db.transaction(async (tx) => {
+    if (taskIds.length) {
+      await tx
+        .delete(boardTaskAttachments)
+        .where(inArray(boardTaskAttachments.boardTaskId, taskIds));
+      await tx
+        .delete(boardTaskItems)
+        .where(inArray(boardTaskItems.boardTaskId, taskIds));
+      await tx
+        .delete(boardTaskLabels)
+        .where(inArray(boardTaskLabels.boardTaskId, taskIds));
+    }
+    await tx.delete(boardTasks).where(eq(boardTasks.boardId, boardId));
+    await tx.delete(boardPiles).where(eq(boardPiles.boardId, boardId));
+    await tx.delete(boards).where(eq(boards.id, boardId));
+  });
+
+  // Fire-and-forget storage cleanup. Even if every delete fails, the DB is
+  // already consistent. Best-effort: log and move on.
+  if (attachments.length) {
+    const storage = getStorage();
+    void Promise.allSettled(
+      attachments.map((a) => {
+        let key = a.storageKey ?? null;
+        if (!key && a.url && a.url.startsWith("/uploads/")) {
+          key = a.url.replace(/^\/+/, "");
+        }
+        return key ? storage.delete(key) : Promise.resolve();
+      }),
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }

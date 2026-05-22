@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
 import styles from "../../workspaces/AppShell.module.scss";
@@ -63,6 +64,7 @@ export default function TasksClient({
   initialPiles: Pile[];
   initialLabels: WorkspaceLabel[];
 }) {
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [piles, setPiles] = useState<Pile[]>(initialPiles);
   const [labels, setLabels] = useState<WorkspaceLabel[]>(initialLabels);
@@ -444,6 +446,28 @@ export default function TasksClient({
   };
 
   // --- pile delete
+  // --- board delete (hard, cascades on the server) ---
+  const onDeleteBoard = async () => {
+    if (
+      !confirm(
+        `Delete board "${title || "Untitled"}"? This permanently removes the board, every card it holds, sub-tasks and uploaded images.`,
+      )
+    )
+      return;
+    try {
+      const res = await fetch(`/api/boards/${boardId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Could not delete board");
+        return;
+      }
+      router.push(`/workspaces/${workspaceId}`);
+      router.refresh();
+    } catch {
+      setError("Network error. Please try again.");
+    }
+  };
+
   const onDeletePile = async (pile: Pile) => {
     const cards = cardsByPile.get(pile.id) ?? [];
     if (cards.length > 0) {
@@ -505,10 +529,19 @@ export default function TasksClient({
             </div>
           </div>
         </div>
-        <span className={styles.pageMeta}>
-          {piles.length} {piles.length === 1 ? "pile" : "piles"} ·{" "}
-          {tasks.length} {tasks.length === 1 ? "card" : "cards"}
-        </span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
+          <span className={styles.pageMeta}>
+            {piles.length} {piles.length === 1 ? "pile" : "piles"} ·{" "}
+            {tasks.length} {tasks.length === 1 ? "card" : "cards"}
+          </span>
+          <button
+            type="button"
+            className={styles.dangerLinkBtn}
+            onClick={onDeleteBoard}
+          >
+            Delete board
+          </button>
+        </div>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
