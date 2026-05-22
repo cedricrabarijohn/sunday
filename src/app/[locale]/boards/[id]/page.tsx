@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  boardPiles,
   boardTaskAttachments,
   boardTaskItems,
   boardTaskLabels,
@@ -74,9 +75,21 @@ export default async function BoardDetail({
     .from(boards)
     .where(and(eq(boards.workspaceId, board.workspaceId!), isNull(boards.deletedAt)));
 
+  const piles = await db
+    .select({
+      id: boardPiles.id,
+      title: boardPiles.title,
+      color: boardPiles.color,
+      position: boardPiles.position,
+    })
+    .from(boardPiles)
+    .where(and(eq(boardPiles.boardId, boardId), isNull(boardPiles.deletedAt)))
+    .orderBy(asc(boardPiles.position), asc(boardPiles.id));
+
   const rawTasks = await db
     .select({
       id: boardTasks.id,
+      pileId: boardTasks.pileId,
       title: boardTasks.title,
       position: boardTasks.position,
     })
@@ -186,6 +199,7 @@ export default async function BoardDetail({
         workspaceId={board.workspaceId ?? 0}
         workspaceTitle={board.workspaceTitle}
         initial={tasks}
+        initialPiles={piles}
         initialLabels={workspaceLabels}
       />
     </AppShell>

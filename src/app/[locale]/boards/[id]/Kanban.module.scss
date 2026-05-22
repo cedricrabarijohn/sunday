@@ -1,0 +1,395 @@
+/* Kanban board: horizontal scroll of piles, each with stacked cards */
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  height: calc(100vh - 160px);
+  min-height: 480px;
+  overflow: hidden;
+}
+
+.scroller {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1rem;
+  scroll-snap-type: x proximity;
+  height: 100%;
+}
+
+.pile {
+  flex: 0 0 320px;
+  max-width: 320px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+  max-height: 100%;
+  position: relative;
+  transition: border-color 140ms ease, background 140ms ease;
+  animation: rise 220ms ease-out both;
+}
+
+.pileDragOver {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pileHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.7rem 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.pileDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.pileTitle {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.2rem 0.35rem;
+  font-family: inherit;
+  min-width: 0;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.pileTitle:hover { border-color: var(--border); }
+.pileTitle:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.pileCount {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-mute);
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.pileMenu {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.pileMenu:hover { background: var(--surface); color: var(--text-1); border-color: var(--border); }
+
+.pileBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.55rem 0.4rem;
+  overflow-y: auto;
+  min-height: 60px;
+}
+
+.pileComposer {
+  padding: 0.4rem 0.55rem 0.6rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
+.composerInput {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0.45rem 0.55rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.composerInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.composerInput::placeholder { color: var(--text-mute); }
+
+.composerHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-mute);
+  margin-top: 0.35rem;
+}
+
+/* --- Cards --- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  transition: transform 120ms ease, box-shadow 160ms ease, border-color 140ms ease, opacity 140ms ease;
+  animation: riseSm 220ms ease-out both;
+}
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+.card:hover .cardActions { opacity: 1; }
+.card:active { cursor: grabbing; }
+
+.cardDragging {
+  opacity: 0.4;
+  transform: rotate(-1.5deg);
+}
+
+.cardDropIndicator {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  margin: 0 0.3rem;
+  animation: pulseLine 1.2s ease-in-out infinite;
+}
+@keyframes pulseLine {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+.cardChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.cardChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cardChipDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cardTitle {
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--text-1);
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+  line-height: 1.35;
+  width: 100%;
+  resize: none;
+  min-height: 19px;
+  overflow: hidden;
+}
+.cardTitle:focus { outline: none; }
+.cardTitle::placeholder { color: var(--text-mute); }
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.cardBadges {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.cardBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  background: var(--bg);
+  font-variant-numeric: tabular-nums;
+}
+.cardBadge[data-complete="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+.cardBadgeIcon { font-size: 9px; line-height: 1; }
+.cardMiniBar {
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cardMiniBarFill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.cardActions {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.iconBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.iconBtn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
+.iconBtnDanger:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+
+.empty {
+  padding: 1.5rem 0.8rem;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-mute);
+  font-style: italic;
+}
+
+/* --- Add pile column --- */
+.addPile {
+  flex: 0 0 280px;
+  max-width: 280px;
+  background: transparent;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+  color: var(--text-3);
+  font-size: 13px;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  font-family: inherit;
+}
+.addPile:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.addPileMark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.addPileFormWrap {
+  flex: 0 0 280px;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.addPileInput {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0.45rem 0.55rem;
+}
+.addPileInput:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.addPileActions { display: flex; justify-content: flex-end; gap: 0.35rem; }
+
+.btnGhost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0.3rem 0.65rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.btnGhost:hover { background: var(--surface); color: var(--text-1); border-color: var(--border-strong); }
+
+.btnPrimary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0.3rem 0.7rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.btnPrimary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btnPrimary:disabled { background: var(--inset); color: var(--text-mute); border-color: var(--border); cursor: not-allowed; }

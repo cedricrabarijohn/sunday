@@ -1,4 +1,5 @@
 import styles from "../../workspaces/AppShell.module.scss";
+import kStyles from "./Kanban.module.scss";
 
 export default function Loading() {
   return (
@@ -24,14 +25,21 @@ export default function Loading() {
               </div>
             </div>
           </div>
-          <div className={styles.tasksList}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className={styles.taskRow}>
-                <span className={styles.taskNum}>{String(i + 1).padStart(2, "0")}</span>
-                <div
-                  className={styles.skeleton}
-                  style={{ height: 14, width: `${45 + (i * 11) % 35}%` }}
-                />
+          <div className={kStyles.scroller}>
+            {Array.from({ length: 3 }).map((_, p) => (
+              <div key={p} className={kStyles.pile}>
+                <div className={kStyles.pileHead}>
+                  <span className={kStyles.pileDot} style={{ background: "var(--border)" }} />
+                  <span className={styles.skeleton} style={{ height: 14, flex: 1 }} />
+                </div>
+                <div className={kStyles.pileBody}>
+                  {Array.from({ length: 3 - p }).map((__, i) => (
+                    <div key={i} className={kStyles.card}>
+                      <span className={styles.skeleton} style={{ height: 14, width: "75%" }} />
+                      <span className={styles.skeleton} style={{ height: 12, width: "50%" }} />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
