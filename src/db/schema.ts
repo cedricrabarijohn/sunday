@@ -60,6 +60,20 @@ export const workspaceRoleCapabilities = mysqlTable(
   (t) => [primaryKey({ columns: [t.workspaceRoleId, t.workspaceCapabilityId] })],
 );
 
+export const workspaceInvites = mysqlTable("workspace_invites", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspace_id").notNull(),
+  email: varchar("email", { length: 255 }),
+  workspaceRoleId: int("workspace_role_id").notNull(),
+  token: varchar("token", { length: 64 }).notNull(),
+  invitedByUserId: int("invited_by_user_id").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: datetime("created_at"),
+  acceptedAt: datetime("accepted_at"),
+  expiresAt: datetime("expires_at"),
+  acceptedByUserId: int("accepted_by_user_id"),
+});
+
 export const workspaceUsers = mysqlTable(
   "workspace_users",
   {
