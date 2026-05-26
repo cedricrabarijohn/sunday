@@ -1,12 +1,21 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import styles from "./AuthForm.module.scss";
 
+/** Only redirect to in-app paths to avoid open-redirect attacks. */
+function safeRedirect(raw: string | null): string {
+  if (!raw) return "/workspaces";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/workspaces";
+  return raw;
+}
+
 export default function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +36,7 @@ export default function SignInForm() {
         setError(data.error || "Invalid email or password");
         return;
       }
-      router.push("/workspaces");
+      router.push(redirect);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -75,7 +84,11 @@ export default function SignInForm() {
 
       <div className={styles.footer}>
         Don&apos;t have an account?
-        <Link href="/users/sign_up">Sign up</Link>
+        <Link
+          href={`/users/sign_up${searchParams.get("redirect") ? `?redirect=${encodeURIComponent(searchParams.get("redirect") as string)}` : ""}`}
+        >
+          Sign up
+        </Link>
       </div>
     </div>
   );

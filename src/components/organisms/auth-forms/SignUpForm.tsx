@@ -1,12 +1,20 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import styles from "./AuthForm.module.scss";
 
+function safeRedirect(raw: string | null): string {
+  if (!raw) return "/workspaces";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/workspaces";
+  return raw;
+}
+
 export default function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
   const [email, setEmail] = useState("");
@@ -29,7 +37,7 @@ export default function SignUpForm() {
         setError(data.error || "Could not create account");
         return;
       }
-      router.push("/workspaces");
+      router.push(redirect);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -102,7 +110,11 @@ export default function SignUpForm() {
 
       <div className={styles.footer}>
         Already have an account?
-        <Link href="/users/sign_in">Sign in</Link>
+        <Link
+          href={`/users/sign_in${searchParams.get("redirect") ? `?redirect=${encodeURIComponent(searchParams.get("redirect") as string)}` : ""}`}
+        >
+          Sign in
+        </Link>
       </div>
     </div>
   );
