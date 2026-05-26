@@ -109,11 +109,16 @@ export default function BoardsClient({
             <div className={styles.pageSubtitle}>Boards in this workspace</div>
           </div>
         </div>
-        <span className={styles.pageMeta}>
-          {boards.length.toString().padStart(2, "0")}{" "}
-          {boards.length === 1 ? "board" : "boards"}
-          {(pending || saving) && <span className={styles.savingDot} />}
-        </span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
+          <Link href={`/workspaces/${workspaceId}/members`} className={styles.ghostBtn}>
+            Members
+          </Link>
+          <span className={styles.pageMeta}>
+            {boards.length.toString().padStart(2, "0")}{" "}
+            {boards.length === 1 ? "board" : "boards"}
+            {(pending || saving) && <span className={styles.savingDot} />}
+          </span>
+        </div>
       </div>
 
       <form className={styles.composer} onSubmit={onCreate}>
