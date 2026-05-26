@@ -36,10 +36,10 @@
    reads as a card on the right rather than a wall. */
 @media (min-width: 768px) {
   .drawer {
-    top: 16px;
-    right: 16px;
-    bottom: 16px;
-    width: min(1100px, calc(100vw - 32px));
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(900px, calc(100vw - 32px));
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
