@@ -548,6 +548,9 @@ export default function TasksClient({
             {piles.length} {piles.length === 1 ? "pile" : "piles"} ·{" "}
             {tasks.length} {tasks.length === 1 ? "card" : "cards"}
           </span>
+          <Link href={`/boards/${boardId}/members`} className={styles.ghostBtn}>
+            Members
+          </Link>
           {can("delete_board") && (
             <button
               type="button"

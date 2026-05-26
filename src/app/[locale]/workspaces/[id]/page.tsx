@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boards, users, workspaceUsers, workspaces } from "@/db/schema";
+import { boardUsers, boards, users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
-import { loadCapabilities } from "@/lib/workspace-access";
+import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities, loadMembership } from "@/lib/workspace-access";
 import AppShell from "../AppShell";
 import BoardsClient from "./BoardsClient";
 
@@ -48,10 +48,26 @@ export default async function WorkspaceDetail({
     .limit(1);
   if (!workspace) notFound();
 
-  const boardRows = await db
-    .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
-    .from(boards)
-    .where(and(eq(boards.workspaceId, workspaceId), isNull(boards.deletedAt)));
+  const wsMembership = await loadMembership(workspaceId, session.sub);
+  const isWsAdmin = wsMembership?.workspaceRoleId === WORKSPACE_ADMIN_ROLE_ID;
+
+  const boardRows = isWsAdmin
+    ? await db
+        .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
+        .from(boards)
+        .where(and(eq(boards.workspaceId, workspaceId), isNull(boards.deletedAt)))
+    : await db
+        .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
+        .from(boards)
+        .innerJoin(boardUsers, eq(boardUsers.boardId, boards.id))
+        .where(
+          and(
+            eq(boards.workspaceId, workspaceId),
+            eq(boardUsers.userId, session.sub),
+            isNull(boards.deletedAt),
+            isNull(boardUsers.deletedAt),
+          ),
+        );
 
   return (
     <AppShell

@@ -7,6 +7,7 @@ import {
   boardTaskItems,
   boardTaskLabels,
   boardTasks,
+  boardUsers,
   boards,
   labels,
   users,
@@ -14,7 +15,8 @@ import {
   workspaces,
 } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
-import { loadCapabilities } from "@/lib/workspace-access";
+import { loadBoardCapabilities } from "@/lib/board-access";
+import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access";
 import AppShell from "../../workspaces/AppShell";
 import TasksClient from "./TasksClient";
 
@@ -43,21 +45,30 @@ export default async function BoardDetail({
       title: boards.title,
       workspaceId: boards.workspaceId,
       workspaceTitle: workspaces.title,
+      createdAt: boards.createdAt,
     })
     .from(boards)
     .innerJoin(workspaces, eq(workspaces.id, boards.workspaceId))
-    .innerJoin(workspaceUsers, eq(workspaceUsers.workspaceId, boards.workspaceId))
     .where(
       and(
         eq(boards.id, boardId),
-        eq(workspaceUsers.userId, session.sub),
         isNull(boards.deletedAt),
         isNull(workspaces.deletedAt),
-        isNull(workspaceUsers.deletedAt),
       ),
     )
     .limit(1);
-  if (!board) notFound();
+  if (!board || board.workspaceId == null) notFound();
+
+  const boardCapSet = await loadBoardCapabilities(
+    {
+      id: board.id,
+      workspaceId: board.workspaceId,
+      title: board.title,
+      createdAt: board.createdAt,
+    },
+    session.sub,
+  );
+  if (!boardCapSet.has("view_board")) notFound();
 
   const allWorkspaces = await db
     .select({ id: workspaces.id, title: workspaces.title })
@@ -71,10 +82,26 @@ export default async function BoardDetail({
       ),
     );
 
-  const workspaceBoards = await db
-    .select({ id: boards.id, title: boards.title })
-    .from(boards)
-    .where(and(eq(boards.workspaceId, board.workspaceId!), isNull(boards.deletedAt)));
+  const wsMembership = await loadMembership(board.workspaceId, session.sub);
+  const isWsAdmin = wsMembership?.workspaceRoleId === WORKSPACE_ADMIN_ROLE_ID;
+
+  const workspaceBoards = isWsAdmin
+    ? await db
+        .select({ id: boards.id, title: boards.title })
+        .from(boards)
+        .where(and(eq(boards.workspaceId, board.workspaceId), isNull(boards.deletedAt)))
+    : await db
+        .select({ id: boards.id, title: boards.title })
+        .from(boards)
+        .innerJoin(boardUsers, eq(boardUsers.boardId, boards.id))
+        .where(
+          and(
+            eq(boards.workspaceId, board.workspaceId),
+            eq(boardUsers.userId, session.sub),
+            isNull(boards.deletedAt),
+            isNull(boardUsers.deletedAt),
+          ),
+        );
 
   const piles = await db
     .select({
@@ -186,14 +213,13 @@ export default async function BoardDetail({
     .where(and(eq(labels.workspaceId, board.workspaceId!), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
-  const capSet = await loadCapabilities(board.workspaceId!, session.sub);
-  const capabilities = Array.from(capSet);
+  const capabilities = Array.from(boardCapSet);
 
   return (
     <AppShell
       user={user}
       workspaces={allWorkspaces}
-      currentWorkspaceId={board.workspaceId ?? undefined}
+      currentWorkspaceId={board.workspaceId}
       currentBoardId={boardId}
       workspaceBoards={workspaceBoards}
       wide
