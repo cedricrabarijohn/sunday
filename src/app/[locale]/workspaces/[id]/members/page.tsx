@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
-import { isAdmin, loadMembership } from "@/lib/workspace-access";
+import { loadCapabilities, loadMembership } from "@/lib/workspace-access";
 import AppShell from "../../AppShell";
 import MembersClient from "./MembersClient";
 
@@ -58,7 +58,7 @@ export default async function MembersPage({
         workspaceId={workspaceId}
         workspaceTitle={workspace.title}
         currentUserId={session.sub}
-        isAdmin={isAdmin(membership)}
+        capabilities={Array.from(await loadCapabilities(workspaceId, session.sub))}
       />
     </AppShell>
   );

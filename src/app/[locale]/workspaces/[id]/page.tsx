@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boards, users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
+import { loadCapabilities } from "@/lib/workspace-access";
 import AppShell from "../AppShell";
 import BoardsClient from "./BoardsClient";
 
@@ -63,6 +64,7 @@ export default async function WorkspaceDetail({
         workspaceId={workspaceId}
         workspaceTitle={workspace.title}
         initial={boardRows}
+        capabilities={Array.from(await loadCapabilities(workspaceId, session.sub))}
       />
     </AppShell>
   );

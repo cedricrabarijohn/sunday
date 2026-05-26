@@ -14,6 +14,7 @@ import {
   workspaces,
 } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
+import { loadCapabilities } from "@/lib/workspace-access";
 import AppShell from "../../workspaces/AppShell";
 import TasksClient from "./TasksClient";
 
@@ -185,6 +186,9 @@ export default async function BoardDetail({
     .where(and(eq(labels.workspaceId, board.workspaceId!), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
+  const capSet = await loadCapabilities(board.workspaceId!, session.sub);
+  const capabilities = Array.from(capSet);
+
   return (
     <AppShell
       user={user}
@@ -202,6 +206,7 @@ export default async function BoardDetail({
         initial={tasks}
         initialPiles={piles}
         initialLabels={workspaceLabels}
+        capabilities={capabilities}
       />
     </AppShell>
   );

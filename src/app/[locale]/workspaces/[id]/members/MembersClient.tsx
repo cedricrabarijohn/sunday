@@ -46,13 +46,15 @@ export default function MembersClient({
   workspaceId,
   workspaceTitle,
   currentUserId,
-  isAdmin,
+  capabilities,
 }: {
   workspaceId: number;
   workspaceTitle: string | null;
   currentUserId: number;
-  isAdmin: boolean;
+  capabilities: string[];
 }) {
+  const caps = new Set(capabilities);
+  const canManageMembers = caps.has("manage_members");
   const { confirm } = useConfirm();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -72,7 +74,7 @@ export default function MembersClient({
       try {
         const [m, i] = await Promise.all([
           fetch(`/api/workspaces/${workspaceId}/members`).then((r) => r.json()),
-          isAdmin
+          canManageMembers
             ? fetch(`/api/workspaces/${workspaceId}/invites`).then((r) => r.json())
             : Promise.resolve({ invites: [] }),
         ]);
@@ -88,7 +90,7 @@ export default function MembersClient({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, isAdmin]);
+  }, [workspaceId, canManageMembers]);
 
   const onCreateInvite = async (e: FormEvent) => {
     e.preventDefault();
@@ -226,7 +228,7 @@ export default function MembersClient({
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {isAdmin && (
+      {canManageMembers && (
         <section className={mStyles.section}>
           <header className={mStyles.sectionHead}>
             <h2 className={mStyles.sectionTitle}>Invite people</h2>
@@ -279,7 +281,7 @@ export default function MembersClient({
         </section>
       )}
 
-      {isAdmin && invites.length > 0 && (
+      {canManageMembers && invites.length > 0 && (
         <section className={mStyles.section}>
           <header className={mStyles.sectionHead}>
             <h2 className={mStyles.sectionTitle}>Pending invites</h2>
@@ -330,7 +332,7 @@ export default function MembersClient({
           <div className={mStyles.list}>
             {members.map((m) => {
               const removingSelf = m.userId === currentUserId;
-              const canRemove = isAdmin || removingSelf;
+              const canRemove = canManageMembers || removingSelf;
               return (
                 <div key={m.userId} className={mStyles.row}>
                   <span className={mStyles.avatar}>{initials(m)}</span>

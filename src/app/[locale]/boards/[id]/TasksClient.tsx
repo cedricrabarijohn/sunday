@@ -56,6 +56,7 @@ export default function TasksClient({
   initial,
   initialPiles,
   initialLabels,
+  capabilities,
 }: {
   boardId: number;
   boardTitle: string | null;
@@ -64,7 +65,10 @@ export default function TasksClient({
   initial: Task[];
   initialPiles: Pile[];
   initialLabels: WorkspaceLabel[];
+  capabilities: string[];
 }) {
+  const caps = new Set(capabilities);
+  const can = (c: string) => caps.has(c);
   const router = useRouter();
   const { confirm } = useConfirm();
   const [tasks, setTasks] = useState<Task[]>(initial);
@@ -544,13 +548,15 @@ export default function TasksClient({
             {piles.length} {piles.length === 1 ? "pile" : "piles"} ·{" "}
             {tasks.length} {tasks.length === 1 ? "card" : "cards"}
           </span>
-          <button
-            type="button"
-            className={styles.dangerLinkBtn}
-            onClick={onDeleteBoard}
-          >
-            Delete board
-          </button>
+          {can("delete_board") && (
+            <button
+              type="button"
+              className={styles.dangerLinkBtn}
+              onClick={onDeleteBoard}
+            >
+              Delete board
+            </button>
+          )}
         </div>
       </div>
 
@@ -577,33 +583,37 @@ export default function TasksClient({
               onPileDragOver={onPileDragOver}
               onPileDragLeave={onPileDragLeave}
               onPileDrop={onPileDrop}
+              canManagePiles={can("manage_piles")}
+              canCreateCard={can("create_card")}
+              canDeleteCard={can("delete_card")}
             />
           ))}
-          {addingPile ? (
-            <AddPileForm onCancel={() => setAddingPile(false)} onCreate={onCreatePile} />
-          ) : (
-            <button
-              type="button"
-              className={`${kStyles.addPile} ${addPileDragOver ? kStyles.addPileDragOver : ""}`}
-              onClick={() => setAddingPile(true)}
-              onDragOver={(e) => {
-                if (!drag) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                if (!addPileDragOver) setAddPileDragOver(true);
-              }}
-              onDragLeave={(e) => {
-                if (!drag) return;
-                const related = e.relatedTarget as Node | null;
-                if (related && (e.currentTarget as Node).contains(related)) return;
-                setAddPileDragOver(false);
-              }}
-              onDrop={onDropOnAddPile}
-            >
-              <span className={kStyles.addPileMark}>＋</span>
-              {drag ? "Drop here to create a new pile" : "Add another pile"}
-            </button>
-          )}
+          {can("manage_piles") &&
+            (addingPile ? (
+              <AddPileForm onCancel={() => setAddingPile(false)} onCreate={onCreatePile} />
+            ) : (
+              <button
+                type="button"
+                className={`${kStyles.addPile} ${addPileDragOver ? kStyles.addPileDragOver : ""}`}
+                onClick={() => setAddingPile(true)}
+                onDragOver={(e) => {
+                  if (!drag) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (!addPileDragOver) setAddPileDragOver(true);
+                }}
+                onDragLeave={(e) => {
+                  if (!drag) return;
+                  const related = e.relatedTarget as Node | null;
+                  if (related && (e.currentTarget as Node).contains(related)) return;
+                  setAddPileDragOver(false);
+                }}
+                onDrop={onDropOnAddPile}
+              >
+                <span className={kStyles.addPileMark}>＋</span>
+                {drag ? "Drop here to create a new pile" : "Add another pile"}
+              </button>
+            ))}
         </div>
       </div>
 
@@ -660,6 +670,9 @@ function PileColumn({
   onPileDragOver,
   onPileDragLeave,
   onPileDrop,
+  canManagePiles,
+  canCreateCard,
+  canDeleteCard,
 }: {
   pile: Pile;
   cards: Task[];
@@ -677,6 +690,9 @@ function PileColumn({
   onPileDragOver: (e: DragEvent<HTMLDivElement>, pile: Pile) => void;
   onPileDragLeave: (e: DragEvent<HTMLDivElement>, pile: Pile) => void;
   onPileDrop: (e: DragEvent<HTMLDivElement>, pile: Pile) => void;
+  canManagePiles: boolean;
+  canCreateCard: boolean;
+  canDeleteCard: boolean;
 }) {
   const [composer, setComposer] = useState("");
   const pileColor = colorForName(pile.color ?? "slate");
@@ -697,26 +713,34 @@ function PileColumn({
     >
       <div className={kStyles.pileHead}>
         <span className={kStyles.pileDot} style={{ background: pileColor.hue }} />
-        <input
-          className={kStyles.pileTitle}
-          defaultValue={pile.title}
-          onChange={(e) => onRenamePile(pile.id, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          }}
-          aria-label="Pile title"
-          maxLength={60}
-        />
+        {canManagePiles ? (
+          <input
+            className={kStyles.pileTitle}
+            defaultValue={pile.title}
+            onChange={(e) => onRenamePile(pile.id, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            aria-label="Pile title"
+            maxLength={60}
+          />
+        ) : (
+          <span className={kStyles.pileTitle} style={{ cursor: "default" }}>
+            {pile.title}
+          </span>
+        )}
         <span className={kStyles.pileCount}>{cards.length}</span>
-        <button
-          type="button"
-          className={kStyles.pileMenu}
-          aria-label="Delete pile"
-          title="Delete pile"
-          onClick={() => onDeletePile(pile)}
-        >
-          ×
-        </button>
+        {canManagePiles && (
+          <button
+            type="button"
+            className={kStyles.pileMenu}
+            aria-label="Delete pile"
+            title="Delete pile"
+            onClick={() => onDeletePile(pile)}
+          >
+            ×
+          </button>
+        )}
       </div>
 
       <div className={kStyles.pileBody}>
@@ -736,6 +760,7 @@ function PileColumn({
               onDragOver={(e) => onCardDragOver(e, pile, card)}
               onDelete={onDeleteCard}
               onOpen={onOpenCard}
+              canDelete={canDeleteCard}
             />
           </Fragment>
         ))}
@@ -744,16 +769,18 @@ function PileColumn({
         )}
       </div>
 
-      <form className={kStyles.pileComposer} onSubmit={onComposerSubmit}>
-        <input
-          className={kStyles.composerInput}
-          placeholder="+ Add a card"
-          value={composer}
-          onChange={(e) => setComposer(e.target.value)}
-          maxLength={255}
-        />
-        <div className={kStyles.composerHint}>Press enter to add</div>
-      </form>
+      {canCreateCard && (
+        <form className={kStyles.pileComposer} onSubmit={onComposerSubmit}>
+          <input
+            className={kStyles.composerInput}
+            placeholder="+ Add a card"
+            value={composer}
+            onChange={(e) => setComposer(e.target.value)}
+            maxLength={255}
+          />
+          <div className={kStyles.composerHint}>Press enter to add</div>
+        </form>
+      )}
     </div>
   );
 }
@@ -766,6 +793,7 @@ function KanbanCard({
   onDragOver,
   onDelete,
   onOpen,
+  canDelete,
 }: {
   card: Task;
   dragging: boolean;
@@ -774,6 +802,7 @@ function KanbanCard({
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
   onDelete: (id: number) => void;
   onOpen: (id: number) => void;
+  canDelete: boolean;
 }) {
   const itemPct = card.itemsTotal === 0 ? 0 : Math.round((card.itemsDone / card.itemsTotal) * 100);
   const onCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -860,15 +889,17 @@ function KanbanCard({
           >
             ›
           </button>
-          <button
-            type="button"
-            className={`${kStyles.iconBtn} ${kStyles.iconBtnDanger}`}
-            onClick={() => onDelete(card.id)}
-            aria-label="Delete card"
-            title="Delete"
-          >
-            ×
-          </button>
+          {canDelete && (
+            <button
+              type="button"
+              className={`${kStyles.iconBtn} ${kStyles.iconBtnDanger}`}
+              onClick={() => onDelete(card.id)}
+              aria-label="Delete card"
+              title="Delete"
+            >
+              ×
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -12,11 +12,15 @@ export default function BoardsClient({
   workspaceId,
   workspaceTitle,
   initial,
+  capabilities,
 }: {
   workspaceId: number;
   workspaceTitle: string | null;
   initial: Board[];
+  capabilities: string[];
 }) {
+  const caps = new Set(capabilities);
+  const can = (c: string) => caps.has(c);
   const [boards, setBoards] = useState(initial);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -121,22 +125,24 @@ export default function BoardsClient({
         </div>
       </div>
 
-      <form className={styles.composer} onSubmit={onCreate}>
-        <input
-          className={styles.composerInput}
-          placeholder="Name a new board and press enter"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={100}
-          aria-label="New board name"
-        />
-        <div className={styles.composerActions}>
-          <span className={styles.kbdHint}>↵</span>
-          <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
-            Create
-          </button>
-        </div>
-      </form>
+      {can("create_board") && (
+        <form className={styles.composer} onSubmit={onCreate}>
+          <input
+            className={styles.composerInput}
+            placeholder="Name a new board and press enter"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={100}
+            aria-label="New board name"
+          />
+          <div className={styles.composerActions}>
+            <span className={styles.kbdHint}>↵</span>
+            <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
+              Create
+            </button>
+          </div>
+        </form>
+      )}
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
@@ -169,15 +175,17 @@ export default function BoardsClient({
                   <span className={styles.cardCount}>{c.name}</span>
                   <span className={styles.cardArrow}>→</span>
                 </div>
-                <button
-                  type="button"
-                  className={styles.cardDelete}
-                  onClick={(e) => onDelete(e, b)}
-                  aria-label="Delete board"
-                  title="Delete board"
-                >
-                  ×
-                </button>
+                {can("delete_board") && (
+                  <button
+                    type="button"
+                    className={styles.cardDelete}
+                    onClick={(e) => onDelete(e, b)}
+                    aria-label="Delete board"
+                    title="Delete board"
+                  >
+                    ×
+                  </button>
+                )}
               </Link>
             );
           })}
