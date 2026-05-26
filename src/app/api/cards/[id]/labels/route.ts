@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardTaskLabels, boards, labels } from "@/db/schema";
+import { boardTaskLabels, labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { loadCardForUser } from "@/lib/card-access";
+import { requireCardCap } from "@/lib/workspace-access";
 
 export async function PUT(
   request: NextRequest,
@@ -13,11 +13,9 @@ export async function PUT(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const cardId = Number(id);
-  if (!Number.isFinite(cardId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const card = await loadCardForUser(cardId, auth.session.sub);
-  if (!card) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireCardCap(cardId, auth.session.sub, "edit_card");
+  if (!guard.ok) return guard.response;
+  const workspaceId = guard.workspaceId;
 
   const body = await request.json().catch(() => null);
   const rawIds = Array.isArray(body?.labelIds) ? body.labelIds : null;
@@ -28,21 +26,14 @@ export async function PUT(
     new Set(rawIds.map((n: unknown) => Number(n)).filter((n: number) => Number.isFinite(n))),
   ) as number[];
 
-  // Ensure every label belongs to the card's workspace
+  // Ensure every label belongs to the card's workspace.
   if (labelIds.length > 0) {
-    const [boardRow] = await db
-      .select({ workspaceId: boards.workspaceId })
-      .from(boards)
-      .where(eq(boards.id, card.boardId!))
-      .limit(1);
-    if (!boardRow) return NextResponse.json({ error: "Card has no board" }, { status: 500 });
-
     const validLabels = await db
       .select({ id: labels.id })
       .from(labels)
       .where(
         and(
-          eq(labels.workspaceId, boardRow.workspaceId!),
+          eq(labels.workspaceId, workspaceId),
           inArray(labels.id, labelIds),
           isNull(labels.deletedAt),
         ),

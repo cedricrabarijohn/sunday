@@ -1,34 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardTaskItems, boardTasks, boards, workspaceUsers } from "@/db/schema";
+import { boardTaskItems } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-
-async function loadItemForUser(itemId: number, userId: number) {
-  const [row] = await db
-    .select({
-      id: boardTaskItems.id,
-      boardTaskId: boardTaskItems.boardTaskId,
-      title: boardTaskItems.title,
-      done: boardTaskItems.done,
-    })
-    .from(boardTaskItems)
-    .innerJoin(boardTasks, eq(boardTasks.id, boardTaskItems.boardTaskId))
-    .innerJoin(boards, eq(boards.id, boardTasks.boardId))
-    .innerJoin(workspaceUsers, eq(workspaceUsers.workspaceId, boards.workspaceId))
-    .where(
-      and(
-        eq(boardTaskItems.id, itemId),
-        eq(workspaceUsers.userId, userId),
-        isNull(boardTaskItems.deletedAt),
-        isNull(boardTasks.deletedAt),
-        isNull(boards.deletedAt),
-        isNull(workspaceUsers.deletedAt),
-      ),
-    )
-    .limit(1);
-  return row ?? null;
-}
+import { requireItemCap } from "@/lib/workspace-access";
 
 export async function PATCH(
   request: NextRequest,
@@ -38,11 +13,8 @@ export async function PATCH(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const itemId = Number(id);
-  if (!Number.isFinite(itemId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const item = await loadItemForUser(itemId, auth.session.sub);
-  if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireItemCap(itemId, auth.session.sub, "edit_card");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const updates: Partial<{ title: string; done: number }> = {};
@@ -72,11 +44,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const itemId = Number(id);
-  if (!Number.isFinite(itemId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const item = await loadItemForUser(itemId, auth.session.sub);
-  if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireItemCap(itemId, auth.session.sub, "edit_card");
+  if (!guard.ok) return guard.response;
 
   await db
     .update(boardTaskItems)

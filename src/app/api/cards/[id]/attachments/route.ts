@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { db } from "@/db/client";
 import { boardTaskAttachments } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { loadCardForUser } from "@/lib/card-access";
+import { requireCardCap } from "@/lib/workspace-access";
 import { getStorage } from "@/lib/storage";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -33,11 +33,8 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const cardId = Number(id);
-  if (!Number.isFinite(cardId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const card = await loadCardForUser(cardId, auth.session.sub);
-  if (!card) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireCardCap(cardId, auth.session.sub, "edit_card");
+  if (!guard.ok) return guard.response;
 
   let form: FormData;
   try {

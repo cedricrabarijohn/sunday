@@ -3,7 +3,11 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { workspaceUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { WORKSPACE_ADMIN_ROLE_ID, isAdmin, loadMembership } from "@/lib/workspace-access";
+import {
+  WORKSPACE_ADMIN_ROLE_ID,
+  loadCapabilities,
+  loadMembership,
+} from "@/lib/workspace-access";
 
 export async function DELETE(
   _: Request,
@@ -22,10 +26,13 @@ export async function DELETE(
   if (!me) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Members can leave the workspace themselves. Removing someone else
-  // requires admin.
+  // requires the manage_members capability.
   const removingSelf = targetId === auth.session.sub;
-  if (!removingSelf && !isAdmin(me)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!removingSelf) {
+    const caps = await loadCapabilities(workspaceId, auth.session.sub);
+    if (!caps.has("manage_members")) {
+      return NextResponse.json({ error: "Missing capability: manage_members" }, { status: 403 });
+    }
   }
 
   // Refuse to leave the workspace stranded with no admin.

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardPiles, boards, workspaceUsers } from "@/db/schema";
+import { boardPiles, boards } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
+import { requireWorkspaceCap } from "@/lib/workspace-access";
 
 const DEFAULT_PILES: Array<{ title: string; color: string }> = [
   { title: "To do", color: "slate" },
@@ -10,32 +11,13 @@ const DEFAULT_PILES: Array<{ title: string; color: string }> = [
   { title: "Done", color: "lime" },
 ];
 
-async function memberOf(userId: number, workspaceId: number) {
-  const [row] = await db
-    .select({ id: workspaceUsers.workspaceId })
-    .from(workspaceUsers)
-    .where(
-      and(
-        eq(workspaceUsers.userId, userId),
-        eq(workspaceUsers.workspaceId, workspaceId),
-        isNull(workspaceUsers.deletedAt),
-      ),
-    )
-    .limit(1);
-  return !!row;
-}
-
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const workspaceId = Number(id);
-  if (!Number.isFinite(workspaceId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  if (!(await memberOf(auth.session.sub, workspaceId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "view_workspace");
+  if (!guard.ok) return guard.response;
 
   const rows = await db
     .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
@@ -53,12 +35,8 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const workspaceId = Number(id);
-  if (!Number.isFinite(workspaceId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  if (!(await memberOf(auth.session.sub, workspaceId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "create_board");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const title = (body?.title ?? "").toString().trim();

@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boardPiles, boardTasks } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { loadPileForUser } from "@/lib/pile-access";
+import { requirePileCap } from "@/lib/workspace-access";
 import { ALLOWED_COLORS } from "@/lib/label-access";
 
 export async function PATCH(
@@ -14,11 +14,8 @@ export async function PATCH(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const pileId = Number(id);
-  if (!Number.isFinite(pileId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const pile = await loadPileForUser(pileId, auth.session.sub);
-  if (!pile) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requirePileCap(pileId, auth.session.sub, "manage_piles");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const updates: Partial<{ title: string; color: string | null; position: number }> = {};
@@ -59,18 +56,13 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const pileId = Number(id);
-  if (!Number.isFinite(pileId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const pile = await loadPileForUser(pileId, auth.session.sub);
-  if (!pile) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requirePileCap(pileId, auth.session.sub, "manage_piles");
+  if (!guard.ok) return guard.response;
 
   const [countRow] = await db
     .select({ id: boardTasks.id })
     .from(boardTasks)
-    .where(
-      and(eq(boardTasks.pileId, pileId), isNull(boardTasks.deletedAt)),
-    )
+    .where(and(eq(boardTasks.pileId, pileId), isNull(boardTasks.deletedAt)))
     .limit(1);
   if (countRow) {
     return NextResponse.json(

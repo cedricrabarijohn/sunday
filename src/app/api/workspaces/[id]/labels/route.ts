@@ -3,19 +3,16 @@ import { and, asc, eq, isNull, max } from "drizzle-orm";
 import { db } from "@/db/client";
 import { labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { ALLOWED_COLORS, workspaceMember } from "@/lib/label-access";
+import { ALLOWED_COLORS } from "@/lib/label-access";
+import { requireWorkspaceCap } from "@/lib/workspace-access";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const workspaceId = Number(id);
-  if (!Number.isFinite(workspaceId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  if (!(await workspaceMember(workspaceId, auth.session.sub))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "view_workspace");
+  if (!guard.ok) return guard.response;
 
   const rows = await db
     .select({
@@ -41,12 +38,8 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const workspaceId = Number(id);
-  if (!Number.isFinite(workspaceId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  if (!(await workspaceMember(workspaceId, auth.session.sub))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_labels");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const title = (body?.title ?? "").toString().trim();

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { workspaceInvites } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { isAdmin, loadMembership } from "@/lib/workspace-access";
+import { requireWorkspaceCap } from "@/lib/workspace-access";
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
@@ -21,8 +21,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     .limit(1);
   if (!invite) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const me = await loadMembership(invite.workspaceId, auth.session.sub);
-  if (!isAdmin(me)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireWorkspaceCap(invite.workspaceId, auth.session.sub, "manage_members");
+  if (!guard.ok) return guard.response;
 
   await db
     .update(workspaceInvites)

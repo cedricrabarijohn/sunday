@@ -8,18 +8,15 @@ import {
   labels,
 } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { loadCardForUser } from "@/lib/card-access";
+import { requireCardCap } from "@/lib/workspace-access";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const cardId = Number(id);
-  if (!Number.isFinite(cardId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const card = await loadCardForUser(cardId, auth.session.sub);
-  if (!card) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireCardCap(cardId, auth.session.sub, "view_workspace");
+  if (!guard.ok) return guard.response;
 
   const items = await db
     .select({
@@ -62,5 +59,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .where(and(eq(boardTaskLabels.boardTaskId, cardId), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
-  return NextResponse.json({ card, items, attachments, labels: cardLabels });
+  return NextResponse.json({
+    card: guard.card,
+    items,
+    attachments,
+    labels: cardLabels,
+    capabilities: Array.from(guard.capabilities),
+  });
 }

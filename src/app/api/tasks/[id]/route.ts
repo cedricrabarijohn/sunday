@@ -1,33 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardPiles, boardTasks, boards, workspaceUsers } from "@/db/schema";
+import { boardPiles, boardTasks } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-
-async function loadTaskForUser(taskId: number, userId: number) {
-  const [row] = await db
-    .select({
-      id: boardTasks.id,
-      title: boardTasks.title,
-      boardId: boardTasks.boardId,
-      pileId: boardTasks.pileId,
-      position: boardTasks.position,
-    })
-    .from(boardTasks)
-    .innerJoin(boards, eq(boards.id, boardTasks.boardId))
-    .innerJoin(workspaceUsers, eq(workspaceUsers.workspaceId, boards.workspaceId))
-    .where(
-      and(
-        eq(boardTasks.id, taskId),
-        eq(workspaceUsers.userId, userId),
-        isNull(boardTasks.deletedAt),
-        isNull(boards.deletedAt),
-        isNull(workspaceUsers.deletedAt),
-      ),
-    )
-    .limit(1);
-  return row ?? null;
-}
+import { requireCardCap } from "@/lib/workspace-access";
 
 async function repackPile(pileId: number) {
   const rows = await db
@@ -51,11 +27,9 @@ export async function PATCH(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const taskId = Number(id);
-  if (!Number.isFinite(taskId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const task = await loadTaskForUser(taskId, auth.session.sub);
-  if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireCardCap(taskId, auth.session.sub, "edit_card");
+  if (!guard.ok) return guard.response;
+  const task = guard.card;
 
   const body = await request.json().catch(() => null);
 
@@ -178,11 +152,9 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const taskId = Number(id);
-  if (!Number.isFinite(taskId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const task = await loadTaskForUser(taskId, auth.session.sub);
-  if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireCardCap(taskId, auth.session.sub, "delete_card");
+  if (!guard.ok) return guard.response;
+  const task = guard.card;
 
   await db
     .update(boardTasks)

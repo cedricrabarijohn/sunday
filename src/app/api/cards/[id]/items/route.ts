@@ -3,7 +3,7 @@ import { eq, max } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boardTaskItems } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { loadCardForUser } from "@/lib/card-access";
+import { requireCardCap } from "@/lib/workspace-access";
 
 export async function POST(
   request: NextRequest,
@@ -13,11 +13,8 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const cardId = Number(id);
-  if (!Number.isFinite(cardId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const card = await loadCardForUser(cardId, auth.session.sub);
-  if (!card) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireCardCap(cardId, auth.session.sub, "edit_card");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const title = (body?.title ?? "").toString().trim();

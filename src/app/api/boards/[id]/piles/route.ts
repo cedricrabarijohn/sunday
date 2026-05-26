@@ -3,7 +3,7 @@ import { and, asc, eq, isNull, max } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boardPiles } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { loadBoardForUser } from "../route";
+import { requireBoardCap } from "@/lib/workspace-access";
 import { ALLOWED_COLORS } from "@/lib/label-access";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -11,11 +11,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const boardId = Number(id);
-  if (!Number.isFinite(boardId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const board = await loadBoardForUser(boardId, auth.session.sub);
-  if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireBoardCap(boardId, auth.session.sub, "view_workspace");
+  if (!guard.ok) return guard.response;
 
   const rows = await db
     .select({
@@ -39,11 +36,8 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const boardId = Number(id);
-  if (!Number.isFinite(boardId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const board = await loadBoardForUser(boardId, auth.session.sub);
-  if (!board) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireBoardCap(boardId, auth.session.sub, "manage_piles");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const title = (body?.title ?? "").toString().trim();

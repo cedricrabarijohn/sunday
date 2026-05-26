@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { ALLOWED_COLORS, loadLabelForUser } from "@/lib/label-access";
+import { ALLOWED_COLORS } from "@/lib/label-access";
+import { requireLabelCap } from "@/lib/workspace-access";
 
 export async function PATCH(
   request: NextRequest,
@@ -13,11 +14,8 @@ export async function PATCH(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const labelId = Number(id);
-  if (!Number.isFinite(labelId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const label = await loadLabelForUser(labelId, auth.session.sub);
-  if (!label) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireLabelCap(labelId, auth.session.sub, "manage_labels");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const updates: Partial<{
@@ -64,11 +62,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const labelId = Number(id);
-  if (!Number.isFinite(labelId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const label = await loadLabelForUser(labelId, auth.session.sub);
-  if (!label) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const guard = await requireLabelCap(labelId, auth.session.sub, "manage_labels");
+  if (!guard.ok) return guard.response;
 
   await db
     .update(labels)

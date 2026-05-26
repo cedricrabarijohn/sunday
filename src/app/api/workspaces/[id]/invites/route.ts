@@ -7,8 +7,7 @@ import { requireAuth } from "@/lib/require-auth";
 import {
   WORKSPACE_ADMIN_ROLE_ID,
   WORKSPACE_MEMBER_ROLE_ID,
-  isAdmin,
-  loadMembership,
+  requireWorkspaceCap,
 } from "@/lib/workspace-access";
 
 const ALLOWED_ROLE_IDS = new Set([WORKSPACE_ADMIN_ROLE_ID, WORKSPACE_MEMBER_ROLE_ID]);
@@ -18,11 +17,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const workspaceId = Number(id);
-  if (!Number.isFinite(workspaceId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const me = await loadMembership(workspaceId, auth.session.sub);
-  if (!isAdmin(me)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_members");
+  if (!guard.ok) return guard.response;
 
   const rows = await db
     .select({
@@ -59,11 +55,8 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const workspaceId = Number(id);
-  if (!Number.isFinite(workspaceId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-  const me = await loadMembership(workspaceId, auth.session.sub);
-  if (!isAdmin(me)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_members");
+  if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
   const emailRaw = typeof body?.email === "string" ? body.email.trim() : "";
