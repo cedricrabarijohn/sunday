@@ -189,6 +189,51 @@ export const boardTaskItems = mysqlTable("board_task_items", {
   deletedAt: datetime("deleted_at"),
 });
 
+export const boardRoles = mysqlTable("board_roles", {
+  id: int("id").autoincrement().primaryKey(),
+  label: varchar("label", { length: 40 }),
+  deletedAt: datetime("deleted_at"),
+});
+
+export const boardCapabilities = mysqlTable("board_capabilities", {
+  id: int("id").autoincrement().primaryKey(),
+  label: varchar("label", { length: 40 }),
+  deletedAt: datetime("deleted_at"),
+});
+
+export const boardRoleCapabilities = mysqlTable(
+  "board_role_capabilities",
+  {
+    boardRoleId: int("board_role_id").notNull(),
+    boardCapabilityId: int("board_capability_id").notNull(),
+    deletedAt: datetime("deleted_at"),
+  },
+  (t) => [primaryKey({ columns: [t.boardRoleId, t.boardCapabilityId] })],
+);
+
+export const boardUsers = mysqlTable("board_users", {
+  id: int("id").autoincrement().primaryKey(),
+  boardId: int("board_id").notNull(),
+  userId: int("user_id").notNull(),
+  boardRoleId: int("board_role_id").notNull(),
+  createdAt: datetime("created_at"),
+  deletedAt: datetime("deleted_at"),
+});
+
+export const boardInvites = mysqlTable("board_invites", {
+  id: int("id").autoincrement().primaryKey(),
+  boardId: int("board_id").notNull(),
+  email: varchar("email", { length: 255 }),
+  boardRoleId: int("board_role_id").notNull(),
+  token: varchar("token", { length: 64 }).notNull(),
+  invitedByUserId: int("invited_by_user_id").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: datetime("created_at"),
+  acceptedAt: datetime("accepted_at"),
+  expiresAt: datetime("expires_at"),
+  acceptedByUserId: int("accepted_by_user_id"),
+});
+
 export const boardPiles = mysqlTable("board_piles", {
   id: int("id").autoincrement().primaryKey(),
   boardId: int("board_id").notNull(),

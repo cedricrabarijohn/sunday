@@ -12,13 +12,19 @@ import {
   workspaceRoleCapabilities,
   workspaceUsers,
 } from "@/db/schema";
+import {
+  BoardCapability,
+  BoardCapabilitySet,
+  loadBoardCapabilities,
+  type LoadedBoardForAccess,
+} from "@/lib/board-access";
 
 export const WORKSPACE_ADMIN_ROLE_ID = 1;
 export const WORKSPACE_MEMBER_ROLE_ID = 2;
 
 /**
- * Every capability the app understands. Keeping them as a union type
- * means the compiler catches typos when calling requireWorkspaceCap.
+ * Workspace-scoped capabilities. Board / pile / card actions are now
+ * board-scoped — see lib/board-access.ts.
  */
 export type Capability =
   | "view_workspace"
@@ -26,13 +32,7 @@ export type Capability =
   | "delete_workspace"
   | "manage_members"
   | "manage_labels"
-  | "manage_piles"
-  | "create_board"
-  | "edit_board"
-  | "delete_board"
-  | "create_card"
-  | "edit_card"
-  | "delete_card";
+  | "create_board";
 
 export type CapabilitySet = Set<Capability>;
 
@@ -111,12 +111,9 @@ function invalidId(): Fail {
 }
 
 /**
- * Require a workspace-scoped capability. Resolves to either { ok: true }
- * with the user's full capability set, or { ok: false } with a 4xx
- * response the route handler can return directly.
- *
- * - Non-member -> 403
- * - Member without the requested capability -> 403 (with the missing cap)
+ * Require a workspace-scoped capability. Members of a workspace can
+ * "view" it (catalog of boards / labels / their own profile); the rest
+ * require explicit caps mapped to their workspace role.
  */
 export async function requireWorkspaceCap(
   workspaceId: number,
@@ -130,25 +127,18 @@ export async function requireWorkspaceCap(
   return { ok: true, capabilities: caps };
 }
 
-export type LoadedBoard = {
-  id: number;
-  workspaceId: number | null;
-  title: string | null;
-  createdAt: Date | null;
-};
+export type LoadedBoard = LoadedBoardForAccess;
 
 /**
- * Load a board, then check membership + capability for its workspace.
- *
- * - Board missing or workspace missing -> 404
- * - Non-member -> 404 (same shape; doesn't leak existence)
- * - Member without capability -> 403
+ * Require a board-scoped capability. Workspace admins implicitly have
+ * every board cap; everyone else needs an explicit board membership
+ * with a role that grants the requested cap.
  */
 export async function requireBoardCap(
   boardId: number,
   userId: number,
-  capability: Capability,
-): Promise<Ok<{ board: LoadedBoard; workspaceId: number; capabilities: CapabilitySet }> | Fail> {
+  capability: BoardCapability,
+): Promise<Ok<{ board: LoadedBoard; workspaceId: number; capabilities: BoardCapabilitySet }> | Fail> {
   if (!Number.isFinite(boardId)) return invalidId();
   const [board] = await db
     .select({
@@ -162,11 +152,10 @@ export async function requireBoardCap(
     .limit(1);
   if (!board || board.workspaceId == null) return notFound();
 
-  const caps = await loadCapabilities(board.workspaceId, userId);
-  if (!caps.has("view_workspace")) return notFound();
+  const caps = await loadBoardCapabilities(board as LoadedBoardForAccess, userId);
+  if (!caps.has("view_board")) return notFound();
   if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
-
-  return { ok: true, board, workspaceId: board.workspaceId, capabilities: caps };
+  return { ok: true, board: board as LoadedBoard, workspaceId: board.workspaceId, capabilities: caps };
 }
 
 export type LoadedCard = {
@@ -178,19 +167,16 @@ export type LoadedCard = {
   position: number | null;
 };
 
-/**
- * Load a card, then check membership + capability for its workspace.
- */
 export async function requireCardCap(
   cardId: number,
   userId: number,
-  capability: Capability,
+  capability: BoardCapability,
 ): Promise<
   | Ok<{
       card: LoadedCard;
       boardId: number;
       workspaceId: number;
-      capabilities: CapabilitySet;
+      capabilities: BoardCapabilitySet;
     }>
   | Fail
 > {
@@ -203,7 +189,9 @@ export async function requireCardCap(
       title: boardTasks.title,
       description: boardTasks.description,
       position: boardTasks.position,
-      workspaceId: boards.workspaceId,
+      boardWorkspaceId: boards.workspaceId,
+      boardTitle: boards.title,
+      boardCreatedAt: boards.createdAt,
     })
     .from(boardTasks)
     .innerJoin(boards, eq(boards.id, boardTasks.boardId))
@@ -215,18 +203,32 @@ export async function requireCardCap(
       ),
     )
     .limit(1);
-  if (!row || row.boardId == null || row.workspaceId == null) return notFound();
+  if (!row || row.boardId == null || row.boardWorkspaceId == null) return notFound();
 
-  const caps = await loadCapabilities(row.workspaceId, userId);
-  if (!caps.has("view_workspace")) return notFound();
+  const caps = await loadBoardCapabilities(
+    {
+      id: row.boardId,
+      workspaceId: row.boardWorkspaceId,
+      title: row.boardTitle,
+      createdAt: row.boardCreatedAt,
+    },
+    userId,
+  );
+  if (!caps.has("view_board")) return notFound();
   if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
 
-  const { workspaceId, ...rest } = row;
   return {
     ok: true,
-    card: rest,
+    card: {
+      id: row.id,
+      boardId: row.boardId,
+      pileId: row.pileId,
+      title: row.title,
+      description: row.description,
+      position: row.position,
+    },
     boardId: row.boardId,
-    workspaceId,
+    workspaceId: row.boardWorkspaceId,
     capabilities: caps,
   };
 }
@@ -242,9 +244,9 @@ export type LoadedPile = {
 export async function requirePileCap(
   pileId: number,
   userId: number,
-  capability: Capability,
+  capability: BoardCapability,
 ): Promise<
-  | Ok<{ pile: LoadedPile; boardId: number; workspaceId: number; capabilities: CapabilitySet }>
+  | Ok<{ pile: LoadedPile; boardId: number; workspaceId: number; capabilities: BoardCapabilitySet }>
   | Fail
 > {
   if (!Number.isFinite(pileId)) return invalidId();
@@ -255,20 +257,35 @@ export async function requirePileCap(
       title: boardPiles.title,
       color: boardPiles.color,
       position: boardPiles.position,
-      workspaceId: boards.workspaceId,
+      boardWorkspaceId: boards.workspaceId,
+      boardTitle: boards.title,
+      boardCreatedAt: boards.createdAt,
     })
     .from(boardPiles)
     .innerJoin(boards, eq(boards.id, boardPiles.boardId))
     .where(and(eq(boardPiles.id, pileId), isNull(boardPiles.deletedAt), isNull(boards.deletedAt)))
     .limit(1);
-  if (!row || row.workspaceId == null) return notFound();
+  if (!row || row.boardWorkspaceId == null) return notFound();
 
-  const caps = await loadCapabilities(row.workspaceId, userId);
-  if (!caps.has("view_workspace")) return notFound();
+  const caps = await loadBoardCapabilities(
+    {
+      id: row.boardId,
+      workspaceId: row.boardWorkspaceId,
+      title: row.boardTitle,
+      createdAt: row.boardCreatedAt,
+    },
+    userId,
+  );
+  if (!caps.has("view_board")) return notFound();
   if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
 
-  const { workspaceId, ...pile } = row;
-  return { ok: true, pile, boardId: row.boardId, workspaceId, capabilities: caps };
+  return {
+    ok: true,
+    pile: { id: row.id, boardId: row.boardId, title: row.title, color: row.color, position: row.position },
+    boardId: row.boardId,
+    workspaceId: row.boardWorkspaceId,
+    capabilities: caps,
+  };
 }
 
 export type LoadedLabel = {
@@ -308,14 +325,14 @@ export async function requireLabelCap(
 export async function requireItemCap(
   itemId: number,
   userId: number,
-  capability: Capability,
+  capability: BoardCapability,
 ): Promise<
   | Ok<{
       itemId: number;
       cardId: number;
       boardId: number;
       workspaceId: number;
-      capabilities: CapabilitySet;
+      capabilities: BoardCapabilitySet;
     }>
   | Fail
 > {
@@ -325,7 +342,9 @@ export async function requireItemCap(
       itemId: boardTaskItems.id,
       cardId: boardTaskItems.boardTaskId,
       boardId: boardTasks.boardId,
-      workspaceId: boards.workspaceId,
+      boardWorkspaceId: boards.workspaceId,
+      boardTitle: boards.title,
+      boardCreatedAt: boards.createdAt,
     })
     .from(boardTaskItems)
     .innerJoin(boardTasks, eq(boardTasks.id, boardTaskItems.boardTaskId))
@@ -339,16 +358,24 @@ export async function requireItemCap(
       ),
     )
     .limit(1);
-  if (!row || row.boardId == null || row.workspaceId == null) return notFound();
-  const caps = await loadCapabilities(row.workspaceId, userId);
-  if (!caps.has("view_workspace")) return notFound();
+  if (!row || row.boardId == null || row.boardWorkspaceId == null) return notFound();
+  const caps = await loadBoardCapabilities(
+    {
+      id: row.boardId,
+      workspaceId: row.boardWorkspaceId,
+      title: row.boardTitle,
+      createdAt: row.boardCreatedAt,
+    },
+    userId,
+  );
+  if (!caps.has("view_board")) return notFound();
   if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
   return {
     ok: true,
     itemId: row.itemId,
     cardId: row.cardId,
     boardId: row.boardId,
-    workspaceId: row.workspaceId,
+    workspaceId: row.boardWorkspaceId,
     capabilities: caps,
   };
 }
@@ -356,7 +383,7 @@ export async function requireItemCap(
 export async function requireAttachmentCap(
   attachmentId: number,
   userId: number,
-  capability: Capability,
+  capability: BoardCapability,
 ): Promise<
   | Ok<{
       attachment: {
@@ -366,7 +393,7 @@ export async function requireAttachmentCap(
         boardTaskId: number;
       };
       workspaceId: number;
-      capabilities: CapabilitySet;
+      capabilities: BoardCapabilitySet;
     }>
   | Fail
 > {
@@ -377,7 +404,10 @@ export async function requireAttachmentCap(
       url: boardTaskAttachments.url,
       storageKey: boardTaskAttachments.storageKey,
       boardTaskId: boardTaskAttachments.boardTaskId,
-      workspaceId: boards.workspaceId,
+      boardId: boardTasks.boardId,
+      boardWorkspaceId: boards.workspaceId,
+      boardTitle: boards.title,
+      boardCreatedAt: boards.createdAt,
     })
     .from(boardTaskAttachments)
     .innerJoin(boardTasks, eq(boardTasks.id, boardTaskAttachments.boardTaskId))
@@ -391,10 +421,27 @@ export async function requireAttachmentCap(
       ),
     )
     .limit(1);
-  if (!row || row.workspaceId == null) return notFound();
-  const caps = await loadCapabilities(row.workspaceId, userId);
-  if (!caps.has("view_workspace")) return notFound();
+  if (!row || row.boardWorkspaceId == null || row.boardId == null) return notFound();
+  const caps = await loadBoardCapabilities(
+    {
+      id: row.boardId,
+      workspaceId: row.boardWorkspaceId,
+      title: row.boardTitle,
+      createdAt: row.boardCreatedAt,
+    },
+    userId,
+  );
+  if (!caps.has("view_board")) return notFound();
   if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
-  const { workspaceId, ...attachment } = row;
-  return { ok: true, attachment, workspaceId, capabilities: caps };
+  return {
+    ok: true,
+    attachment: {
+      id: row.id,
+      url: row.url,
+      storageKey: row.storageKey,
+      boardTaskId: row.boardTaskId,
+    },
+    workspaceId: row.boardWorkspaceId,
+    capabilities: caps,
+  };
 }
