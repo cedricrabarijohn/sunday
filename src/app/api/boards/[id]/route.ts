@@ -18,7 +18,7 @@ import { requireBoardCap } from "@/lib/workspace-access";
  * "@/lib/workspace-access" directly.
  */
 export async function loadBoardForUser(boardId: number, userId: number) {
-  const guard = await requireBoardCap(boardId, userId, "view_workspace");
+  const guard = await requireBoardCap(boardId, userId, "view_board");
   if (!guard.ok) return null;
   return {
     id: guard.board.id,
@@ -33,7 +33,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const boardId = Number(id);
-  const guard = await requireBoardCap(boardId, auth.session.sub, "view_workspace");
+  const guard = await requireBoardCap(boardId, auth.session.sub, "view_board");
   if (!guard.ok) return guard.response;
   return NextResponse.json({ board: guard.board });
 }

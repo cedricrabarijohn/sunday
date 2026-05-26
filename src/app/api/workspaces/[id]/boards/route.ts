@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardPiles, boards } from "@/db/schema";
+import { boardPiles, boardUsers, boards } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { requireWorkspaceCap } from "@/lib/workspace-access";
+import {
+  WORKSPACE_ADMIN_ROLE_ID,
+  loadMembership,
+  requireWorkspaceCap,
+} from "@/lib/workspace-access";
+import { BOARD_ADMIN_ROLE_ID } from "@/lib/board-access";
 
 const DEFAULT_PILES: Array<{ title: string; color: string }> = [
   { title: "To do", color: "slate" },
@@ -19,10 +24,28 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "view_workspace");
   if (!guard.ok) return guard.response;
 
-  const rows = await db
-    .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
-    .from(boards)
-    .where(and(eq(boards.workspaceId, workspaceId), isNull(boards.deletedAt)));
+  const membership = await loadMembership(workspaceId, auth.session.sub);
+  const isWsAdmin = membership?.workspaceRoleId === WORKSPACE_ADMIN_ROLE_ID;
+
+  // Workspace admins see every board. Other users see only the boards
+  // they're explicitly a member of.
+  const rows = isWsAdmin
+    ? await db
+        .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
+        .from(boards)
+        .where(and(eq(boards.workspaceId, workspaceId), isNull(boards.deletedAt)))
+    : await db
+        .select({ id: boards.id, title: boards.title, createdAt: boards.createdAt })
+        .from(boards)
+        .innerJoin(boardUsers, eq(boardUsers.boardId, boards.id))
+        .where(
+          and(
+            eq(boards.workspaceId, workspaceId),
+            eq(boardUsers.userId, auth.session.sub),
+            isNull(boards.deletedAt),
+            isNull(boardUsers.deletedAt),
+          ),
+        );
 
   return NextResponse.json({ boards: rows });
 }
@@ -61,6 +84,15 @@ export async function POST(
       updatedAt: now,
     })),
   );
+
+  // Creator becomes board_admin so a non-workspace-admin who creates a
+  // board can still manage its members afterwards.
+  await db.insert(boardUsers).values({
+    boardId,
+    userId: auth.session.sub,
+    boardRoleId: BOARD_ADMIN_ROLE_ID,
+    createdAt: now,
+  });
 
   return NextResponse.json({ board: { id: boardId, title, workspaceId } }, { status: 201 });
 }

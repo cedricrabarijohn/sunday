@@ -11,7 +11,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const boardId = Number(id);
-  const guard = await requireBoardCap(boardId, auth.session.sub, "view_workspace");
+  const guard = await requireBoardCap(boardId, auth.session.sub, "view_board");
   if (!guard.ok) return guard.response;
 
   const rows = await db
