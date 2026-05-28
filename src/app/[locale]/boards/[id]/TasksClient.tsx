@@ -59,6 +59,7 @@ type DragState = { cardId: number; fromPileId: number | null } | null;
 type DropHint = { pileId: number; beforeCardId: number | null } | null;
 
 type BoardFilterState = {
+  query: string;
   assigneeIds: Set<number>;
   labelIds: Set<number>;
   due: "any" | "withDue" | "overdue";
@@ -137,15 +138,24 @@ export default function TasksClient({
   }, [tasks, piles]);
 
   const [filter, setFilter] = useState<BoardFilterState>({
+    query: "",
     assigneeIds: new Set<number>(),
     labelIds: new Set<number>(),
     due: "any",
   });
 
+  const queryNorm = filter.query.trim().toLowerCase();
   const filterCount =
-    filter.assigneeIds.size + filter.labelIds.size + (filter.due === "any" ? 0 : 1);
+    (queryNorm ? 1 : 0) +
+    filter.assigneeIds.size +
+    filter.labelIds.size +
+    (filter.due === "any" ? 0 : 1);
 
   const matchesFilter = (t: Task): boolean => {
+    if (queryNorm) {
+      const title = (t.title ?? "").toLowerCase();
+      if (!title.includes(queryNorm)) return false;
+    }
     if (filter.assigneeIds.size > 0) {
       const hasOne = t.assignees.some((a) => filter.assigneeIds.has(a.userId));
       if (!hasOne) return false;
@@ -1105,7 +1115,10 @@ function BoardFilter({
   }, [open]);
 
   const count =
-    filter.assigneeIds.size + filter.labelIds.size + (filter.due === "any" ? 0 : 1);
+    (filter.query.trim() ? 1 : 0) +
+    filter.assigneeIds.size +
+    filter.labelIds.size +
+    (filter.due === "any" ? 0 : 1);
 
   const toggleAssignee = (uid: number) => {
     const next = new Set(filter.assigneeIds);
@@ -1120,7 +1133,7 @@ function BoardFilter({
     setFilter({ ...filter, labelIds: next });
   };
   const reset = () =>
-    setFilter({ assigneeIds: new Set(), labelIds: new Set(), due: "any" });
+    setFilter({ query: "", assigneeIds: new Set(), labelIds: new Set(), due: "any" });
 
   return (
     <div className={kStyles.filterWrap} ref={wrapRef}>
@@ -1133,6 +1146,29 @@ function BoardFilter({
       </button>
       {open && (
         <div className={kStyles.filterMenu} role="dialog">
+          <div className={kStyles.filterSection}>
+            <div className={kStyles.filterHead}>
+              <span>Search</span>
+              {filter.query && (
+                <button
+                  type="button"
+                  className={kStyles.filterClear}
+                  onClick={() => setFilter({ ...filter, query: "" })}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <input
+              type="search"
+              className={kStyles.filterSearch}
+              placeholder="Filter by card title…"
+              value={filter.query}
+              onChange={(e) => setFilter({ ...filter, query: e.target.value })}
+              autoFocus
+            />
+          </div>
+
           <div className={kStyles.filterSection}>
             <div className={kStyles.filterHead}>
               <span>Assignees</span>

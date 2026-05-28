@@ -377,6 +377,23 @@
   font-style: italic;
   padding: 0.25rem 0;
 }
+.filterSearch {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+.filterSearch:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .filterChips {
   display: flex;
   flex-wrap: wrap;
