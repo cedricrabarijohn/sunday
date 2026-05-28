@@ -1,18 +1,44 @@
 .wrap {
-  position: relative;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
 }
 
 .bellBtn {
-  width: 100%;
-  background: none;
-  border: none;
-  text-align: left;
-  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-1);
+  border: 1px solid var(--border);
   cursor: pointer;
+  font-size: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.bellBtn:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.bellBtnActive {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+.bellGlyph {
+  display: inline-block;
+  line-height: 1;
 }
 
 .dot {
-  margin-left: auto;
+  position: absolute;
+  top: -4px;
+  right: -4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -21,24 +47,27 @@
   padding: 0 5px;
   background: var(--accent);
   color: var(--bg);
+  border: 2px solid var(--bg);
   border-radius: 999px;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
+  box-sizing: content-box;
 }
 
 .menu {
   position: absolute;
-  left: calc(100% + 8px);
-  top: 0;
-  z-index: 60;
-  width: 340px;
-  max-height: 520px;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1001;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: min(70vh, 520px);
   overflow-y: auto;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-pop, 0 8px 24px rgba(0, 0, 0, 0.12));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
   display: flex;
   flex-direction: column;
   animation: notifIn 140ms ease-out both;
@@ -54,6 +83,9 @@
   justify-content: space-between;
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
 }
 .title {
   font-size: 12.5px;
@@ -96,12 +128,8 @@
 .row:last-child { border-bottom: none; }
 .row:hover { background: var(--surface-2); }
 
-.rowUnread {
-  background: var(--accent-soft);
-}
-.rowUnread:hover {
-  background: var(--accent-soft);
-}
+.rowUnread { background: var(--accent-soft); }
+.rowUnread:hover { background: var(--accent-soft); }
 
 .rowTime {
   flex-shrink: 0;
@@ -122,9 +150,7 @@
   color: var(--text-1);
   line-height: 1.4;
 }
-.rowText strong {
-  font-weight: 500;
-}
+.rowText strong { font-weight: 500; }
 
 .rowSub {
   margin-top: 0.15rem;
@@ -139,4 +165,11 @@
 .rowPreview {
   color: var(--text-2);
   font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .wrap {
+    top: 12px;
+    right: 12px;
+  }
 }

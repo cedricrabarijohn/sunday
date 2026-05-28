@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { colorForId } from "@/lib/palette";
-import SearchBar from "./SearchBar";
 import NotificationsBell from "./NotificationsBell";
 import styles from "./AppShell.module.scss";
 
@@ -107,13 +106,11 @@ export default function AppShell({
         </div>
 
         <div className={styles.sidebarScroll}>
-          <SearchBar />
           <div className={styles.section}>
             <Link href="/me/cards" className={styles.navItem}>
               <span className={styles.navIcon} aria-hidden>◷</span>
               <span className={styles.navLabel}>My cards</span>
             </Link>
-            <NotificationsBell />
           </div>
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
@@ -173,6 +170,8 @@ export default function AppShell({
           </button>
         </div>
       </aside>
+
+      <NotificationsBell />
 
       <div className={styles.content}>
         <main

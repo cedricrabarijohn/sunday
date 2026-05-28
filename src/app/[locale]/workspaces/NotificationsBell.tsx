@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import shellStyles from "./AppShell.module.scss";
 import styles from "./NotificationsBell.module.scss";
 
 type Notification = {
@@ -128,14 +127,12 @@ export default function NotificationsBell() {
     <div className={styles.wrap} ref={wrapRef}>
       <button
         type="button"
-        className={`${shellStyles.navItem} ${styles.bellBtn}`}
+        className={`${styles.bellBtn} ${open ? styles.bellBtnActive : ""}`}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
       >
-        <span className={shellStyles.navIcon} aria-hidden>
-          ◔
-        </span>
-        <span className={shellStyles.navLabel}>Notifications</span>
+        <span className={styles.bellGlyph} aria-hidden>◔</span>
         {unread > 0 && <span className={styles.dot}>{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (
