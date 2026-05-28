@@ -15,6 +15,15 @@ import { useRouter } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
+import {
+  CalendarIcon,
+  ChecklistIcon,
+  CommentIcon,
+  FilterIcon,
+  PaperclipIcon,
+  SettingsIcon,
+  UsersIcon,
+} from "@/components/Icons";
 import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
 
@@ -537,31 +546,6 @@ export default function TasksClient({
     pileRenameTimers.current.set(pileId, timer);
   };
 
-  // --- pile delete
-  // --- board delete (hard, cascades on the server) ---
-  const onDeleteBoard = async () => {
-    const ok = await confirm({
-      title: `Delete "${title || "Untitled"}"?`,
-      message:
-        "The board, every card it holds, sub-tasks and uploaded images will all be permanently removed.",
-      confirmLabel: "Delete board",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      const res = await fetch(`/api/boards/${boardId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not delete board");
-        return;
-      }
-      router.push(`/workspaces/${workspaceId}`);
-      router.refresh();
-    } catch {
-      setError("Network error. Please try again.");
-    }
-  };
-
   const onDeletePile = async (pile: Pile) => {
     const cards = cardsByPile.get(pile.id) ?? [];
     if (cards.length > 0) {
@@ -643,18 +627,22 @@ export default function TasksClient({
             allLabels={labels}
             currentUserId={currentUserId}
           />
-          <Link href={`/boards/${boardId}/members`} className={styles.ghostBtn}>
-            Members
+          <Link
+            href={`/boards/${boardId}/members`}
+            className={styles.iconHeaderBtn}
+            title="Members"
+            aria-label="Members"
+          >
+            <UsersIcon size={16} />
           </Link>
-          {can("delete_board") && (
-            <button
-              type="button"
-              className={styles.dangerLinkBtn}
-              onClick={onDeleteBoard}
-            >
-              Delete board
-            </button>
-          )}
+          <Link
+            href={`/boards/${boardId}/settings`}
+            className={styles.iconHeaderBtn}
+            title="Board settings"
+            aria-label="Board settings"
+          >
+            <SettingsIcon size={16} />
+          </Link>
         </div>
       </div>
 
@@ -968,7 +956,7 @@ function KanbanCard({
               data-complete={card.itemsTotal === card.itemsDone}
               title={`${card.itemsDone}/${card.itemsTotal} sub-tasks`}
             >
-              <span className={kStyles.cardBadgeIcon} aria-hidden>✓</span>
+              <ChecklistIcon size={11} />
               <span>
                 {card.itemsDone}/{card.itemsTotal}
               </span>
@@ -979,13 +967,13 @@ function KanbanCard({
           )}
           {card.attachments > 0 && (
             <span className={kStyles.cardBadge} title={`${card.attachments} images`}>
-              <span className={kStyles.cardBadgeIcon} aria-hidden>▣</span>
+              <PaperclipIcon size={11} />
               <span>{card.attachments}</span>
             </span>
           )}
           {card.comments > 0 && (
             <span className={kStyles.cardBadge} title={`${card.comments} comments`}>
-              <span className={kStyles.cardBadgeIcon} aria-hidden>◇</span>
+              <CommentIcon size={11} />
               <span>{card.comments}</span>
             </span>
           )}
@@ -1050,7 +1038,7 @@ function DueBadge({ dueAt }: { dueAt: string | Date }) {
           : dueAt.toLocaleString()
       }
     >
-      <span className={kStyles.cardBadgeIcon} aria-hidden>◷</span>
+      <CalendarIcon size={11} />
       <span>{formatDueShort(dueAt)}</span>
     </span>
   );
@@ -1141,8 +1129,10 @@ function BoardFilter({
         type="button"
         className={`${kStyles.filterBtn} ${count > 0 ? kStyles.filterBtnActive : ""}`}
         onClick={() => setOpen((o) => !o)}
+        aria-label={count > 0 ? `Filters (${count} active)` : "Filters"}
       >
-        Filter{count > 0 ? ` · ${count}` : ""}
+        <FilterIcon size={14} />
+        <span>Filter{count > 0 ? ` · ${count}` : ""}</span>
       </button>
       {open && (
         <div className={kStyles.filterMenu} role="dialog">
