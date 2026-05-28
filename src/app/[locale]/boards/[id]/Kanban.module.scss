@@ -158,6 +158,7 @@
 .card:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 .card:hover .cardActions { opacity: 1; }
 .card:active { cursor: grabbing; }
