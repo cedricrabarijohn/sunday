@@ -1085,9 +1085,16 @@ export default function CardDrawer({
         setError(json.error || "Could not post comment");
         return;
       }
-      setData((prev) =>
-        prev ? { ...prev, comments: [...prev.comments, json.comment as Comment] } : prev,
-      );
+      // The SSE bus echoes our own POST back, so dedupe by id — without
+      // this the optimistic insert and the live event race and we end
+      // up with the same comment twice (which also doubled the count
+      // badge on the kanban card).
+      const created = json.comment as Comment;
+      setData((prev) => {
+        if (!prev) return prev;
+        if (prev.comments.some((c) => c.id === created.id)) return prev;
+        return { ...prev, comments: [...prev.comments, created] };
+      });
       setNewComment("");
       setMentions([]);
       setMentionOpen(false);
