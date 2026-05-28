@@ -184,6 +184,30 @@ export default function BoardMembersClient({
     }
   };
 
+  const onChangeRole = async (m: Member, newRoleId: number) => {
+    const prevRoleId = m.boardRoleId ?? 2;
+    if (prevRoleId === newRoleId) return;
+    const snapshot = members;
+    setMembers((prev) =>
+      prev.map((x) => (x.userId === m.userId ? { ...x, boardRoleId: newRoleId } : x)),
+    );
+    try {
+      const res = await fetch(`/api/boards/${boardId}/members/${m.userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boardRoleId: newRoleId }),
+      });
+      if (!res.ok) {
+        setMembers(snapshot);
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Could not update role");
+      }
+    } catch {
+      setMembers(snapshot);
+      setError("Network error.");
+    }
+  };
+
   const copyInviteLink = async (token: string) => {
     const url = `${window.location.origin}/board-invites/${token}`;
     try {
@@ -349,11 +373,22 @@ export default function BoardMembersClient({
                       {removingSelf && <span className={mStyles.youTag}>you</span>}
                     </div>
                     <div className={mStyles.rowSub}>
-                      {m.email} · {ROLE_LABELS[m.boardRoleId ?? 2] ?? "Member"}
+                      {m.email}
+                      {!canManage && ` · ${ROLE_LABELS[m.boardRoleId ?? 2] ?? "Member"}`}
                     </div>
                   </div>
-                  {canRemove && (
-                    <div className={mStyles.rowActions}>
+                  <div className={mStyles.rowActions}>
+                    {canManage ? (
+                      <select
+                        className={mStyles.inviteSelect}
+                        value={m.boardRoleId ?? 2}
+                        onChange={(e) => onChangeRole(m, Number(e.target.value))}
+                      >
+                        <option value={2}>Member</option>
+                        <option value={1}>Board admin</option>
+                      </select>
+                    ) : null}
+                    {canRemove && (
                       <button
                         type="button"
                         className={`${mStyles.rowBtn} ${mStyles.rowBtnDanger}`}
@@ -361,8 +396,8 @@ export default function BoardMembersClient({
                       >
                         {removingSelf ? "Leave" : "Remove"}
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}
