@@ -233,6 +233,15 @@
   flex-shrink: 0;
 }
 
+.navIcon {
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
 .navLabel {
   flex: 1;
   white-space: nowrap;

@@ -106,6 +106,12 @@ export default function AppShell({
 
         <div className={styles.sidebarScroll}>
           <div className={styles.section}>
+            <Link href="/me/cards" className={styles.navItem}>
+              <span className={styles.navIcon} aria-hidden>◷</span>
+              <span className={styles.navLabel}>My cards</span>
+            </Link>
+          </div>
+          <div className={styles.section}>
             <div className={styles.sectionHeader}>
               <span className={styles.sectionLabel}>Workspaces</span>
               <Link href="/workspaces" className={styles.sectionAdd} aria-label="All workspaces">
