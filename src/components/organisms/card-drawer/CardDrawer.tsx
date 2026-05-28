@@ -29,12 +29,19 @@ export type WorkspaceLabel = {
   isDefault: number;
 };
 type CardLabel = { id: number; title: string; color: string; position?: number | null };
+type Assignee = {
+  userId: number;
+  firstname: string | null;
+  lastname: string | null;
+  email: string | null;
+};
 
 type CardDetail = {
-  card: { id: number; title: string | null; description?: string | null };
+  card: { id: number; title: string | null; description?: string | null; boardId?: number | null };
   items: Item[];
   attachments: Attachment[];
   labels: CardLabel[];
+  assignees: Assignee[];
 };
 
 export type CardCounts = {
@@ -52,6 +59,7 @@ type Props = {
   onCountsChange?: (cardId: number, counts: CardCounts) => void;
   onTitleChange?: (cardId: number, title: string) => void;
   onLabelsChange?: (cardId: number, labels: CardLabel[]) => void;
+  onAssigneesChange?: (cardId: number, assignees: Assignee[]) => void;
   onDelete?: (cardId: number) => void;
 };
 
@@ -71,6 +79,7 @@ export default function CardDrawer({
   onCountsChange,
   onTitleChange,
   onLabelsChange,
+  onAssigneesChange,
   onDelete,
 }: Props) {
   const [data, setData] = useState<CardDetail | null>(null);
@@ -80,6 +89,9 @@ export default function CardDrawer({
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+  const [boardMembers, setBoardMembers] = useState<Assignee[] | null>(null);
+  const [boardMembersLoading, setBoardMembersLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Render via portal so the drawer escapes any ancestor that has a
@@ -146,12 +158,41 @@ export default function CardDrawer({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (pickerOpen) setPickerOpen(false);
+        else if (assigneePickerOpen) setAssigneePickerOpen(false);
         else onClose();
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, pickerOpen]);
+  }, [onClose, pickerOpen, assigneePickerOpen]);
+
+  // Lazy-load board members when the assignee picker opens.
+  useEffect(() => {
+    if (!assigneePickerOpen || boardMembers !== null) return;
+    const boardId = data?.card.boardId;
+    if (!boardId) return;
+    setBoardMembersLoading(true);
+    fetch(`/api/boards/${boardId}/members`)
+      .then((r) => r.json())
+      .then((json) => {
+        const members = (json.members ?? []) as Array<{
+          userId: number;
+          firstname: string | null;
+          lastname: string | null;
+          email: string | null;
+        }>;
+        setBoardMembers(
+          members.map((m) => ({
+            userId: m.userId,
+            firstname: m.firstname,
+            lastname: m.lastname,
+            email: m.email,
+          })),
+        );
+      })
+      .catch(() => setError("Could not load board members."))
+      .finally(() => setBoardMembersLoading(false));
+  }, [assigneePickerOpen, boardMembers, data?.card.boardId]);
 
   // Lock body scroll while drawer is open
   useEffect(() => {
@@ -764,6 +805,34 @@ export default function CardDrawer({
     }
   };
 
+  // --- Assignees ---
+  const persistAssignees = async (next: Assignee[]) => {
+    try {
+      const res = await fetch(`/api/cards/${cardId}/assignees`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: next.map((a) => a.userId) }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Could not update assignees");
+      }
+    } catch {
+      setError("Network error.");
+    }
+  };
+
+  const onToggleAssignee = (member: Assignee) => {
+    if (!data) return;
+    const has = data.assignees.some((a) => a.userId === member.userId);
+    const next = has
+      ? data.assignees.filter((a) => a.userId !== member.userId)
+      : [...data.assignees, member];
+    setData({ ...data, assignees: next });
+    onAssigneesChange?.(cardId, next);
+    persistAssignees(next);
+  };
+
   // --- Delete the whole card ---
   const onDeleteCard = async () => {
     if (!data) return;
@@ -886,6 +955,42 @@ export default function CardDrawer({
                   onCreate={onCreateLabel}
                   onEdit={onEditLabel}
                   onDelete={onDeleteLabel}
+                />
+              )}
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionLabel}>Assignees</span>
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={() => setAssigneePickerOpen((o) => !o)}
+                  aria-expanded={assigneePickerOpen}
+                >
+                  {assigneePickerOpen ? "Close" : "Edit assignees"}
+                </button>
+              </div>
+              <div className={styles.assigneeList}>
+                {data.assignees.length === 0 ? (
+                  <span className={styles.cardLabelsEmpty}>
+                    No one is assigned yet.
+                  </span>
+                ) : (
+                  data.assignees.map((a) => (
+                    <span key={a.userId} className={styles.assigneeChip} title={a.email ?? undefined}>
+                      <span className={styles.assigneePip}>{initialsForAssignee(a)}</span>
+                      {nameForAssignee(a)}
+                    </span>
+                  ))
+                )}
+              </div>
+              {assigneePickerOpen && (
+                <AssigneePicker
+                  members={boardMembers ?? []}
+                  loading={boardMembersLoading}
+                  selected={new Set(data.assignees.map((a) => a.userId))}
+                  onToggle={onToggleAssignee}
                 />
               )}
             </section>
@@ -1235,6 +1340,62 @@ function LabelsPicker({
           ＋ New label
         </button>
       )}
+    </div>
+  );
+}
+
+function initialsForAssignee(a: Assignee): string {
+  const f = a.firstname?.[0] ?? "";
+  const l = a.lastname?.[0] ?? "";
+  if (f || l) return (f + l).toUpperCase();
+  return (a.email?.[0] ?? "?").toUpperCase();
+}
+
+function nameForAssignee(a: Assignee): string {
+  const n = [a.firstname, a.lastname].filter(Boolean).join(" ");
+  return n || a.email || "Unknown";
+}
+
+function AssigneePicker({
+  members,
+  loading,
+  selected,
+  onToggle,
+}: {
+  members: Assignee[];
+  loading: boolean;
+  selected: Set<number>;
+  onToggle: (member: Assignee) => void;
+}) {
+  if (loading) {
+    return <div className={styles.pickerEmpty}>Loading board members…</div>;
+  }
+  if (members.length === 0) {
+    return (
+      <div className={styles.pickerEmpty}>
+        No one else is on this board yet. Invite people from the board members page.
+      </div>
+    );
+  }
+  return (
+    <div className={styles.assigneePicker}>
+      {members.map((m) => {
+        const active = selected.has(m.userId);
+        return (
+          <button
+            key={m.userId}
+            type="button"
+            className={`${styles.assigneePickerRow} ${active ? styles.assigneePickerRowActive : ""}`}
+            onClick={() => onToggle(m)}
+          >
+            <span className={styles.assigneePip}>{initialsForAssignee(m)}</span>
+            <span className={styles.assigneePickerName}>{nameForAssignee(m)}</span>
+            <span className={styles.assigneePickerMark} aria-hidden>
+              {active ? "✓" : ""}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

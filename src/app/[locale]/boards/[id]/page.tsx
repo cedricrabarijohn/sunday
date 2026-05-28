@@ -3,6 +3,7 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   boardPiles,
+  boardTaskAssignees,
   boardTaskAttachments,
   boardTaskItems,
   boardTaskLabels,
@@ -189,6 +190,35 @@ export default async function BoardDetail({
     labelsByCard.set(row.cardId, arr);
   }
 
+  const assigneeRows = taskIds.length
+    ? await db
+        .select({
+          cardId: boardTaskAssignees.boardTaskId,
+          userId: users.id,
+          firstname: users.firstname,
+          lastname: users.lastname,
+          email: users.email,
+        })
+        .from(boardTaskAssignees)
+        .innerJoin(users, eq(users.id, boardTaskAssignees.userId))
+        .where(sql`${boardTaskAssignees.boardTaskId} IN (${sql.join(taskIds, sql`, `)})`)
+    : [];
+
+  const assigneesByCard = new Map<
+    number,
+    Array<{ userId: number; firstname: string | null; lastname: string | null; email: string | null }>
+  >();
+  for (const row of assigneeRows) {
+    const arr = assigneesByCard.get(row.cardId) ?? [];
+    arr.push({
+      userId: row.userId,
+      firstname: row.firstname,
+      lastname: row.lastname,
+      email: row.email,
+    });
+    assigneesByCard.set(row.cardId, arr);
+  }
+
   const tasks = rawTasks.map((t) => {
     const itemStat = itemsById.get(t.id);
     const attachmentStat = attachmentsById.get(t.id);
@@ -198,6 +228,7 @@ export default async function BoardDetail({
       itemsDone: Number(itemStat?.done ?? 0),
       attachments: Number(attachmentStat?.total ?? 0),
       labels: labelsByCard.get(t.id) ?? [],
+      assignees: assigneesByCard.get(t.id) ?? [],
     };
   });
 

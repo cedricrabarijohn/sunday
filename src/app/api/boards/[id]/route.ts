@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   boardPiles,
+  boardTaskAssignees,
   boardTaskAttachments,
   boardTaskItems,
   boardTaskLabels,
@@ -112,6 +113,9 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
       await tx
         .delete(boardTaskLabels)
         .where(inArray(boardTaskLabels.boardTaskId, taskIds));
+      await tx
+        .delete(boardTaskAssignees)
+        .where(inArray(boardTaskAssignees.boardTaskId, taskIds));
     }
     await tx.delete(boardTasks).where(eq(boardTasks.boardId, boardId));
     await tx.delete(boardPiles).where(eq(boardPiles.boardId, boardId));

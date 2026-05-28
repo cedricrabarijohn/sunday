@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  boardTaskAssignees,
   boardTaskAttachments,
   boardTaskItems,
   boardTaskLabels,
   labels,
+  users,
 } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
@@ -59,11 +61,24 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .where(and(eq(boardTaskLabels.boardTaskId, cardId), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
+  const assignees = await db
+    .select({
+      userId: users.id,
+      firstname: users.firstname,
+      lastname: users.lastname,
+      email: users.email,
+    })
+    .from(boardTaskAssignees)
+    .innerJoin(users, eq(users.id, boardTaskAssignees.userId))
+    .where(eq(boardTaskAssignees.boardTaskId, cardId))
+    .orderBy(asc(users.firstname), asc(users.id));
+
   return NextResponse.json({
     card: guard.card,
     items,
     attachments,
     labels: cardLabels,
+    assignees,
     capabilities: Array.from(guard.capabilities),
   });
 }

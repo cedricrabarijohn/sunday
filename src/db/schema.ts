@@ -268,6 +268,16 @@ export const boardTaskLabels = mysqlTable(
   (t) => [primaryKey({ columns: [t.boardTaskId, t.labelId] })],
 );
 
+export const boardTaskAssignees = mysqlTable(
+  "board_task_assignees",
+  {
+    boardTaskId: int("board_task_id").notNull(),
+    userId: int("user_id").notNull(),
+    createdAt: datetime("created_at"),
+  },
+  (t) => [primaryKey({ columns: [t.boardTaskId, t.userId] })],
+);
+
 export const boardTaskAttachments = mysqlTable("board_task_attachments", {
   id: int("id").autoincrement().primaryKey(),
   boardTaskId: int("board_task_id").notNull(),

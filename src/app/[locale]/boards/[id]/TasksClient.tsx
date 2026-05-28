@@ -18,6 +18,12 @@ import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
 
 type CardLabel = { id: number; title: string; color: string };
+type CardAssignee = {
+  userId: number;
+  firstname: string | null;
+  lastname: string | null;
+  email: string | null;
+};
 
 export type WorkspaceLabel = {
   id: number;
@@ -36,6 +42,7 @@ type Task = {
   itemsDone: number;
   attachments: number;
   labels: CardLabel[];
+  assignees: CardAssignee[];
 };
 
 type Pile = {
@@ -138,6 +145,7 @@ export default function TasksClient({
         itemsDone: 0,
         attachments: 0,
         labels: [],
+        assignees: [],
       },
     ]);
 
@@ -647,6 +655,9 @@ export default function TasksClient({
           onLabelsChange={(id, cardLabels) =>
             setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, labels: cardLabels } : t)))
           }
+          onAssigneesChange={(id, assignees) =>
+            setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, assignees } : t)))
+          }
           onDelete={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
         />
       )}
@@ -881,6 +892,7 @@ function KanbanCard({
               <span>{card.attachments}</span>
             </span>
           )}
+          {card.assignees.length > 0 && <AvatarStack assignees={card.assignees} />}
         </div>
         <div className={kStyles.cardActions}>
           <button
@@ -906,6 +918,33 @@ function KanbanCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function initialsFor(a: CardAssignee): string {
+  const f = a.firstname?.[0] ?? "";
+  const l = a.lastname?.[0] ?? "";
+  if (f || l) return (f + l).toUpperCase();
+  return (a.email?.[0] ?? "?").toUpperCase();
+}
+
+function nameFor(a: CardAssignee): string {
+  const n = [a.firstname, a.lastname].filter(Boolean).join(" ");
+  return n || a.email || "Unknown";
+}
+
+function AvatarStack({ assignees }: { assignees: CardAssignee[] }) {
+  const visible = assignees.slice(0, 3);
+  const extra = assignees.length - visible.length;
+  return (
+    <span className={kStyles.avatarStack} title={assignees.map(nameFor).join(", ")}>
+      {visible.map((a) => (
+        <span key={a.userId} className={kStyles.avatarPip}>
+          {initialsFor(a)}
+        </span>
+      ))}
+      {extra > 0 && <span className={`${kStyles.avatarPip} ${kStyles.avatarPipMore}`}>+{extra}</span>}
+    </span>
   );
 }
 
