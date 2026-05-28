@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { colorForId } from "@/lib/palette";
+import SearchBar from "./SearchBar";
 import styles from "./AppShell.module.scss";
 
 export type SidebarWorkspace = { id: number; title: string | null };
@@ -105,6 +106,7 @@ export default function AppShell({
         </div>
 
         <div className={styles.sidebarScroll}>
+          <SearchBar />
           <div className={styles.section}>
             <Link href="/me/cards" className={styles.navItem}>
               <span className={styles.navIcon} aria-hidden>◷</span>
