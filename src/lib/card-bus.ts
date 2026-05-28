@@ -28,7 +28,19 @@ export type CardEvent =
 
 type Handler = (event: CardEvent) => void;
 
-const channels = new Map<number, Set<Handler>>();
+/**
+ * Hold the registry on globalThis so the publisher and the
+ * subscriber don't end up on different module instances under
+ * Next.js dev HMR (or anywhere a route handler is re-evaluated).
+ */
+const globalForBus = globalThis as unknown as {
+  __cardChannels?: Map<number, Set<Handler>>;
+};
+const channels: Map<number, Set<Handler>> =
+  globalForBus.__cardChannels ?? new Map<number, Set<Handler>>();
+if (!globalForBus.__cardChannels) {
+  globalForBus.__cardChannels = channels;
+}
 
 export function subscribeCard(cardId: number, handler: Handler): () => void {
   let set = channels.get(cardId);
