@@ -23,6 +23,15 @@ export async function POST(_: Request, { params }: { params: Promise<{ token: st
   if (invite.expiresAt && invite.expiresAt.getTime() < Date.now()) {
     return NextResponse.json({ error: "Invite has expired" }, { status: 410 });
   }
+  if (
+    invite.email &&
+    auth.session.email.toLowerCase() !== invite.email.toLowerCase()
+  ) {
+    return NextResponse.json(
+      { error: "This invite was sent to a different email address." },
+      { status: 403 },
+    );
+  }
 
   // Already a member? Just mark accepted and return ok.
   const [existing] = await db

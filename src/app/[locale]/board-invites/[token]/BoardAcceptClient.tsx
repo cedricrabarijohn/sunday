@@ -167,8 +167,9 @@ export default function BoardAcceptClient({ token }: { token: string }) {
       </p>
       {wrongEmail && (
         <div className={styles.warn}>
-          The invite was addressed to {invite.email}, but you're signed in as {me.email}. You can
-          still accept with this account.
+          The invite was addressed to {invite.email}, but you're signed in as {me.email}. Sign in
+          with {invite.email} to accept it, or ask {inviterName(invite)} to send a new invite to
+          your address.
         </div>
       )}
       {error && <div className={styles.error}>{error}</div>}
@@ -178,7 +179,7 @@ export default function BoardAcceptClient({ token }: { token: string }) {
           type="button"
           className={styles.primary}
           onClick={onAccept}
-          disabled={accepting}
+          disabled={accepting || Boolean(wrongEmail)}
         >
           {accepting ? "Joining…" : "Accept invite"}
         </button>
