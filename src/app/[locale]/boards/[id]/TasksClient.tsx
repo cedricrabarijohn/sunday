@@ -42,6 +42,7 @@ type Task = {
   itemsTotal: number;
   itemsDone: number;
   attachments: number;
+  comments: number;
   labels: CardLabel[];
   assignees: CardAssignee[];
   dueAt: string | Date | null;
@@ -209,6 +210,7 @@ export default function TasksClient({
         itemsTotal: 0,
         itemsDone: 0,
         attachments: 0,
+        comments: 0,
         labels: [],
         assignees: [],
         dueAt: null,
@@ -969,6 +971,12 @@ function KanbanCard({
             <span className={kStyles.cardBadge} title={`${card.attachments} images`}>
               <span className={kStyles.cardBadgeIcon} aria-hidden>▣</span>
               <span>{card.attachments}</span>
+            </span>
+          )}
+          {card.comments > 0 && (
+            <span className={kStyles.cardBadge} title={`${card.comments} comments`}>
+              <span className={kStyles.cardBadgeIcon} aria-hidden>◇</span>
+              <span>{card.comments}</span>
             </span>
           )}
           {card.assignees.length > 0 && <AvatarStack assignees={card.assignees} />}

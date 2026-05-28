@@ -5,6 +5,7 @@ import { boardTaskAssignees, boardUsers, users, workspaceUsers } from "@/db/sche
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
 import { WORKSPACE_ADMIN_ROLE_ID } from "@/lib/workspace-access";
+import { emitNotifications } from "@/lib/notify";
 
 export async function GET(
   _request: NextRequest,
@@ -88,6 +89,14 @@ export async function PUT(
     }
   }
 
+  // Compute the diff so we only notify newly-added assignees.
+  const previousRows = await db
+    .select({ userId: boardTaskAssignees.userId })
+    .from(boardTaskAssignees)
+    .where(eq(boardTaskAssignees.boardTaskId, cardId));
+  const previousIds = new Set(previousRows.map((r) => r.userId));
+  const addedIds = userIds.filter((u) => !previousIds.has(u));
+
   await db.delete(boardTaskAssignees).where(eq(boardTaskAssignees.boardTaskId, cardId));
   if (userIds.length > 0) {
     const now = new Date();
@@ -96,6 +105,19 @@ export async function PUT(
         boardTaskId: cardId,
         userId,
         createdAt: now,
+      })),
+    );
+  }
+
+  if (addedIds.length > 0) {
+    await emitNotifications(
+      addedIds.map((userId) => ({
+        userId,
+        type: "card_assigned",
+        actorUserId: auth.session.sub,
+        cardId,
+        boardId,
+        workspaceId,
       })),
     );
   }

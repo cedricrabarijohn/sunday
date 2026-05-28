@@ -36,6 +36,17 @@ type Assignee = {
   email: string | null;
 };
 
+type Comment = {
+  id: number;
+  body: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  userId: number;
+  firstname: string | null;
+  lastname: string | null;
+  email: string | null;
+};
+
 type CardDetail = {
   card: {
     id: number;
@@ -48,12 +59,16 @@ type CardDetail = {
   attachments: Attachment[];
   labels: CardLabel[];
   assignees: Assignee[];
+  comments: Comment[];
+  capabilities?: string[];
+  currentUserId?: number;
 };
 
 export type CardCounts = {
   itemsTotal: number;
   itemsDone: number;
   attachments: number;
+  comments: number;
 };
 
 type Props = {
@@ -227,6 +242,7 @@ export default function CardDrawer({
       itemsTotal: data.items.length,
       itemsDone: data.items.reduce((a, i) => a + (i.done ? 1 : 0), 0),
       attachments: data.attachments.length,
+      comments: data.comments.length,
     });
   }, [data, cardId]);
 
@@ -866,6 +882,103 @@ export default function CardDrawer({
     }
   };
 
+  // --- Comments ---
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentBody, setEditCommentBody] = useState("");
+
+  const postComment = async () => {
+    if (!data) return;
+    const text = newComment.trim();
+    if (!text || postingComment) return;
+    setPostingComment(true);
+    try {
+      const res = await fetch(`/api/cards/${cardId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Could not post comment");
+        return;
+      }
+      setData((prev) =>
+        prev ? { ...prev, comments: [...prev.comments, json.comment as Comment] } : prev,
+      );
+      setNewComment("");
+    } catch {
+      setError("Network error.");
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const startEditComment = (c: Comment) => {
+    setEditingCommentId(c.id);
+    setEditCommentBody(c.body ?? "");
+  };
+
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentBody("");
+  };
+
+  const saveEditComment = async () => {
+    if (!data || editingCommentId == null) return;
+    const text = editCommentBody.trim();
+    if (!text) return;
+    const id = editingCommentId;
+    const snapshot = data.comments;
+    setData({
+      ...data,
+      comments: data.comments.map((c) =>
+        c.id === id ? { ...c, body: text, updatedAt: new Date().toISOString() } : c,
+      ),
+    });
+    setEditingCommentId(null);
+    setEditCommentBody("");
+    try {
+      const res = await fetch(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
+        setError(json.error || "Could not update comment");
+      }
+    } catch {
+      setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
+      setError("Network error.");
+    }
+  };
+
+  const deleteComment = async (c: Comment) => {
+    if (!data) return;
+    const ok = await confirm({
+      title: "Delete this comment?",
+      message: "This can't be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    const snapshot = data.comments;
+    setData({ ...data, comments: data.comments.filter((x) => x.id !== c.id) });
+    try {
+      const res = await fetch(`/api/comments/${c.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
+        setError("Could not delete comment");
+      }
+    } catch {
+      setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
+      setError("Network error.");
+    }
+  };
+
   // --- Delete the whole card ---
   const onDeleteCard = async () => {
     if (!data) return;
@@ -1273,6 +1386,118 @@ export default function CardDrawer({
                 <span className={styles.dropHint}>PNG, JPG, GIF, WebP up to 5 MB</span>
               </label>
             </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionLabel}>Comments</span>
+                <span className={styles.sectionCount}>{data.comments.length}</span>
+              </div>
+
+              {data.comments.length > 0 && (
+                <ul className={styles.commentList}>
+                  {data.comments.map((c) => {
+                    const isOwn = c.userId === data.currentUserId;
+                    const isAdmin = (data.capabilities ?? []).includes("manage_board_members");
+                    const canEdit = isOwn;
+                    const canDelete = isOwn || isAdmin;
+                    const isEditing = editingCommentId === c.id;
+                    return (
+                      <li key={c.id} className={styles.commentItem}>
+                        <span className={styles.commentPip}>{initialsForAssignee({ userId: c.userId, firstname: c.firstname, lastname: c.lastname, email: c.email })}</span>
+                        <div className={styles.commentMain}>
+                          <div className={styles.commentMeta}>
+                            <span className={styles.commentAuthor}>{nameForAssignee({ userId: c.userId, firstname: c.firstname, lastname: c.lastname, email: c.email })}</span>
+                            <span className={styles.commentTime}>
+                              {formatCommentTime(c.createdAt)}
+                              {c.updatedAt && c.createdAt && c.updatedAt !== c.createdAt && " · edited"}
+                            </span>
+                          </div>
+                          {isEditing ? (
+                            <div className={styles.commentEditWrap}>
+                              <textarea
+                                className={styles.commentInput}
+                                value={editCommentBody}
+                                onChange={(e) => setEditCommentBody(e.target.value)}
+                                rows={3}
+                                maxLength={5000}
+                                autoFocus
+                              />
+                              <div className={styles.commentActions}>
+                                <button type="button" className={styles.commentBtnGhost} onClick={cancelEditComment}>
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.commentBtnPrimary}
+                                  onClick={saveEditComment}
+                                  disabled={!editCommentBody.trim()}
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className={styles.commentBody}>{c.body}</div>
+                              {(canEdit || canDelete) && (
+                                <div className={styles.commentTools}>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      className={styles.commentToolBtn}
+                                      onClick={() => startEditComment(c)}
+                                    >
+                                      Edit
+                                    </button>
+                                  )}
+                                  {canDelete && (
+                                    <button
+                                      type="button"
+                                      className={`${styles.commentToolBtn} ${styles.commentToolBtnDanger}`}
+                                      onClick={() => deleteComment(c)}
+                                    >
+                                      Delete
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              <div className={styles.commentComposer}>
+                <textarea
+                  className={styles.commentInput}
+                  placeholder="Write a comment…"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={3}
+                  maxLength={5000}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                      e.preventDefault();
+                      postComment();
+                    }
+                  }}
+                />
+                <div className={styles.commentActions}>
+                  <span className={styles.commentHint}>⌘ + Enter to post</span>
+                  <button
+                    type="button"
+                    className={styles.commentBtnPrimary}
+                    onClick={postComment}
+                    disabled={!newComment.trim() || postingComment}
+                  >
+                    {postingComment ? "Posting…" : "Post"}
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
         )}
 
@@ -1403,6 +1628,21 @@ function LabelsPicker({
       )}
     </div>
   );
+}
+
+function formatCommentTime(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const diff = Date.now() - d.getTime();
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function toLocalDatetimeValue(iso: string | null | undefined): string {

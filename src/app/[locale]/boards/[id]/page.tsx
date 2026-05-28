@@ -5,6 +5,7 @@ import {
   boardPiles,
   boardTaskAssignees,
   boardTaskAttachments,
+  boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
   boardTasks,
@@ -161,8 +162,25 @@ export default async function BoardDetail({
         .groupBy(boardTaskAttachments.boardTaskId)
     : [];
 
+  const commentStats = taskIds.length
+    ? await db
+        .select({
+          cardId: boardTaskComments.boardTaskId,
+          total: sql<number>`COUNT(*)`.as("total"),
+        })
+        .from(boardTaskComments)
+        .where(
+          and(
+            sql`${boardTaskComments.boardTaskId} IN (${sql.join(taskIds, sql`, `)})`,
+            isNull(boardTaskComments.deletedAt),
+          ),
+        )
+        .groupBy(boardTaskComments.boardTaskId)
+    : [];
+
   const itemsById = new Map(itemStats.map((s) => [s.cardId, s]));
   const attachmentsById = new Map(attachmentStats.map((s) => [s.cardId, s]));
+  const commentsById = new Map(commentStats.map((s) => [s.cardId, s]));
 
   const labelRows = taskIds.length
     ? await db
@@ -223,11 +241,13 @@ export default async function BoardDetail({
   const tasks = rawTasks.map((t) => {
     const itemStat = itemsById.get(t.id);
     const attachmentStat = attachmentsById.get(t.id);
+    const commentStat = commentsById.get(t.id);
     return {
       ...t,
       itemsTotal: Number(itemStat?.total ?? 0),
       itemsDone: Number(itemStat?.done ?? 0),
       attachments: Number(attachmentStat?.total ?? 0),
+      comments: Number(commentStat?.total ?? 0),
       labels: labelsByCard.get(t.id) ?? [],
       assignees: assigneesByCard.get(t.id) ?? [],
     };

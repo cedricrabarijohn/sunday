@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import {
   boardTaskAssignees,
   boardTaskAttachments,
+  boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
   labels,
@@ -73,12 +74,35 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     .where(eq(boardTaskAssignees.boardTaskId, cardId))
     .orderBy(asc(users.firstname), asc(users.id));
 
+  const comments = await db
+    .select({
+      id: boardTaskComments.id,
+      body: boardTaskComments.body,
+      createdAt: boardTaskComments.createdAt,
+      updatedAt: boardTaskComments.updatedAt,
+      userId: users.id,
+      firstname: users.firstname,
+      lastname: users.lastname,
+      email: users.email,
+    })
+    .from(boardTaskComments)
+    .innerJoin(users, eq(users.id, boardTaskComments.userId))
+    .where(
+      and(
+        eq(boardTaskComments.boardTaskId, cardId),
+        isNull(boardTaskComments.deletedAt),
+      ),
+    )
+    .orderBy(asc(boardTaskComments.createdAt), asc(boardTaskComments.id));
+
   return NextResponse.json({
     card: guard.card,
     items,
     attachments,
     labels: cardLabels,
     assignees,
+    comments,
     capabilities: Array.from(guard.capabilities),
+    currentUserId: auth.session.sub,
   });
 }

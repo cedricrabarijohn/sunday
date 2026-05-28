@@ -269,6 +269,29 @@ export const boardTaskLabels = mysqlTable(
   (t) => [primaryKey({ columns: [t.boardTaskId, t.labelId] })],
 );
 
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  type: varchar("type", { length: 32 }).notNull(),
+  actorUserId: int("actor_user_id"),
+  cardId: int("card_id"),
+  boardId: int("board_id"),
+  workspaceId: int("workspace_id"),
+  payload: json("payload"),
+  readAt: datetime("read_at"),
+  createdAt: datetime("created_at"),
+});
+
+export const boardTaskComments = mysqlTable("board_task_comments", {
+  id: int("id").autoincrement().primaryKey(),
+  boardTaskId: int("board_task_id").notNull(),
+  userId: int("user_id").notNull(),
+  body: text("body"),
+  createdAt: datetime("created_at"),
+  updatedAt: datetime("updated_at"),
+  deletedAt: datetime("deleted_at"),
+});
+
 export const boardTaskAssignees = mysqlTable(
   "board_task_assignees",
   {

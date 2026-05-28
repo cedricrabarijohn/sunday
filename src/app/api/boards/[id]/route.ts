@@ -5,10 +5,12 @@ import {
   boardPiles,
   boardTaskAssignees,
   boardTaskAttachments,
+  boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
   boardTasks,
   boards,
+  notifications,
 } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { getStorage } from "@/lib/storage";
@@ -116,9 +118,13 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
       await tx
         .delete(boardTaskAssignees)
         .where(inArray(boardTaskAssignees.boardTaskId, taskIds));
+      await tx
+        .delete(boardTaskComments)
+        .where(inArray(boardTaskComments.boardTaskId, taskIds));
     }
     await tx.delete(boardTasks).where(eq(boardTasks.boardId, boardId));
     await tx.delete(boardPiles).where(eq(boardPiles.boardId, boardId));
+    await tx.delete(notifications).where(eq(notifications.boardId, boardId));
     await tx.delete(boards).where(eq(boards.id, boardId));
   });
 
