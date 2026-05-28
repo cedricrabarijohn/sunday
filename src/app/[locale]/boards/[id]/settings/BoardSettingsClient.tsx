@@ -8,6 +8,7 @@ import { colorForId } from "@/lib/palette";
 import { BackIcon, TrashIcon, UsersIcon } from "@/components/Icons";
 import shellStyles from "../../../workspaces/AppShell.module.scss";
 import styles from "./BoardSettings.module.scss";
+import { useToast } from "@/components/organisms/toast/ToastProvider";
 
 export default function BoardSettingsClient({
   boardId,
@@ -27,10 +28,10 @@ export default function BoardSettingsClient({
   const canDelete = caps.has("delete_board");
   const router = useRouter();
   const { confirm } = useConfirm();
+  const toast = useToast();
 
   const [title, setTitle] = useState(boardTitle || "");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const onSave = async (e: FormEvent) => {
@@ -38,7 +39,6 @@ export default function BoardSettingsClient({
     const next = title.trim();
     if (!next) return;
     setSaving(true);
-    setError(null);
     setSaved(false);
     try {
       const res = await fetch(`/api/boards/${boardId}`, {
@@ -48,14 +48,14 @@ export default function BoardSettingsClient({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not save the board name");
+        toast.error(data.error || "Could not save the board name");
         return;
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       router.refresh();
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     } finally {
       setSaving(false);
     }
@@ -74,12 +74,12 @@ export default function BoardSettingsClient({
       const res = await fetch(`/api/boards/${boardId}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not delete the board");
+        toast.error(data.error || "Could not delete the board");
         return;
       }
       router.push(`/workspaces/${workspaceId}`);
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -110,8 +110,6 @@ export default function BoardSettingsClient({
           </div>
         </div>
       </div>
-
-      {error && <div className={shellStyles.errorBanner}>{error}</div>}
 
       <section className={styles.section}>
         <header className={styles.sectionHead}>

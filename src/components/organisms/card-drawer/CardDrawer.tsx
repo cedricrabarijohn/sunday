@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import styles from "./CardDrawer.module.scss";
+import { useToast } from "@/components/organisms/toast/ToastProvider";
 
 type Item = { id: number; title: string | null; done: number; position: number | null };
 type Attachment = {
@@ -106,8 +107,8 @@ export default function CardDrawer({
   onDueAtChange,
   onDelete,
 }: Props) {
+  const toast = useToast();
   const [data, setData] = useState<CardDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [newItem, setNewItem] = useState("");
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -162,7 +163,6 @@ export default function CardDrawer({
   useEffect(() => {
     let cancelled = false;
     setData(null);
-    setError(null);
     fetch(`/api/cards/${cardId}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Could not load card");
@@ -170,7 +170,7 @@ export default function CardDrawer({
         if (!cancelled) setData(json);
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load card. Please try again.");
+        if (!cancelled) toast.error("Could not load card. Please try again.");
       });
     return () => {
       cancelled = true;
@@ -274,7 +274,7 @@ export default function CardDrawer({
           })),
         );
       })
-      .catch(() => setError("Could not load board members."))
+      .catch(() => toast.error("Could not load board members."))
       .finally(() => setBoardMembersLoading(false));
   }, [boardMembers, data?.card.boardId]);
 
@@ -322,9 +322,9 @@ export default function CardDrawer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title }),
         });
-        if (!res.ok) setError("Could not save title");
+        if (!res.ok) toast.error("Could not save title");
       } catch {
-        setError("Network error. Title not saved.");
+        toast.error("Network error. Title not saved.");
       }
     }, 400);
   };
@@ -345,7 +345,6 @@ export default function CardDrawer({
     if (!descRef.current || !data) return;
     const next = serializeDescription(descRef.current);
     setDescSaving(true);
-    setError(null);
     try {
       const res = await fetch(`/api/tasks/${cardId}`, {
         method: "PATCH",
@@ -354,13 +353,13 @@ export default function CardDrawer({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.error || "Could not save description");
+        toast.error(json.error || "Could not save description");
         return;
       }
       setData((prev) => (prev ? { ...prev, card: { ...prev.card, description: next } } : prev));
       setDescEditing(false);
     } catch {
-      setError("Network error. Description not saved.");
+      toast.error("Network error. Description not saved.");
     } finally {
       setDescSaving(false);
     }
@@ -375,7 +374,7 @@ export default function CardDrawer({
   // the Images section reflects it. Returns the public URL on success.
   const uploadImageForDescription = async (file: File): Promise<{ url: string; alt: string } | null> => {
     if (!file.type.startsWith("image/")) {
-      setError("Only image files are allowed");
+      toast.error("Only image files are allowed");
       return null;
     }
     try {
@@ -387,7 +386,7 @@ export default function CardDrawer({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Upload failed");
+        toast.error(json.error || "Upload failed");
         return null;
       }
       setData((prev) =>
@@ -398,7 +397,7 @@ export default function CardDrawer({
       const alt = (json.attachment.filename || "image").replace(/[\]\[]/g, "");
       return { url: json.attachment.url as string, alt };
     } catch {
-      setError("Network error. Upload failed.");
+      toast.error("Network error. Upload failed.");
       return null;
     }
   };
@@ -540,7 +539,6 @@ export default function CardDrawer({
     if (titles.length === 0) return;
 
     setAdding(true);
-    setError(null);
 
     let nextPos = data.items.at(-1)?.position ?? 0;
     const baseId = -Date.now();
@@ -564,7 +562,7 @@ export default function CardDrawer({
         });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          setError(json.error || "Could not add some items");
+          toast.error(json.error || "Could not add some items");
           break;
         }
         const json = await res.json();
@@ -579,7 +577,7 @@ export default function CardDrawer({
       }
     } catch {
       setData(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     } finally {
       setAdding(false);
     }
@@ -625,9 +623,9 @@ export default function CardDrawer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title }),
         });
-        if (!res.ok) setError("Could not save change");
+        if (!res.ok) toast.error("Could not save change");
       } catch {
-        setError("Network error.");
+        toast.error("Network error.");
       }
     }, 400);
     renameTimers.current.set(id, timer);
@@ -649,10 +647,10 @@ export default function CardDrawer({
           ...data,
           items: data.items.map((i) => (i.id === id ? { ...i, done: current } : i)),
         });
-        setError("Could not update item");
+        toast.error("Could not update item");
       }
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -665,10 +663,10 @@ export default function CardDrawer({
       const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
       if (!res.ok) {
         setData({ ...data, items: snapshot });
-        setError("Could not delete item");
+        toast.error("Could not delete item");
       }
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -676,11 +674,10 @@ export default function CardDrawer({
   const uploadFile = async (file: File) => {
     if (!data) return;
     if (!file.type.startsWith("image/")) {
-      setError("Only image files are allowed");
+      toast.error("Only image files are allowed");
       return;
     }
     setUploading(true);
-    setError(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -690,7 +687,7 @@ export default function CardDrawer({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Upload failed");
+        toast.error(json.error || "Upload failed");
         return;
       }
       setData((prev) =>
@@ -699,7 +696,7 @@ export default function CardDrawer({
           : prev,
       );
     } catch {
-      setError("Network error. Upload failed.");
+      toast.error("Network error. Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -753,7 +750,7 @@ export default function CardDrawer({
           attachments: snapshotAttachments,
           card: { ...data.card, description: snapshotDescription },
         });
-        setError("Could not delete image");
+        toast.error("Could not delete image");
         return;
       }
       // Also persist the cleaned description so a refresh stays clean.
@@ -775,7 +772,7 @@ export default function CardDrawer({
         attachments: snapshotAttachments,
         card: { ...data.card, description: snapshotDescription },
       });
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -789,10 +786,10 @@ export default function CardDrawer({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.error || "Could not update labels");
+        toast.error(json.error || "Could not update labels");
       }
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -819,13 +816,13 @@ export default function CardDrawer({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Could not create label");
+        toast.error(json.error || "Could not create label");
         return;
       }
       const next: WorkspaceLabel = { ...json.label };
       onWorkspaceLabelsChange([...workspaceLabels, next]);
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -853,11 +850,11 @@ export default function CardDrawer({
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         onWorkspaceLabelsChange(workspaceLabels);
-        setError(json.error || "Could not update label");
+        toast.error(json.error || "Could not update label");
       }
     } catch {
       onWorkspaceLabelsChange(workspaceLabels);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -882,11 +879,11 @@ export default function CardDrawer({
       const res = await fetch(`/api/labels/${label.id}`, { method: "DELETE" });
       if (!res.ok) {
         onWorkspaceLabelsChange(snapshot);
-        setError("Could not delete label");
+        toast.error("Could not delete label");
       }
     } catch {
       onWorkspaceLabelsChange(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -900,10 +897,10 @@ export default function CardDrawer({
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.error || "Could not update assignees");
+        toast.error(json.error || "Could not update assignees");
       }
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -934,12 +931,12 @@ export default function CardDrawer({
         const json = await res.json().catch(() => ({}));
         setData((prev) => (prev ? { ...prev, card: { ...prev.card, dueAt: snapshot } } : prev));
         onDueAtChange?.(cardId, snapshot);
-        setError(json.error || "Could not update due date");
+        toast.error(json.error || "Could not update due date");
       }
     } catch {
       setData((prev) => (prev ? { ...prev, card: { ...prev.card, dueAt: snapshot } } : prev));
       onDueAtChange?.(cardId, snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -1082,7 +1079,7 @@ export default function CardDrawer({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Could not post comment");
+        toast.error(json.error || "Could not post comment");
         return;
       }
       // The SSE bus echoes our own POST back, so dedupe by id — without
@@ -1099,7 +1096,7 @@ export default function CardDrawer({
       setMentions([]);
       setMentionOpen(false);
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     } finally {
       setPostingComment(false);
     }
@@ -1138,11 +1135,11 @@ export default function CardDrawer({
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
-        setError(json.error || "Could not update comment");
+        toast.error(json.error || "Could not update comment");
       }
     } catch {
       setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -1161,11 +1158,11 @@ export default function CardDrawer({
       const res = await fetch(`/api/comments/${c.id}`, { method: "DELETE" });
       if (!res.ok) {
         setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
-        setError("Could not delete comment");
+        toast.error("Could not delete comment");
       }
     } catch {
       setData((prev) => (prev ? { ...prev, comments: snapshot } : prev));
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -1182,13 +1179,13 @@ export default function CardDrawer({
     try {
       const res = await fetch(`/api/tasks/${cardId}`, { method: "DELETE" });
       if (!res.ok) {
-        setError("Could not delete card");
+        toast.error("Could not delete card");
         return;
       }
       onDelete?.(cardId);
       onClose();
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -1246,8 +1243,6 @@ export default function CardDrawer({
           </div>
         ) : (
           <div className={styles.body}>
-            {error && <div className={styles.error}>{error}</div>}
-
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Labels</span>
@@ -1381,14 +1376,14 @@ export default function CardDrawer({
                           body: JSON.stringify({ description: "" }),
                         });
                         if (!res.ok) {
-                          setError("Could not clear description");
+                          toast.error("Could not clear description");
                           return;
                         }
                         setData((prev) =>
                           prev ? { ...prev, card: { ...prev.card, description: "" } } : prev,
                         );
                       } catch {
-                        setError("Network error.");
+                        toast.error("Network error.");
                       }
                     }}
                   />

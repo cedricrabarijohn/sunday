@@ -4,6 +4,7 @@ import { getMessages } from 'next-intl/server';
 import { locales } from '@/i18n';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ConfirmProvider from "@/components/organisms/confirm-dialog/ConfirmDialog";
+import ToastProvider from "@/components/organisms/toast/ToastProvider";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -42,7 +43,9 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             <ConfirmProvider>
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </ConfirmProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

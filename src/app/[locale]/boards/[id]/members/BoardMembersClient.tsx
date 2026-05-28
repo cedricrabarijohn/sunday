@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog"
 import { colorForId } from "@/lib/palette";
 import styles from "../../../workspaces/AppShell.module.scss";
 import mStyles from "../../../workspaces/[id]/members/Members.module.scss";
+import { useToast } from "@/components/organisms/toast/ToastProvider";
 
 type Member = {
   userId: number;
@@ -60,10 +61,10 @@ export default function BoardMembersClient({
   const caps = new Set(capabilities);
   const canManage = caps.has("manage_board_members");
   const { confirm } = useConfirm();
+  const toast = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState<number>(2);
@@ -85,7 +86,7 @@ export default function BoardMembersClient({
         setMembers(m.members ?? []);
         setInvites(i.invites ?? []);
       } catch {
-        if (!cancelled) setError("Could not load members.");
+        if (!cancelled) toast.error("Could not load members.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -98,7 +99,6 @@ export default function BoardMembersClient({
   const onCreateInvite = async (e: FormEvent) => {
     e.preventDefault();
     setSending(true);
-    setError(null);
     try {
       const res = await fetch(`/api/boards/${boardId}/invites`, {
         method: "POST",
@@ -107,7 +107,7 @@ export default function BoardMembersClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Could not create invite");
+        toast.error(data.error || "Could not create invite");
         return;
       }
       setInvites((prev) => [
@@ -125,7 +125,7 @@ export default function BoardMembersClient({
       setJustCreated({ token: data.invite.token, email: data.invite.email });
       setEmail("");
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     } finally {
       setSending(false);
     }
@@ -147,11 +147,11 @@ export default function BoardMembersClient({
       const res = await fetch(`/api/board-invites/${inv.id}`, { method: "DELETE" });
       if (!res.ok) {
         setInvites(snapshot);
-        setError("Could not revoke invite");
+        toast.error("Could not revoke invite");
       }
     } catch {
       setInvites(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -174,13 +174,13 @@ export default function BoardMembersClient({
       if (!res.ok) {
         setMembers(snapshot);
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not update membership");
+        toast.error(data.error || "Could not update membership");
       } else if (removingSelf) {
         window.location.href = `/workspaces/${workspaceId}`;
       }
     } catch {
       setMembers(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -200,11 +200,11 @@ export default function BoardMembersClient({
       if (!res.ok) {
         setMembers(snapshot);
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not update role");
+        toast.error(data.error || "Could not update role");
       }
     } catch {
       setMembers(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -215,7 +215,7 @@ export default function BoardMembersClient({
       setCopyStatus("copied");
       setTimeout(() => setCopyStatus("idle"), 1200);
     } catch {
-      setError("Could not copy. Select the link and copy it by hand.");
+      toast.error("Could not copy. Select the link and copy it by hand.");
     }
   };
 
@@ -256,8 +256,6 @@ export default function BoardMembersClient({
           {members.length} {members.length === 1 ? "member" : "members"}
         </span>
       </div>
-
-      {error && <div className={styles.errorBanner}>{error}</div>}
 
       {canManage && (
         <section className={mStyles.section}>

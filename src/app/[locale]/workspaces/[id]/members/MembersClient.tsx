@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog"
 import { colorForId } from "@/lib/palette";
 import styles from "../../AppShell.module.scss";
 import mStyles from "./Members.module.scss";
+import { useToast } from "@/components/organisms/toast/ToastProvider";
 
 type Member = {
   userId: number;
@@ -56,10 +57,10 @@ export default function MembersClient({
   const caps = new Set(capabilities);
   const canManageMembers = caps.has("manage_members");
   const { confirm } = useConfirm();
+  const toast = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // invite form state
   const [email, setEmail] = useState("");
@@ -82,7 +83,7 @@ export default function MembersClient({
         setMembers(m.members ?? []);
         setInvites(i.invites ?? []);
       } catch {
-        if (!cancelled) setError("Could not load members.");
+        if (!cancelled) toast.error("Could not load members.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -95,7 +96,6 @@ export default function MembersClient({
   const onCreateInvite = async (e: FormEvent) => {
     e.preventDefault();
     setSending(true);
-    setError(null);
     try {
       const res = await fetch(`/api/workspaces/${workspaceId}/invites`, {
         method: "POST",
@@ -104,7 +104,7 @@ export default function MembersClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Could not create invite");
+        toast.error(data.error || "Could not create invite");
         return;
       }
       setInvites((prev) => [
@@ -122,7 +122,7 @@ export default function MembersClient({
       setJustCreated({ token: data.invite.token, email: data.invite.email });
       setEmail("");
     } catch {
-      setError("Network error.");
+      toast.error("Network error.");
     } finally {
       setSending(false);
     }
@@ -144,11 +144,11 @@ export default function MembersClient({
       const res = await fetch(`/api/invites/${inv.id}`, { method: "DELETE" });
       if (!res.ok) {
         setInvites(snapshot);
-        setError("Could not revoke invite");
+        toast.error("Could not revoke invite");
       }
     } catch {
       setInvites(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -171,14 +171,14 @@ export default function MembersClient({
       if (!res.ok) {
         setMembers(snapshot);
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not update membership");
+        toast.error(data.error || "Could not update membership");
       } else if (removingSelf) {
         // The user just left; bounce them to the workspaces list.
         window.location.href = "/workspaces";
       }
     } catch {
       setMembers(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -189,7 +189,7 @@ export default function MembersClient({
       setCopyStatus("copied");
       setTimeout(() => setCopyStatus("idle"), 1200);
     } catch {
-      setError("Could not copy. Select the link and copy it by hand.");
+      toast.error("Could not copy. Select the link and copy it by hand.");
     }
   };
 
@@ -225,8 +225,6 @@ export default function MembersClient({
           {members.length} {members.length === 1 ? "member" : "members"}
         </span>
       </div>
-
-      {error && <div className={styles.errorBanner}>{error}</div>}
 
       {canManageMembers && (
         <section className={mStyles.section}>

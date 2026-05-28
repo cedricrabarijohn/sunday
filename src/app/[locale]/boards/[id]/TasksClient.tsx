@@ -26,6 +26,7 @@ import {
 } from "@/components/Icons";
 import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
+import { useToast } from "@/components/organisms/toast/ToastProvider";
 
 type CardLabel = { id: number; title: string; color: string };
 type CardAssignee = {
@@ -99,11 +100,11 @@ export default function TasksClient({
   const can = (c: string) => caps.has(c);
   const router = useRouter();
   const { confirm } = useConfirm();
+  const toast = useToast();
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [piles, setPiles] = useState<Pile[]>(initialPiles);
   const [labels, setLabels] = useState<WorkspaceLabel[]>(initialLabels);
   const [title, setTitle] = useState<string>(boardTitle || "");
-  const [error, setError] = useState<string | null>(null);
   const [openCardId, setOpenCardId] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState>(null);
   const [hint, setHint] = useState<DropHint>(null);
@@ -126,10 +127,10 @@ export default function TasksClient({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setError(data.error || "Could not rename board");
+          toast.error(data.error || "Could not rename board");
         }
       } catch {
-        setError("Network error. Board name not saved.");
+        toast.error("Network error. Board name not saved.");
       }
     }, 400);
   };
@@ -214,7 +215,6 @@ export default function TasksClient({
   const onAddCard = async (pileId: number, title: string) => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    setError(null);
 
     const tempId = -Date.now();
     const existing = cardsByPile.get(pileId) ?? [];
@@ -245,7 +245,7 @@ export default function TasksClient({
       const data = await res.json();
       if (!res.ok) {
         setTasks((prev) => prev.filter((t) => t.id !== tempId));
-        setError(data.error || "Could not add card");
+        toast.error(data.error || "Could not add card");
         return;
       }
       setTasks((prev) =>
@@ -263,7 +263,7 @@ export default function TasksClient({
       );
     } catch {
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
-      setError("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     }
   };
 
@@ -276,11 +276,11 @@ export default function TasksClient({
       const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
       if (!res.ok) {
         setTasks(snapshot);
-        setError("Could not delete card");
+        toast.error("Could not delete card");
       }
     } catch {
       setTasks(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -396,11 +396,11 @@ export default function TasksClient({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setTasks(snapshot);
-        setError(data.error || "Could not move card");
+        toast.error(data.error || "Could not move card");
       }
     } catch {
       setTasks(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -454,7 +454,7 @@ export default function TasksClient({
       if (!pileRes.ok) {
         setPiles(pilesSnapshot);
         setTasks(tasksSnapshot);
-        setError(pileData.error || "Could not create pile");
+        toast.error(pileData.error || "Could not create pile");
         return;
       }
       const realPileId = pileData.pile.id as number;
@@ -478,12 +478,12 @@ export default function TasksClient({
       });
       if (!moveRes.ok) {
         const data = await moveRes.json().catch(() => ({}));
-        setError(data.error || "Card move failed");
+        toast.error(data.error || "Card move failed");
       }
     } catch {
       setPiles(pilesSnapshot);
       setTasks(tasksSnapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -504,7 +504,7 @@ export default function TasksClient({
       const data = await res.json();
       if (!res.ok) {
         setPiles((prev) => prev.filter((p) => p.id !== tempId));
-        setError(data.error || "Could not create pile");
+        toast.error(data.error || "Could not create pile");
         return;
       }
       setPiles((prev) =>
@@ -516,7 +516,7 @@ export default function TasksClient({
       );
     } catch {
       setPiles((prev) => prev.filter((p) => p.id !== tempId));
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -537,10 +537,10 @@ export default function TasksClient({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setError(data.error || "Could not rename pile");
+          toast.error(data.error || "Could not rename pile");
         }
       } catch {
-        setError("Network error.");
+        toast.error("Network error.");
       }
     }, 400);
     pileRenameTimers.current.set(pileId, timer);
@@ -549,7 +549,7 @@ export default function TasksClient({
   const onDeletePile = async (pile: Pile) => {
     const cards = cardsByPile.get(pile.id) ?? [];
     if (cards.length > 0) {
-      setError("Move the cards out of this pile before deleting it.");
+      toast.error("Move the cards out of this pile before deleting it.");
       return;
     }
     const ok = await confirm({
@@ -566,11 +566,11 @@ export default function TasksClient({
       if (!res.ok) {
         setPiles(snapshot);
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not delete pile");
+        toast.error(data.error || "Could not delete pile");
       }
     } catch {
       setPiles(snapshot);
-      setError("Network error.");
+      toast.error("Network error.");
     }
   };
 
@@ -645,8 +645,6 @@ export default function TasksClient({
           </Link>
         </div>
       </div>
-
-      {error && <div className={styles.errorBanner}>{error}</div>}
 
       <div className={kStyles.board}>
         <div className={kStyles.scroller}>
