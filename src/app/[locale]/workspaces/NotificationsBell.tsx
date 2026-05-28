@@ -6,7 +6,7 @@ import styles from "./NotificationsBell.module.scss";
 
 type Notification = {
   id: number;
-  type: "card_assigned" | "card_comment";
+  type: "card_assigned" | "card_comment" | "card_mention";
   readAt: string | null;
   createdAt: string | null;
   cardId: number | null;
@@ -132,7 +132,21 @@ export default function NotificationsBell() {
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
       >
-        <span className={styles.bellGlyph} aria-hidden>◔</span>
+        <svg
+          className={styles.bellGlyph}
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M6 8a6 6 0 1 1 12 0c0 4.5 1.5 6 2 6.5H4c.5-.5 2-2 2-6.5Z" />
+          <path d="M10 18a2 2 0 0 0 4 0" />
+        </svg>
         {unread > 0 && <span className={styles.dot}>{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (
@@ -164,17 +178,20 @@ export default function NotificationsBell() {
                           <strong>{actorName(n)}</strong>{" "}
                           {n.type === "card_assigned"
                             ? "assigned you to"
+                            : n.type === "card_mention"
+                            ? "mentioned you on"
                             : "commented on"}{" "}
                           <strong>{n.cardTitle || "a card"}</strong>
                         </div>
                         <div className={styles.rowSub}>
                           {n.workspaceTitle || "workspace"} ·{" "}
                           {n.boardTitle || "board"}
-                          {n.type === "card_comment" && n.payload?.preview && (
-                            <span className={styles.rowPreview}>
-                              {" "}— {n.payload.preview}
-                            </span>
-                          )}
+                          {(n.type === "card_comment" || n.type === "card_mention") &&
+                            n.payload?.preview && (
+                              <span className={styles.rowPreview}>
+                                {" "}— {n.payload.preview}
+                              </span>
+                            )}
                         </div>
                       </div>
                     </Link>

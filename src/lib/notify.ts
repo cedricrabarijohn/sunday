@@ -3,7 +3,8 @@ import { notifications } from "@/db/schema";
 
 export type NotificationType =
   | "card_assigned"
-  | "card_comment";
+  | "card_comment"
+  | "card_mention";
 
 export type NewNotification = {
   userId: number;
