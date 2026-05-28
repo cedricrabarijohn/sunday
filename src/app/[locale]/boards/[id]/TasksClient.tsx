@@ -5,6 +5,7 @@ import {
   DragEvent,
   FormEvent,
   Fragment,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -43,6 +44,7 @@ type Task = {
   attachments: number;
   labels: CardLabel[];
   assignees: CardAssignee[];
+  dueAt: string | Date | null;
 };
 
 type Pile = {
@@ -55,6 +57,12 @@ type Pile = {
 type DragState = { cardId: number; fromPileId: number | null } | null;
 type DropHint = { pileId: number; beforeCardId: number | null } | null;
 
+type BoardFilterState = {
+  assigneeIds: Set<number>;
+  labelIds: Set<number>;
+  due: "any" | "withDue" | "overdue";
+};
+
 export default function TasksClient({
   boardId,
   boardTitle,
@@ -64,6 +72,7 @@ export default function TasksClient({
   initialPiles,
   initialLabels,
   capabilities,
+  currentUserId,
 }: {
   boardId: number;
   boardTitle: string | null;
@@ -73,6 +82,7 @@ export default function TasksClient({
   initialPiles: Pile[];
   initialLabels: WorkspaceLabel[];
   capabilities: string[];
+  currentUserId: number;
 }) {
   const caps = new Set(capabilities);
   const can = (c: string) => caps.has(c);
@@ -125,6 +135,61 @@ export default function TasksClient({
     return map;
   }, [tasks, piles]);
 
+  const [filter, setFilter] = useState<BoardFilterState>({
+    assigneeIds: new Set<number>(),
+    labelIds: new Set<number>(),
+    due: "any",
+  });
+
+  const filterCount =
+    filter.assigneeIds.size + filter.labelIds.size + (filter.due === "any" ? 0 : 1);
+
+  const matchesFilter = (t: Task): boolean => {
+    if (filter.assigneeIds.size > 0) {
+      const hasOne = t.assignees.some((a) => filter.assigneeIds.has(a.userId));
+      if (!hasOne) return false;
+    }
+    if (filter.labelIds.size > 0) {
+      const hasOne = t.labels.some((l) => filter.labelIds.has(l.id));
+      if (!hasOne) return false;
+    }
+    if (filter.due === "withDue" && !t.dueAt) return false;
+    if (filter.due === "overdue") {
+      if (!t.dueAt) return false;
+      const tms = typeof t.dueAt === "string" ? new Date(t.dueAt).getTime() : t.dueAt.getTime();
+      if (tms >= Date.now()) return false;
+    }
+    return true;
+  };
+
+  const visibleCardsByPile = useMemo(() => {
+    if (filterCount === 0) return cardsByPile;
+    const map = new Map<number, Task[]>();
+    for (const [pileId, arr] of cardsByPile) {
+      map.set(pileId, arr.filter(matchesFilter));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsByPile, filter, filterCount]);
+
+  const visibleCount = useMemo(() => {
+    let n = 0;
+    for (const [, arr] of visibleCardsByPile) n += arr.length;
+    return n;
+  }, [visibleCardsByPile]);
+
+  const allAssigneesOnBoard = useMemo(() => {
+    const seen = new Map<number, CardAssignee>();
+    for (const t of tasks) {
+      for (const a of t.assignees) {
+        if (!seen.has(a.userId)) seen.set(a.userId, a);
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) =>
+      nameFor(a).localeCompare(nameFor(b)),
+    );
+  }, [tasks]);
+
   // --- card add (per pile)
   const onAddCard = async (pileId: number, title: string) => {
     const trimmed = title.trim();
@@ -146,6 +211,7 @@ export default function TasksClient({
         attachments: 0,
         labels: [],
         assignees: [],
+        dueAt: null,
       },
     ]);
 
@@ -554,8 +620,17 @@ export default function TasksClient({
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
           <span className={styles.pageMeta}>
             {piles.length} {piles.length === 1 ? "pile" : "piles"} ·{" "}
-            {tasks.length} {tasks.length === 1 ? "card" : "cards"}
+            {filterCount > 0
+              ? `${visibleCount}/${tasks.length} cards`
+              : `${tasks.length} ${tasks.length === 1 ? "card" : "cards"}`}
           </span>
+          <BoardFilter
+            filter={filter}
+            setFilter={setFilter}
+            allAssignees={allAssigneesOnBoard}
+            allLabels={labels}
+            currentUserId={currentUserId}
+          />
           <Link href={`/boards/${boardId}/members`} className={styles.ghostBtn}>
             Members
           </Link>
@@ -579,7 +654,7 @@ export default function TasksClient({
             <PileColumn
               key={pile.id}
               pile={pile}
-              cards={cardsByPile.get(pile.id) ?? []}
+              cards={visibleCardsByPile.get(pile.id) ?? []}
               dragHint={hint?.pileId === pile.id ? hint : null}
               isDropTarget={hint?.pileId === pile.id && drag !== null}
               draggingCardId={drag?.cardId ?? null}
@@ -657,6 +732,9 @@ export default function TasksClient({
           }
           onAssigneesChange={(id, assignees) =>
             setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, assignees } : t)))
+          }
+          onDueAtChange={(id, dueAt) =>
+            setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, dueAt } : t)))
           }
           onDelete={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
         />
@@ -871,6 +949,7 @@ function KanbanCard({
       </div>
       <div className={kStyles.cardFoot}>
         <div className={kStyles.cardBadges}>
+          {card.dueAt && <DueBadge dueAt={card.dueAt} />}
           {card.itemsTotal > 0 && (
             <span
               className={kStyles.cardBadge}
@@ -921,6 +1000,44 @@ function KanbanCard({
   );
 }
 
+function dueState(dueAt: string | Date): "overdue" | "soon" | "later" {
+  const t = typeof dueAt === "string" ? new Date(dueAt).getTime() : dueAt.getTime();
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (t < now) return "overdue";
+  if (t - now < 2 * dayMs) return "soon";
+  return "later";
+}
+
+function formatDueShort(dueAt: string | Date): string {
+  const d = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+function DueBadge({ dueAt }: { dueAt: string | Date }) {
+  const state = dueState(dueAt);
+  return (
+    <span
+      className={kStyles.cardBadge}
+      data-due={state}
+      title={
+        typeof dueAt === "string"
+          ? new Date(dueAt).toLocaleString()
+          : dueAt.toLocaleString()
+      }
+    >
+      <span className={kStyles.cardBadgeIcon} aria-hidden>◷</span>
+      <span>{formatDueShort(dueAt)}</span>
+    </span>
+  );
+}
+
 function initialsFor(a: CardAssignee): string {
   const f = a.firstname?.[0] ?? "";
   const l = a.lastname?.[0] ?? "";
@@ -945,6 +1062,186 @@ function AvatarStack({ assignees }: { assignees: CardAssignee[] }) {
       ))}
       {extra > 0 && <span className={`${kStyles.avatarPip} ${kStyles.avatarPipMore}`}>+{extra}</span>}
     </span>
+  );
+}
+
+function BoardFilter({
+  filter,
+  setFilter,
+  allAssignees,
+  allLabels,
+  currentUserId,
+}: {
+  filter: BoardFilterState;
+  setFilter: (next: BoardFilterState) => void;
+  allAssignees: CardAssignee[];
+  allLabels: WorkspaceLabel[];
+  currentUserId: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const count =
+    filter.assigneeIds.size + filter.labelIds.size + (filter.due === "any" ? 0 : 1);
+
+  const toggleAssignee = (uid: number) => {
+    const next = new Set(filter.assigneeIds);
+    if (next.has(uid)) next.delete(uid);
+    else next.add(uid);
+    setFilter({ ...filter, assigneeIds: next });
+  };
+  const toggleLabel = (lid: number) => {
+    const next = new Set(filter.labelIds);
+    if (next.has(lid)) next.delete(lid);
+    else next.add(lid);
+    setFilter({ ...filter, labelIds: next });
+  };
+  const reset = () =>
+    setFilter({ assigneeIds: new Set(), labelIds: new Set(), due: "any" });
+
+  return (
+    <div className={kStyles.filterWrap} ref={wrapRef}>
+      <button
+        type="button"
+        className={`${kStyles.filterBtn} ${count > 0 ? kStyles.filterBtnActive : ""}`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        Filter{count > 0 ? ` · ${count}` : ""}
+      </button>
+      {open && (
+        <div className={kStyles.filterMenu} role="dialog">
+          <div className={kStyles.filterSection}>
+            <div className={kStyles.filterHead}>
+              <span>Assignees</span>
+              {filter.assigneeIds.size > 0 && (
+                <button
+                  type="button"
+                  className={kStyles.filterClear}
+                  onClick={() => setFilter({ ...filter, assigneeIds: new Set() })}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {allAssignees.length === 0 ? (
+              <div className={kStyles.filterEmpty}>No assignees on this board yet.</div>
+            ) : (
+              <div className={kStyles.filterChips}>
+                {allAssignees.some((a) => a.userId === currentUserId) && (
+                  <button
+                    type="button"
+                    className={`${kStyles.filterChip} ${
+                      filter.assigneeIds.has(currentUserId) ? kStyles.filterChipActive : ""
+                    }`}
+                    onClick={() => toggleAssignee(currentUserId)}
+                  >
+                    Me
+                  </button>
+                )}
+                {allAssignees
+                  .filter((a) => a.userId !== currentUserId)
+                  .map((a) => (
+                    <button
+                      key={a.userId}
+                      type="button"
+                      className={`${kStyles.filterChip} ${
+                        filter.assigneeIds.has(a.userId) ? kStyles.filterChipActive : ""
+                      }`}
+                      onClick={() => toggleAssignee(a.userId)}
+                    >
+                      {nameFor(a)}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div className={kStyles.filterSection}>
+            <div className={kStyles.filterHead}>
+              <span>Labels</span>
+              {filter.labelIds.size > 0 && (
+                <button
+                  type="button"
+                  className={kStyles.filterClear}
+                  onClick={() => setFilter({ ...filter, labelIds: new Set() })}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {allLabels.length === 0 ? (
+              <div className={kStyles.filterEmpty}>No labels in this workspace.</div>
+            ) : (
+              <div className={kStyles.filterChips}>
+                {allLabels.map((l) => {
+                  const c = colorForName(l.color);
+                  const active = filter.labelIds.has(l.id);
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      className={`${kStyles.filterChip} ${active ? kStyles.filterChipActive : ""}`}
+                      style={active ? { background: c.soft, color: c.hue, borderColor: c.soft } : undefined}
+                      onClick={() => toggleLabel(l.id)}
+                    >
+                      <span
+                        className={kStyles.cardChipDot}
+                        style={{ background: c.hue, marginRight: 6 }}
+                        aria-hidden
+                      />
+                      {l.title}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className={kStyles.filterSection}>
+            <div className={kStyles.filterHead}>
+              <span>Due date</span>
+            </div>
+            <div className={kStyles.filterChips}>
+              {(["any", "withDue", "overdue"] as const).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  className={`${kStyles.filterChip} ${
+                    filter.due === opt ? kStyles.filterChipActive : ""
+                  }`}
+                  onClick={() => setFilter({ ...filter, due: opt })}
+                >
+                  {opt === "any" ? "Any" : opt === "withDue" ? "Has a due date" : "Overdue"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {count > 0 && (
+            <div className={kStyles.filterFoot}>
+              <button type="button" className={kStyles.filterReset} onClick={reset}>
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

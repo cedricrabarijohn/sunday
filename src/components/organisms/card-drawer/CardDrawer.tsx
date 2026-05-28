@@ -37,7 +37,13 @@ type Assignee = {
 };
 
 type CardDetail = {
-  card: { id: number; title: string | null; description?: string | null; boardId?: number | null };
+  card: {
+    id: number;
+    title: string | null;
+    description?: string | null;
+    boardId?: number | null;
+    dueAt?: string | null;
+  };
   items: Item[];
   attachments: Attachment[];
   labels: CardLabel[];
@@ -60,6 +66,7 @@ type Props = {
   onTitleChange?: (cardId: number, title: string) => void;
   onLabelsChange?: (cardId: number, labels: CardLabel[]) => void;
   onAssigneesChange?: (cardId: number, assignees: Assignee[]) => void;
+  onDueAtChange?: (cardId: number, dueAt: string | null) => void;
   onDelete?: (cardId: number) => void;
 };
 
@@ -80,6 +87,7 @@ export default function CardDrawer({
   onTitleChange,
   onLabelsChange,
   onAssigneesChange,
+  onDueAtChange,
   onDelete,
 }: Props) {
   const [data, setData] = useState<CardDetail | null>(null);
@@ -833,6 +841,31 @@ export default function CardDrawer({
     persistAssignees(next);
   };
 
+  // --- Due date ---
+  const onChangeDueAt = async (next: string | null) => {
+    if (!data) return;
+    const snapshot = data.card.dueAt ?? null;
+    setData({ ...data, card: { ...data.card, dueAt: next } });
+    onDueAtChange?.(cardId, next);
+    try {
+      const res = await fetch(`/api/tasks/${cardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueAt: next }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setData((prev) => (prev ? { ...prev, card: { ...prev.card, dueAt: snapshot } } : prev));
+        onDueAtChange?.(cardId, snapshot);
+        setError(json.error || "Could not update due date");
+      }
+    } catch {
+      setData((prev) => (prev ? { ...prev, card: { ...prev.card, dueAt: snapshot } } : prev));
+      onDueAtChange?.(cardId, snapshot);
+      setError("Network error.");
+    }
+  };
+
   // --- Delete the whole card ---
   const onDeleteCard = async () => {
     if (!data) return;
@@ -993,6 +1026,34 @@ export default function CardDrawer({
                   onToggle={onToggleAssignee}
                 />
               )}
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionLabel}>Due date</span>
+                {data.card.dueAt && (
+                  <button
+                    type="button"
+                    className={styles.linkBtn}
+                    onClick={() => onChangeDueAt(null)}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <input
+                type="datetime-local"
+                className={styles.dueInput}
+                value={toLocalDatetimeValue(data.card.dueAt)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) {
+                    onChangeDueAt(null);
+                    return;
+                  }
+                  onChangeDueAt(new Date(v).toISOString());
+                }}
+              />
             </section>
 
             <section className={styles.section}>
@@ -1342,6 +1403,14 @@ function LabelsPicker({
       )}
     </div>
   );
+}
+
+function toLocalDatetimeValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function initialsForAssignee(a: Assignee): string {

@@ -790,6 +790,23 @@
   flex-shrink: 0;
 }
 
+.dueInput {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+.dueInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .assigneeList {
   display: flex;
   flex-wrap: wrap;

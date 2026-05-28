@@ -165,6 +165,7 @@ export type LoadedCard = {
   title: string | null;
   description: string | null;
   position: number | null;
+  dueAt: Date | null;
 };
 
 export async function requireCardCap(
@@ -189,6 +190,7 @@ export async function requireCardCap(
       title: boardTasks.title,
       description: boardTasks.description,
       position: boardTasks.position,
+      dueAt: boardTasks.dueAt,
       boardWorkspaceId: boards.workspaceId,
       boardTitle: boards.title,
       boardCreatedAt: boards.createdAt,
@@ -226,6 +228,7 @@ export async function requireCardCap(
       title: row.title,
       description: row.description,
       position: row.position,
+      dueAt: row.dueAt,
     },
     boardId: row.boardId,
     workspaceId: row.boardWorkspaceId,

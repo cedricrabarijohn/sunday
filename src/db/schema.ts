@@ -139,6 +139,7 @@ export const boardTasks = mysqlTable(
     title: varchar("title", { length: 255 }),
     description: text("description"),
     position: int("position"),
+    dueAt: datetime("due_at"),
     createdAt: datetime("created_at"),
     updatedAt: datetime("updated_at"),
     deletedAt: datetime("deleted_at"),

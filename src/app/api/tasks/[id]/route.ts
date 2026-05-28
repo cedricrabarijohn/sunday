@@ -33,12 +33,29 @@ export async function PATCH(
 
   const body = await request.json().catch(() => null);
 
-  const updates: Partial<{ title: string; description: string | null }> = {};
+  const updates: Partial<{
+    title: string;
+    description: string | null;
+    dueAt: Date | null;
+  }> = {};
   if (typeof body?.title === "string") {
     const t = body.title.trim();
     if (!t) return NextResponse.json({ error: "title cannot be empty" }, { status: 400 });
     if (t.length > 255) return NextResponse.json({ error: "title too long" }, { status: 400 });
     updates.title = t;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, "dueAt")) {
+    if (body.dueAt === null || body.dueAt === "") {
+      updates.dueAt = null;
+    } else if (typeof body.dueAt === "string") {
+      const d = new Date(body.dueAt);
+      if (Number.isNaN(d.getTime())) {
+        return NextResponse.json({ error: "Invalid dueAt" }, { status: 400 });
+      }
+      updates.dueAt = d;
+    } else {
+      return NextResponse.json({ error: "dueAt must be a date string or null" }, { status: 400 });
+    }
   }
   if (Object.prototype.hasOwnProperty.call(body ?? {}, "description")) {
     if (body.description === null || body.description === "") {

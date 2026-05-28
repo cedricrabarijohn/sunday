@@ -121,6 +121,7 @@ export default async function BoardDetail({
       pileId: boardTasks.pileId,
       title: boardTasks.title,
       position: boardTasks.position,
+      dueAt: boardTasks.dueAt,
     })
     .from(boardTasks)
     .where(and(eq(boardTasks.boardId, boardId), isNull(boardTasks.deletedAt)))
@@ -264,6 +265,7 @@ export default async function BoardDetail({
         initialPiles={piles}
         initialLabels={workspaceLabels}
         capabilities={capabilities}
+        currentUserId={session.sub}
       />
     </AppShell>
   );
