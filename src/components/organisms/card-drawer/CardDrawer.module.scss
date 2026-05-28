@@ -872,7 +872,65 @@
 .commentToolBtn:hover { color: var(--text-1); }
 .commentToolBtnDanger:hover { color: var(--danger, #c4322a); }
 
+.mentionChip {
+  display: inline;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0 0.3rem;
+  border-radius: 4px;
+}
+.mentionChipSelf {
+  display: inline;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.mentionPicker {
+  position: absolute;
+  z-index: 5;
+  margin-top: 4px;
+  width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: mentionIn 120ms ease-out both;
+}
+@keyframes mentionIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+.mentionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+.mentionRow:hover,
+.mentionRowActive {
+  background: var(--accent-soft);
+}
+.mentionName {
+  font-size: 12.5px;
+}
+
 .commentComposer {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;

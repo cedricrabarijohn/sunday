@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { boardTaskComments } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
+import { publishCard } from "@/lib/card-bus";
 
 /**
  * Edit own comment. Workspace/board admins may edit anyone's comment —
@@ -50,10 +51,18 @@ export async function PATCH(
     return NextResponse.json({ error: "Comment too long" }, { status: 400 });
   }
 
+  const now = new Date();
   await db
     .update(boardTaskComments)
-    .set({ body: text, updatedAt: new Date() })
+    .set({ body: text, updatedAt: now })
     .where(eq(boardTaskComments.id, commentId));
+
+  publishCard(comment.boardTaskId, {
+    type: "comment_updated",
+    commentId,
+    body: text,
+    updatedAt: now.toISOString(),
+  });
 
   return NextResponse.json({ ok: true });
 }
@@ -95,6 +104,8 @@ export async function DELETE(
     .update(boardTaskComments)
     .set({ deletedAt: new Date() })
     .where(eq(boardTaskComments.id, commentId));
+
+  publishCard(comment.boardTaskId, { type: "comment_deleted", commentId });
 
   return NextResponse.json({ ok: true });
 }

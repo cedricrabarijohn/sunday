@@ -5,6 +5,7 @@ import {
   DragEvent,
   FormEvent,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -189,11 +190,71 @@ export default function CardDrawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose, pickerOpen, assigneePickerOpen]);
 
-  // Lazy-load board members when the assignee picker opens.
+  // Live updates: subscribe to per-card SSE so a teammate's new
+  // comment shows up without a refresh. We dedupe by id because our
+  // own POST already updates state optimistically and the bus echoes
+  // it back to us too.
   useEffect(() => {
-    if (!assigneePickerOpen || boardMembers !== null) return;
+    const es = new EventSource(`/api/cards/${cardId}/stream`);
+    es.onmessage = (e) => {
+      let event: unknown;
+      try {
+        event = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+      const ev = event as {
+        type: string;
+        comment?: Comment;
+        commentId?: number;
+        body?: string;
+        updatedAt?: string;
+      };
+      if (ev.type === "comment_created" && ev.comment) {
+        const incoming = ev.comment;
+        setData((prev) => {
+          if (!prev) return prev;
+          if (prev.comments.some((c) => c.id === incoming.id)) return prev;
+          return { ...prev, comments: [...prev.comments, incoming] };
+        });
+      } else if (
+        ev.type === "comment_updated" &&
+        ev.commentId != null &&
+        ev.body != null
+      ) {
+        const id = ev.commentId;
+        const body = ev.body;
+        const updatedAt = ev.updatedAt ?? null;
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                comments: prev.comments.map((c) =>
+                  c.id === id ? { ...c, body, updatedAt } : c,
+                ),
+              }
+            : prev,
+        );
+      } else if (ev.type === "comment_deleted" && ev.commentId != null) {
+        const id = ev.commentId;
+        setData((prev) =>
+          prev
+            ? { ...prev, comments: prev.comments.filter((c) => c.id !== id) }
+            : prev,
+        );
+      }
+    };
+    return () => {
+      es.close();
+    };
+  }, [cardId]);
+
+  // Load board members once the card is loaded — both the assignee
+  // picker and the @-mention picker need them, and the comment renderer
+  // uses them to resolve <@id> tokens to display names.
+  useEffect(() => {
     const boardId = data?.card.boardId;
-    if (!boardId) return;
+    if (!boardId || boardMembers !== null) return;
     setBoardMembersLoading(true);
     fetch(`/api/boards/${boardId}/members`)
       .then((r) => r.json())
@@ -215,7 +276,7 @@ export default function CardDrawer({
       })
       .catch(() => setError("Could not load board members."))
       .finally(() => setBoardMembersLoading(false));
-  }, [assigneePickerOpen, boardMembers, data?.card.boardId]);
+  }, [boardMembers, data?.card.boardId]);
 
   // Lock body scroll while drawer is open
   useEffect(() => {
@@ -888,16 +949,136 @@ export default function CardDrawer({
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentBody, setEditCommentBody] = useState("");
 
+  // Mentions: when the user picks a board member from the @-popover we
+  // insert their display name into the textarea and remember the
+  // mapping. On submit we substitute each name with a <@id> token in
+  // first-match order, so the stored body survives a rename.
+  type MentionRef = { name: string; userId: number };
+  const [mentions, setMentions] = useState<MentionRef[]>([]);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  const memberDirectory = useMemo(() => {
+    const m = new Map<number, Assignee>();
+    for (const u of boardMembers ?? []) m.set(u.userId, u);
+    // Authors of existing comments may have left the board; keep their
+    // names available for the renderer so an old <@id> doesn't become
+    // "Unknown".
+    for (const c of data?.comments ?? []) {
+      if (!m.has(c.userId)) {
+        m.set(c.userId, {
+          userId: c.userId,
+          firstname: c.firstname,
+          lastname: c.lastname,
+          email: c.email,
+        });
+      }
+    }
+    return m;
+  }, [boardMembers, data?.comments]);
+
+  const filteredMentionCandidates = useMemo(() => {
+    const list = boardMembers ?? [];
+    const q = mentionQuery.trim().toLowerCase();
+    if (!q) return list.slice(0, 8);
+    return list
+      .filter((u) => nameForAssignee(u).toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [boardMembers, mentionQuery]);
+
+  /**
+   * Detect an in-progress @-mention at the caret. Returns the start
+   * index of the "@" trigger if one is active, otherwise null. Closes
+   * the picker if the trigger isn't preceded by whitespace or the
+   * query contains whitespace.
+   */
+  function detectMentionTrigger(textarea: HTMLTextAreaElement): {
+    start: number;
+    query: string;
+  } | null {
+    const value = textarea.value;
+    const caret = textarea.selectionStart ?? value.length;
+    const upToCaret = value.slice(0, caret);
+    const at = upToCaret.lastIndexOf("@");
+    if (at === -1) return null;
+    const prev = at === 0 ? "" : value[at - 1];
+    if (prev && !/\s/.test(prev)) return null;
+    const query = upToCaret.slice(at + 1);
+    if (/\s/.test(query)) return null;
+    return { start: at, query };
+  }
+
+  const onComposerChange = (next: string) => {
+    setNewComment(next);
+    const ta = composerRef.current;
+    if (!ta) return;
+    // Wait for React to apply the value, then re-read the caret.
+    requestAnimationFrame(() => {
+      const trig = detectMentionTrigger(ta);
+      if (trig) {
+        setMentionOpen(true);
+        setMentionQuery(trig.query);
+        setMentionIndex(0);
+      } else if (mentionOpen) {
+        setMentionOpen(false);
+        setMentionQuery("");
+      }
+    });
+  };
+
+  const insertMention = (member: Assignee) => {
+    const ta = composerRef.current;
+    if (!ta) return;
+    const value = ta.value;
+    const caret = ta.selectionStart ?? value.length;
+    const trig = detectMentionTrigger(ta);
+    if (!trig) return;
+    const name = nameForAssignee(member);
+    const before = value.slice(0, trig.start);
+    const after = value.slice(caret);
+    const inserted = `@${name} `;
+    const nextValue = before + inserted + after;
+    setNewComment(nextValue);
+    setMentions((prev) => [...prev, { name, userId: member.userId }]);
+    setMentionOpen(false);
+    setMentionQuery("");
+    // Restore caret right after the inserted name + space.
+    requestAnimationFrame(() => {
+      const pos = (before + inserted).length;
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+    });
+  };
+
+  /**
+   * Replace each tracked @Name with its <@id> token in first-match
+   * order, so duplicates get the right id. Untracked @text stays
+   * literal and won't trigger a notification.
+   */
+  function applyMentionTokens(body: string, refs: MentionRef[]): string {
+    let out = body;
+    for (const ref of refs) {
+      const literal = `@${ref.name}`;
+      const idx = out.indexOf(literal);
+      if (idx === -1) continue;
+      out = out.slice(0, idx) + `<@${ref.userId}>` + out.slice(idx + literal.length);
+    }
+    return out;
+  }
+
   const postComment = async () => {
     if (!data) return;
     const text = newComment.trim();
     if (!text || postingComment) return;
+    const bodyToSend = applyMentionTokens(text, mentions);
     setPostingComment(true);
     try {
       const res = await fetch(`/api/cards/${cardId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text }),
+        body: JSON.stringify({ body: bodyToSend }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -908,6 +1089,8 @@ export default function CardDrawer({
         prev ? { ...prev, comments: [...prev.comments, json.comment as Comment] } : prev,
       );
       setNewComment("");
+      setMentions([]);
+      setMentionOpen(false);
     } catch {
       setError("Network error.");
     } finally {
@@ -1438,7 +1621,13 @@ export default function CardDrawer({
                             </div>
                           ) : (
                             <>
-                              <div className={styles.commentBody}>{c.body}</div>
+                              <div className={styles.commentBody}>
+                                <CommentBody
+                                  body={c.body ?? ""}
+                                  directory={memberDirectory}
+                                  currentUserId={data.currentUserId}
+                                />
+                              </div>
                               {(canEdit || canDelete) && (
                                 <div className={styles.commentTools}>
                                   {canEdit && (
@@ -1472,19 +1661,80 @@ export default function CardDrawer({
 
               <div className={styles.commentComposer}>
                 <textarea
+                  ref={composerRef}
                   className={styles.commentInput}
-                  placeholder="Write a comment…"
+                  placeholder="Write a comment… type @ to mention someone"
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  onChange={(e) => onComposerChange(e.target.value)}
+                  onKeyUp={() => {
+                    const ta = composerRef.current;
+                    if (!ta) return;
+                    const trig = detectMentionTrigger(ta);
+                    if (trig) {
+                      if (!mentionOpen) setMentionOpen(true);
+                      setMentionQuery(trig.query);
+                    } else if (mentionOpen) {
+                      setMentionOpen(false);
+                    }
+                  }}
                   rows={3}
                   maxLength={5000}
                   onKeyDown={(e) => {
+                    if (mentionOpen && filteredMentionCandidates.length > 0) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setMentionIndex((i) => (i + 1) % filteredMentionCandidates.length);
+                        return;
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setMentionIndex(
+                          (i) =>
+                            (i - 1 + filteredMentionCandidates.length) %
+                            filteredMentionCandidates.length,
+                        );
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        insertMention(filteredMentionCandidates[mentionIndex]);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setMentionOpen(false);
+                        return;
+                      }
+                    }
                     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                       e.preventDefault();
                       postComment();
                     }
                   }}
                 />
+                {mentionOpen && filteredMentionCandidates.length > 0 && (
+                  <div className={styles.mentionPicker} role="listbox">
+                    {filteredMentionCandidates.map((m, i) => (
+                      <button
+                        key={m.userId}
+                        type="button"
+                        role="option"
+                        aria-selected={i === mentionIndex}
+                        className={`${styles.mentionRow} ${
+                          i === mentionIndex ? styles.mentionRowActive : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          insertMention(m);
+                        }}
+                        onMouseEnter={() => setMentionIndex(i)}
+                      >
+                        <span className={styles.commentPip}>{initialsForAssignee(m)}</span>
+                        <span className={styles.mentionName}>{nameForAssignee(m)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className={styles.commentActions}>
                   <span className={styles.commentHint}>⌘ + Enter to post</span>
                   <button
@@ -1627,6 +1877,48 @@ function LabelsPicker({
         </button>
       )}
     </div>
+  );
+}
+
+function CommentBody({
+  body,
+  directory,
+  currentUserId,
+}: {
+  body: string;
+  directory: Map<number, Assignee>;
+  currentUserId?: number;
+}) {
+  if (!body) return null;
+  const parts: Array<{ type: "text" | "mention"; value: string; userId?: number }> = [];
+  const re = /<@(\d+)>/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    if (m.index > last) {
+      parts.push({ type: "text", value: body.slice(last, m.index) });
+    }
+    parts.push({ type: "mention", value: m[0], userId: Number(m[1]) });
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) parts.push({ type: "text", value: body.slice(last) });
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.type === "text") return <span key={i}>{p.value}</span>;
+        const ref = p.userId != null ? directory.get(p.userId) : null;
+        const isMe = p.userId != null && p.userId === currentUserId;
+        const name = ref ? nameForAssignee(ref) : "unknown";
+        return (
+          <span
+            key={i}
+            className={isMe ? styles.mentionChipSelf : styles.mentionChip}
+          >
+            @{name}
+          </span>
+        );
+      })}
+    </>
   );
 }
 
