@@ -167,9 +167,16 @@
   font-style: italic;
 }
 
-@media (max-width: 720px) {
+/* On phones the floating bell would collide with the sticky mobile
+   bar — move it just below the bar instead. */
+@media (max-width: 880px) {
   .wrap {
-    top: 12px;
+    top: 60px;
     right: 12px;
+  }
+}
+@media (max-width: 880px) {
+  .menu {
+    width: min(360px, calc(100vw - 24px));
   }
 }

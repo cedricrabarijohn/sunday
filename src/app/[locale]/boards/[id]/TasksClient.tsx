@@ -647,6 +647,48 @@ export default function TasksClient({
       </div>
 
       <div className={kStyles.board}>
+        {piles.length === 0 && !addingPile && (
+          <div className={kStyles.emptyBoard}>
+            <div className={kStyles.emptyBoardIcon} aria-hidden>
+              <ChecklistIcon size={36} strokeWidth={1.4} />
+            </div>
+            <div className={kStyles.emptyBoardTitle}>This board is empty</div>
+            <div className={kStyles.emptyBoardSub}>
+              Piles are the columns where your cards live. Add your first one to get going.
+            </div>
+            {can("manage_piles") && (
+              <button
+                type="button"
+                className={kStyles.emptyBoardBtn}
+                onClick={() => setAddingPile(true)}
+              >
+                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+                Create the first pile
+              </button>
+            )}
+          </div>
+        )}
+        {tasks.length > 0 && filterCount > 0 && visibleCount === 0 && (
+          <div className={kStyles.emptyFilter}>
+            <div className={kStyles.emptyFilterText}>
+              No cards match the current filter.
+            </div>
+            <button
+              type="button"
+              className={kStyles.emptyFilterBtn}
+              onClick={() =>
+                setFilter({
+                  query: "",
+                  assigneeIds: new Set(),
+                  labelIds: new Set(),
+                  due: "any",
+                })
+              }
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
         <div className={kStyles.scroller}>
           {piles.map((pile) => (
             <PileColumn

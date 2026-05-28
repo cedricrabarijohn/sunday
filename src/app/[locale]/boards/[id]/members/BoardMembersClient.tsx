@@ -354,9 +354,21 @@ export default function BoardMembersClient({
           <h2 className={mStyles.sectionTitle}>Members</h2>
         </header>
         {loading ? (
-          <div className={mStyles.empty}>Loading…</div>
+          <div className={mStyles.list}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={`${mStyles.row} ${mStyles.rowSkeleton}`}>
+                <span className={mStyles.avatar} style={{ opacity: 0.4 }} />
+                <div className={mStyles.rowMain}>
+                  <div className={mStyles.skelLine} style={{ width: "40%" }} />
+                  <div className={mStyles.skelLine} style={{ width: "65%", marginTop: 6 }} />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : members.length === 0 ? (
-          <div className={mStyles.empty}>Nobody here yet.</div>
+          <div className={mStyles.empty}>
+            Nobody is on this board yet. Generate an invite link above to get people in.
+          </div>
         ) : (
           <div className={mStyles.list}>
             {members.map((m) => {
