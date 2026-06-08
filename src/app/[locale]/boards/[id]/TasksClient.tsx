@@ -487,6 +487,17 @@ export default function TasksClient({
 
   // --- card delete
   const onDeleteCard = async (id: number) => {
+    // Persisted cards get a confirmation; unsaved temp cards (id < 0) just go.
+    if (id > 0) {
+      const ok = await confirm({
+        title: "Delete this card?",
+        message:
+          "Its sub-tasks and uploaded images will be removed too. This cannot be undone.",
+        confirmLabel: "Delete card",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     const snapshot = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== id));
     if (id < 0) return;
