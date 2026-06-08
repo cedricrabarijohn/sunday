@@ -754,6 +754,56 @@
 }
 .linkBtn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
 
+/* Section title + inline gear that opens an editor popover. */
+.titleWithCog {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cogBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.cogBtn:hover,
+.cogBtnActive {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border);
+}
+
+.popoverAnchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 320px;
+  max-width: min(360px, 78vw);
+  animation: pickerIn 140ms ease-out both;
+}
+/* The picker provides its own border/bg; here it floats, so drop the inline
+   gap and lift it with a shadow. */
+.popover .picker,
+.popover .assigneePicker {
+  margin-top: 0;
+  box-shadow: 0 14px 36px -12px rgba(0, 0, 0, 0.3);
+}
+
 .cardLabels {
   display: flex;
   flex-wrap: wrap;

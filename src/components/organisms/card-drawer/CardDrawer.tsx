@@ -4,6 +4,7 @@ import {
   CSSProperties,
   DragEvent,
   FormEvent,
+  ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -12,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
+import { SettingsIcon } from "@/components/Icons";
 import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 
@@ -1245,15 +1247,23 @@ export default function CardDrawer({
           <div className={styles.body}>
             <section className={styles.section}>
               <div className={styles.sectionHead}>
-                <span className={styles.sectionLabel}>Labels</span>
-                <button
-                  type="button"
-                  className={styles.linkBtn}
-                  onClick={() => setPickerOpen((o) => !o)}
-                  aria-expanded={pickerOpen}
-                >
-                  {pickerOpen ? "Close" : "Edit labels"}
-                </button>
+                <span className={styles.titleWithCog}>
+                  <span className={styles.sectionLabel}>Labels</span>
+                  <EditPopover
+                    open={pickerOpen}
+                    setOpen={setPickerOpen}
+                    label="Edit labels"
+                  >
+                    <LabelsPicker
+                      workspaceLabels={workspaceLabels}
+                      selected={new Set(data.labels.map((l) => l.id))}
+                      onToggle={onToggleLabel}
+                      onCreate={onCreateLabel}
+                      onEdit={onEditLabel}
+                      onDelete={onDeleteLabel}
+                    />
+                  </EditPopover>
+                </span>
               </div>
               <div className={styles.cardLabels}>
                 {data.labels.length === 0 ? (
@@ -1278,29 +1288,25 @@ export default function CardDrawer({
                   })
                 )}
               </div>
-              {pickerOpen && (
-                <LabelsPicker
-                  workspaceLabels={workspaceLabels}
-                  selected={new Set(data.labels.map((l) => l.id))}
-                  onToggle={onToggleLabel}
-                  onCreate={onCreateLabel}
-                  onEdit={onEditLabel}
-                  onDelete={onDeleteLabel}
-                />
-              )}
             </section>
 
             <section className={styles.section}>
               <div className={styles.sectionHead}>
-                <span className={styles.sectionLabel}>Assignees</span>
-                <button
-                  type="button"
-                  className={styles.linkBtn}
-                  onClick={() => setAssigneePickerOpen((o) => !o)}
-                  aria-expanded={assigneePickerOpen}
-                >
-                  {assigneePickerOpen ? "Close" : "Edit assignees"}
-                </button>
+                <span className={styles.titleWithCog}>
+                  <span className={styles.sectionLabel}>Assignees</span>
+                  <EditPopover
+                    open={assigneePickerOpen}
+                    setOpen={setAssigneePickerOpen}
+                    label="Edit assignees"
+                  >
+                    <AssigneePicker
+                      members={boardMembers ?? []}
+                      loading={boardMembersLoading}
+                      selected={new Set(data.assignees.map((a) => a.userId))}
+                      onToggle={onToggleAssignee}
+                    />
+                  </EditPopover>
+                </span>
               </div>
               <div className={styles.assigneeList}>
                 {data.assignees.length === 0 ? (
@@ -1316,14 +1322,6 @@ export default function CardDrawer({
                   ))
                 )}
               </div>
-              {assigneePickerOpen && (
-                <AssigneePicker
-                  members={boardMembers ?? []}
-                  loading={boardMembersLoading}
-                  selected={new Set(data.assignees.map((a) => a.userId))}
-                  onToggle={onToggleAssignee}
-                />
-              )}
             </section>
 
             <section className={styles.section}>
@@ -1887,6 +1885,60 @@ function LabelsPicker({
         >
           ＋ New label
         </button>
+      )}
+    </div>
+  );
+}
+
+// A small gear button beside a section title that opens its editor in a
+// popover, closing on an outside click or Escape.
+function EditPopover({
+  open,
+  setOpen,
+  label,
+  children,
+}: {
+  open: boolean;
+  setOpen: (next: boolean) => void;
+  label: string;
+  children: ReactNode;
+}) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, setOpen]);
+
+  return (
+    <div className={styles.popoverAnchor} ref={anchorRef}>
+      <button
+        type="button"
+        className={`${styles.cogBtn} ${open ? styles.cogBtnActive : ""}`}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-label={label}
+        title={label}
+      >
+        <SettingsIcon size={15} />
+      </button>
+      {open && (
+        <div className={styles.popover} role="dialog">
+          {children}
+        </div>
       )}
     </div>
   );
