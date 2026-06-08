@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { boardPiles, boardTasks } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
+import { publishBoard } from "@/lib/board-bus";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
@@ -85,6 +86,11 @@ export async function POST(
     updatedAt: now,
   });
   const taskId = Number((result as { insertId: number }).insertId);
+
+  publishBoard(boardId, {
+    type: "card_created",
+    card: { id: taskId, title, pileId, position },
+  });
 
   return NextResponse.json(
     { task: { id: taskId, title, pileId, position, boardId, createdAt: now, updatedAt: now } },

@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { boardTaskLabels, labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
+import { publishBoard } from "@/lib/board-bus";
 
 export async function PUT(
   request: NextRequest,
@@ -56,6 +57,8 @@ export async function PUT(
       })),
     );
   }
+
+  publishBoard(guard.boardId, { type: "card_labels", cardId, labelIds });
 
   return NextResponse.json({ ok: true, labelIds });
 }

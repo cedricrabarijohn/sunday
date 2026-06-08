@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
+import type { BoardEvent } from "@/lib/board-bus";
 import {
   CalendarIcon,
   ChecklistIcon,
@@ -113,6 +114,133 @@ export default function TasksClient({
 
   const pileRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleRenameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep a live handle on the workspace labels so the SSE handler can
+  // resolve label ids -> chips without re-subscribing on every change.
+  const labelsRef = useRef(labels);
+  useEffect(() => {
+    labelsRef.current = labels;
+  }, [labels]);
+
+  // Live board sync: every open kanban view subscribes to the board's
+  // event stream and folds card/pile changes into local state. Events
+  // carry authoritative data, so re-applying our own echo is a no-op.
+  useEffect(() => {
+    const es = new EventSource(`/api/boards/${boardId}/stream`);
+    es.onmessage = (e) => {
+      let ev: BoardEvent | { type: "connected" };
+      try {
+        ev = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+      switch (ev.type) {
+        case "card_created": {
+          const c = ev.card;
+          setTasks((prev) =>
+            prev.some((t) => t.id === c.id)
+              ? prev
+              : [
+                  ...prev,
+                  {
+                    id: c.id,
+                    title: c.title,
+                    pileId: c.pileId,
+                    position: c.position,
+                    itemsTotal: 0,
+                    itemsDone: 0,
+                    attachments: 0,
+                    comments: 0,
+                    labels: [],
+                    assignees: [],
+                    dueAt: null,
+                  },
+                ],
+          );
+          break;
+        }
+        case "card_moved": {
+          const place = new Map<number, { pileId: number; position: number }>();
+          for (const o of ev.order) {
+            o.cardIds.forEach((cid, i) =>
+              place.set(cid, { pileId: o.pileId, position: i + 1 }),
+            );
+          }
+          setTasks((prev) =>
+            prev.map((t) => {
+              const p = place.get(t.id);
+              return p ? { ...t, pileId: p.pileId, position: p.position } : t;
+            }),
+          );
+          break;
+        }
+        case "card_deleted":
+          setTasks((prev) => prev.filter((t) => t.id !== ev.cardId));
+          break;
+        case "card_updated":
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === ev.cardId
+                ? {
+                    ...t,
+                    ...(ev.title !== undefined ? { title: ev.title } : {}),
+                    ...(Object.prototype.hasOwnProperty.call(ev, "dueAt")
+                      ? { dueAt: ev.dueAt ?? null }
+                      : {}),
+                  }
+                : t,
+            ),
+          );
+          break;
+        case "card_labels": {
+          const resolved: CardLabel[] = [];
+          for (const lid of ev.labelIds) {
+            const l = labelsRef.current.find((x) => x.id === lid);
+            if (l) resolved.push({ id: l.id, title: l.title, color: l.color });
+          }
+          setTasks((prev) =>
+            prev.map((t) => (t.id === ev.cardId ? { ...t, labels: resolved } : t)),
+          );
+          break;
+        }
+        case "card_assignees":
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === ev.cardId
+                ? {
+                    ...t,
+                    assignees: ev.assignees.map((a) => ({
+                      userId: a.userId,
+                      firstname: a.firstname,
+                      lastname: a.lastname,
+                      email: a.email,
+                    })),
+                  }
+                : t,
+            ),
+          );
+          break;
+        case "pile_created": {
+          const p = ev.pile;
+          setPiles((prev) =>
+            prev.some((x) => x.id === p.id)
+              ? prev
+              : [...prev, { id: p.id, title: p.title, color: p.color, position: p.position }],
+          );
+          break;
+        }
+        case "pile_updated":
+          setPiles((prev) =>
+            prev.map((p) => (p.id === ev.pileId ? { ...p, title: ev.title } : p)),
+          );
+          break;
+        case "pile_deleted":
+          setPiles((prev) => prev.filter((p) => p.id !== ev.pileId));
+          break;
+      }
+    };
+    return () => es.close();
+  }, [boardId]);
 
   const onRenameBoard = (next: string) => {
     setTitle(next);
@@ -248,19 +376,24 @@ export default function TasksClient({
         toast.error(data.error || "Could not add card");
         return;
       }
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === tempId
-            ? {
-                ...t,
-                id: data.task.id,
-                title: data.task.title,
-                position: data.task.position,
-                pileId: data.task.pileId,
-              }
-            : t,
-        ),
-      );
+      setTasks((prev) => {
+        const tempCard = prev.find((t) => t.id === tempId);
+        const withoutTemp = prev.filter((t) => t.id !== tempId);
+        // The board stream may have already delivered this card to us.
+        if (!tempCard || withoutTemp.some((t) => t.id === data.task.id)) {
+          return withoutTemp;
+        }
+        return [
+          ...withoutTemp,
+          {
+            ...tempCard,
+            id: data.task.id,
+            title: data.task.title,
+            position: data.task.position,
+            pileId: data.task.pileId,
+          },
+        ];
+      });
     } catch {
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
       toast.error("Network error. Please try again.");
@@ -460,13 +593,15 @@ export default function TasksClient({
       const realPileId = pileData.pile.id as number;
 
       // Swap the temp pile id for the real one in both states
-      setPiles((prev) =>
-        prev.map((p) =>
-          p.id === tempPileId
-            ? { id: realPileId, title: pileData.pile.title, color: pileData.pile.color, position: pileData.pile.position }
-            : p,
-        ),
-      );
+      setPiles((prev) => {
+        const withoutTemp = prev.filter((p) => p.id !== tempPileId);
+        // The board stream may have already delivered this pile to us.
+        if (withoutTemp.some((p) => p.id === realPileId)) return withoutTemp;
+        return [
+          ...withoutTemp,
+          { id: realPileId, title: pileData.pile.title, color: pileData.pile.color, position: pileData.pile.position },
+        ];
+      });
       setTasks((prev) =>
         prev.map((t) => (t.pileId === tempPileId ? { ...t, pileId: realPileId } : t)),
       );
@@ -507,13 +642,15 @@ export default function TasksClient({
         toast.error(data.error || "Could not create pile");
         return;
       }
-      setPiles((prev) =>
-        prev.map((p) =>
-          p.id === tempId
-            ? { id: data.pile.id, title: data.pile.title, color: data.pile.color, position: data.pile.position }
-            : p,
-        ),
-      );
+      setPiles((prev) => {
+        const withoutTemp = prev.filter((p) => p.id !== tempId);
+        // The board stream may have already delivered this pile to us.
+        if (withoutTemp.some((p) => p.id === data.pile.id)) return withoutTemp;
+        return [
+          ...withoutTemp,
+          { id: data.pile.id, title: data.pile.title, color: data.pile.color, position: data.pile.position },
+        ];
+      });
     } catch {
       setPiles((prev) => prev.filter((p) => p.id !== tempId));
       toast.error("Network error.");

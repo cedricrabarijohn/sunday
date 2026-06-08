@@ -6,6 +6,7 @@ import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
 import { WORKSPACE_ADMIN_ROLE_ID } from "@/lib/workspace-access";
 import { emitNotifications } from "@/lib/notify";
+import { publishBoard, type BoardAssignee } from "@/lib/board-bus";
 
 export async function GET(
   _request: NextRequest,
@@ -108,6 +109,22 @@ export async function PUT(
       })),
     );
   }
+
+  // Resolve the final roster (names + emails) so every board view can
+  // render avatars without its own lookup.
+  let assigneeRows: BoardAssignee[] = [];
+  if (userIds.length > 0) {
+    assigneeRows = await db
+      .select({
+        userId: users.id,
+        firstname: users.firstname,
+        lastname: users.lastname,
+        email: users.email,
+      })
+      .from(users)
+      .where(inArray(users.id, userIds));
+  }
+  publishBoard(boardId, { type: "card_assignees", cardId, assignees: assigneeRows });
 
   if (addedIds.length > 0) {
     await emitNotifications(

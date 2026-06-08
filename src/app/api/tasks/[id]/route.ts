@@ -4,8 +4,10 @@ import { db } from "@/db/client";
 import { boardPiles, boardTasks } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
+import { publishBoard } from "@/lib/board-bus";
 
-async function repackPile(pileId: number) {
+/** Re-pack a pile's positions and return its resulting card order. */
+async function repackPile(pileId: number): Promise<number[]> {
   const rows = await db
     .select({ id: boardTasks.id })
     .from(boardTasks)
@@ -17,6 +19,7 @@ async function repackPile(pileId: number) {
       .set({ position: i + 1 })
       .where(eq(boardTasks.id, rows[i].id));
   }
+  return rows.map((r) => r.id);
 }
 
 export async function PATCH(
@@ -144,10 +147,20 @@ export async function PATCH(
         .where(eq(boardTasks.id, newOrder[i].id));
     }
 
+    const order = [{ pileId: targetPileId, cardIds: newOrder.map((c) => c.id) }];
+
     // Re-pack source pile when moving across piles.
     if (sourcePileId !== null && sourcePileId !== targetPileId) {
-      await repackPile(sourcePileId);
+      const sourceOrder = await repackPile(sourcePileId);
+      order.push({ pileId: sourcePileId, cardIds: sourceOrder });
     }
+
+    publishBoard(guard.boardId, {
+      type: "card_moved",
+      cardId: taskId,
+      pileId: targetPileId,
+      order,
+    });
 
     return NextResponse.json({ ok: true, pileId: targetPileId });
   }
@@ -160,6 +173,15 @@ export async function PATCH(
     .update(boardTasks)
     .set({ ...updates, updatedAt: new Date() })
     .where(eq(boardTasks.id, taskId));
+
+  publishBoard(guard.boardId, {
+    type: "card_updated",
+    cardId: taskId,
+    ...(updates.title !== undefined ? { title: updates.title } : {}),
+    ...(Object.prototype.hasOwnProperty.call(updates, "dueAt")
+      ? { dueAt: updates.dueAt ? updates.dueAt.toISOString() : null }
+      : {}),
+  });
 
   return NextResponse.json({ ok: true });
 }
@@ -181,6 +203,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (task.pileId !== null && task.pileId !== undefined) {
     await repackPile(task.pileId);
   }
+
+  publishBoard(guard.boardId, { type: "card_deleted", cardId: taskId });
 
   return NextResponse.json({ ok: true });
 }

@@ -5,6 +5,7 @@ import { boardPiles } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
 import { ALLOWED_COLORS } from "@/lib/label-access";
+import { publishBoard } from "@/lib/board-bus";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
@@ -68,5 +69,11 @@ export async function POST(
     updatedAt: now,
   });
   const pileId = Number((result as { insertId: number }).insertId);
+
+  publishBoard(boardId, {
+    type: "pile_created",
+    pile: { id: pileId, title, color, position },
+  });
+
   return NextResponse.json({ pile: { id: pileId, title, color, position } }, { status: 201 });
 }

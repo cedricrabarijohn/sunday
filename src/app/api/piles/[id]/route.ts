@@ -5,6 +5,7 @@ import { boardPiles, boardTasks } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requirePileCap } from "@/lib/workspace-access";
 import { ALLOWED_COLORS } from "@/lib/label-access";
+import { publishBoard } from "@/lib/board-bus";
 
 export async function PATCH(
   request: NextRequest,
@@ -48,6 +49,14 @@ export async function PATCH(
     .set({ ...updates, updatedAt: new Date() })
     .where(eq(boardPiles.id, pileId));
 
+  if (updates.title !== undefined) {
+    publishBoard(guard.boardId, {
+      type: "pile_updated",
+      pileId,
+      title: updates.title,
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -75,6 +84,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     .update(boardPiles)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(eq(boardPiles.id, pileId));
+
+  publishBoard(guard.boardId, { type: "pile_deleted", pileId });
 
   return NextResponse.json({ ok: true });
 }
