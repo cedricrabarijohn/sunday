@@ -66,6 +66,7 @@ type CardDetail = {
   assignees: Assignee[];
   comments: Comment[];
   capabilities?: string[];
+  canManageLabels?: boolean;
   currentUserId?: number;
 };
 
@@ -1335,6 +1336,7 @@ export default function CardDrawer({
                   <LabelsPicker
                     workspaceLabels={workspaceLabels}
                     selected={new Set(data.labels.map((l) => l.id))}
+                    canManage={data.canManageLabels ?? false}
                     onToggle={onToggleLabel}
                     onCreate={onCreateLabel}
                     onEdit={onEditLabel}
@@ -1822,6 +1824,7 @@ export default function CardDrawer({
 function LabelsPicker({
   workspaceLabels,
   selected,
+  canManage,
   onToggle,
   onCreate,
   onEdit,
@@ -1829,6 +1832,7 @@ function LabelsPicker({
 }: {
   workspaceLabels: WorkspaceLabel[];
   selected: Set<number>;
+  canManage: boolean;
   onToggle: (l: WorkspaceLabel) => void;
   onCreate: (title: string, color: string) => Promise<void>;
   onEdit: (l: WorkspaceLabel, patch: Partial<WorkspaceLabel>) => Promise<void>;
@@ -1887,20 +1891,22 @@ function LabelsPicker({
                   {l.title}
                 </span>
               </button>
-              <button
-                type="button"
-                className={styles.pickerEdit}
-                onClick={() => setEditingId(l.id)}
-                aria-label="Edit label"
-              >
-                Edit
-              </button>
+              {canManage && (
+                <button
+                  type="button"
+                  className={styles.pickerEdit}
+                  onClick={() => setEditingId(l.id)}
+                  aria-label="Edit label"
+                >
+                  Edit
+                </button>
+              )}
             </div>
           ),
         )}
       </div>
 
-      {creating ? (
+      {!canManage ? null : creating ? (
         <LabelCreator
           color={newColor}
           title={newTitle}

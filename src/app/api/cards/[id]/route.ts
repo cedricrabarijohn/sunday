@@ -11,7 +11,7 @@ import {
   users,
 } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
-import { requireCardCap } from "@/lib/workspace-access";
+import { loadCapabilities, requireCardCap } from "@/lib/workspace-access";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
@@ -95,6 +95,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     )
     .orderBy(asc(boardTaskComments.createdAt), asc(boardTaskComments.id));
 
+  // Managing the workspace label catalog (create/edit/delete) is a
+  // workspace-scoped capability, distinct from the board caps above.
+  const wsCaps = await loadCapabilities(guard.workspaceId, auth.session.sub);
+
   return NextResponse.json({
     card: guard.card,
     items,
@@ -103,6 +107,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     assignees,
     comments,
     capabilities: Array.from(guard.capabilities),
+    canManageLabels: wsCaps.has("manage_labels"),
     currentUserId: auth.session.sub,
   });
 }
