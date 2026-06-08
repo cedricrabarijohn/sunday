@@ -2557,10 +2557,20 @@ function DescriptionView({ text, onEdit }: { text: string; onEdit: () => void })
       </button>
     );
   }
-  // Content state is a plain div so the user can select and copy text.
+  // Content state: clicking enters the editor (matching the empty state), but
+  // we stay out of the way when the user is selecting text or clicking a link
+  // or image so copy/open still work.
   return (
     <div
       className={styles.descView}
+      title="Click to edit"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest("a, img")) return;
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed && sel.toString().trim()) return;
+        onEdit();
+      }}
       dangerouslySetInnerHTML={{ __html: descriptionToHtml(text) }}
     />
   );
