@@ -164,7 +164,11 @@ export default function NotificationsBell() {
           ) : (
             <ul className={styles.list}>
               {items.map((n) => {
-                const href = n.boardId ? `/boards/${n.boardId}` : "/workspaces";
+                const href = n.boardId
+                  ? n.cardId
+                    ? `/boards/${n.boardId}?card=${n.cardId}`
+                    : `/boards/${n.boardId}`
+                  : "/workspaces";
                 return (
                   <li key={n.id}>
                     <Link

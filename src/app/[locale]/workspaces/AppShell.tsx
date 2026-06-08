@@ -166,7 +166,7 @@ export default function AppShell({
             <div className={styles.userEmail}>{user.email}</div>
           </div>
           <button className={styles.iconBtn} onClick={onLogout} type="button" aria-label="Sign out">
-            ⏻
+            ➜🚪
           </button>
         </div>
       </aside>

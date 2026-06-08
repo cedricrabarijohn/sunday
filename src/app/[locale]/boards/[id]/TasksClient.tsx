@@ -129,6 +129,30 @@ export default function TasksClient({
       // localStorage unavailable (private mode etc.) — stay on default.
     }
   }, [boardId]);
+
+  // Deep link from a notification: /boards/:id?card=:cardId opens that card.
+  // Read once after mount, then strip the param so a refresh or back-nav
+  // doesn't re-open it.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("card");
+      const id = raw ? Number(raw) : NaN;
+      if (Number.isFinite(id) && id > 0) {
+        setOpenCardId(id);
+        params.delete("card");
+        const qs = params.toString();
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + (qs ? `?${qs}` : ""),
+        );
+      }
+    } catch {
+      // Bad URL or no History API — nothing to deep link.
+    }
+  }, []);
+
   const changeView = (next: "board" | "table") => {
     setView(next);
     try {
