@@ -537,6 +537,8 @@
 
 .descEmpty {
   width: 100%;
+  display: flex;
+  align-items: flex-start;
   text-align: left;
   background: var(--bg);
   border: 1px dashed var(--border);
