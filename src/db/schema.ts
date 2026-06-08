@@ -30,6 +30,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 30 }),
   deletedAt: datetime("deleted_at"),
   hashedPassword: varchar("hashed_password", { length: 255 }),
+  lastBoardId: int("last_board_id"),
 });
 
 export const workspaces = mysqlTable("workspaces", {

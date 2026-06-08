@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boards, workspaces } from "@/db/schema";
+import { boards, users, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
 import { loadBoardCapabilities } from "@/lib/board-access";
-import { LAST_BOARD_COOKIE } from "@/lib/last-board";
 import Hero from "@/components/organisms/hero/Hero";
 
 export default async function Home() {
@@ -15,11 +13,14 @@ export default async function Home() {
   if (!session) return <Hero />;
 
   // Signed in — try to send them straight to the board they last viewed.
-  const cookieStore = await cookies();
-  const raw = cookieStore.get(LAST_BOARD_COOKIE)?.value;
-  const lastBoardId = raw ? Number(raw) : NaN;
+  const [me] = await db
+    .select({ lastBoardId: users.lastBoardId })
+    .from(users)
+    .where(eq(users.id, session.sub))
+    .limit(1);
+  const lastBoardId = me?.lastBoardId ?? 0;
 
-  if (Number.isFinite(lastBoardId) && lastBoardId > 0) {
+  if (lastBoardId > 0) {
     const [board] = await db
       .select({
         id: boards.id,

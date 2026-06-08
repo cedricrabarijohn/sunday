@@ -1,16 +1,19 @@
-/** Cookie that remembers the board a user last opened, for the `/` redirect. */
-export const LAST_BOARD_COOKIE = "sunday_last_board";
-
-/** 30 days — long enough to be useful, short enough to expire if abandoned. */
-export const LAST_BOARD_MAX_AGE = 60 * 60 * 24 * 30;
-
 /**
- * Remember the current board client-side. It's a UX hint, not a secret, so a
- * plain (non-httpOnly) cookie the browser can set directly is fine — no API
- * round-trip needed.
+ * Remember the board a user last opened so `/` can jump back to it. Persisted
+ * on the user row (cross-device) via a tiny endpoint. Fire-and-forget — it's a
+ * UX hint, so a failed write just means `/` falls back to /workspaces.
+ *
+ * Called from a client effect (real navigation only, never on prefetch), so a
+ * prefetched-but-unvisited board never gets recorded.
  */
 export function rememberLastBoard(boardId: number): void {
-  if (typeof document === "undefined" || !(boardId > 0)) return;
-  document.cookie =
-    `${LAST_BOARD_COOKIE}=${boardId}; path=/; max-age=${LAST_BOARD_MAX_AGE}; samesite=lax`;
+  if (typeof window === "undefined" || !(boardId > 0)) return;
+  fetch("/api/me/last-board", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ boardId }),
+    keepalive: true,
+  }).catch(() => {
+    // Best-effort; nothing to do if it fails.
+  });
 }
