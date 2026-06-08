@@ -161,6 +161,15 @@ export function TagIcon(props: IconProps) {
   );
 }
 
+export function MoveIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 8h12M4 8l3-3M4 8l3 3" />
+      <path d="M20 16H8M20 16l-3-3M20 16l-3 3" />
+    </svg>
+  );
+}
+
 export function BackIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

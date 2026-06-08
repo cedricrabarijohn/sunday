@@ -31,6 +31,7 @@ import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import BoardTable from "./BoardTable";
+import MovePileMenu from "./MovePileMenu";
 import NotificationsBell from "../../workspaces/NotificationsBell";
 
 export type CardLabel = { id: number; title: string; color: string };
@@ -679,6 +680,13 @@ export default function TasksClient({
     }
   };
 
+  // Move without dragging: drop the card at the bottom of the chosen pile.
+  const onMoveToPile = (cardId: number, pileId: number) => {
+    const card = tasks.find((t) => t.id === cardId);
+    if (!card || card.pileId === pileId) return;
+    moveCard(cardId, pileId, null);
+  };
+
   // --- drop a card on Add pile: create a new pile and drop the card into it
   const onDropOnAddPile = async (e: DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -1019,6 +1027,7 @@ export default function TasksClient({
             onPileDragOver={onPileDragOver}
             onPileDragLeave={onPileDragLeave}
             onPileDrop={onPileDrop}
+            onMoveCardToPile={onMoveToPile}
           />
         ) : (
           <div className={kStyles.scroller}>
@@ -1028,6 +1037,7 @@ export default function TasksClient({
                   key={pile.id}
                   pile={pile}
                   cards={visibleCardsByPile.get(pile.id) ?? []}
+                  piles={piles}
                   dragHint={hint?.pileId === pile.id ? hint : null}
                   isDropTarget={hint?.pileId === pile.id && drag !== null}
                   draggingCardId={drag?.cardId ?? null}
@@ -1042,9 +1052,11 @@ export default function TasksClient({
                   onPileDragOver={onPileDragOver}
                   onPileDragLeave={onPileDragLeave}
                   onPileDrop={onPileDrop}
+                  onMoveToPile={onMoveToPile}
                   canManagePiles={can("manage_piles")}
                   canCreateCard={can("create_card")}
                   canDeleteCard={can("delete_card")}
+                  canEditCard={can("edit_card")}
                 />
               ))}
             {/* Pile management lives in the board view; the table groups
@@ -1128,6 +1140,7 @@ export default function TasksClient({
 function PileColumn({
   pile,
   cards,
+  piles,
   dragHint,
   isDropTarget,
   draggingCardId,
@@ -1142,12 +1155,15 @@ function PileColumn({
   onPileDragOver,
   onPileDragLeave,
   onPileDrop,
+  onMoveToPile,
   canManagePiles,
   canCreateCard,
   canDeleteCard,
+  canEditCard,
 }: {
   pile: Pile;
   cards: Task[];
+  piles: Pile[];
   dragHint: DropHint;
   isDropTarget: boolean;
   draggingCardId: number | null;
@@ -1162,9 +1178,11 @@ function PileColumn({
   onPileDragOver: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onPileDragLeave: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onPileDrop: (e: DragEvent<HTMLElement>, pile: Pile) => void;
+  onMoveToPile: (cardId: number, pileId: number) => void;
   canManagePiles: boolean;
   canCreateCard: boolean;
   canDeleteCard: boolean;
+  canEditCard: boolean;
 }) {
   const [composer, setComposer] = useState("");
   const pileColor = colorForName(pile.color ?? "slate");
@@ -1226,13 +1244,16 @@ function PileColumn({
             )}
             <KanbanCard
               card={card}
+              piles={piles}
               dragging={draggingCardId === card.id}
               onDragStart={(e) => onCardDragStart(e, card)}
               onDragEnd={onCardDragEnd}
               onDragOver={(e) => onCardDragOver(e, pile, card)}
               onDelete={onDeleteCard}
               onOpen={onOpenCard}
+              onMoveToPile={onMoveToPile}
               canDelete={canDeleteCard}
+              canMove={canEditCard}
             />
           </Fragment>
         ))}
@@ -1259,22 +1280,28 @@ function PileColumn({
 
 function KanbanCard({
   card,
+  piles,
   dragging,
   onDragStart,
   onDragEnd,
   onDragOver,
   onDelete,
   onOpen,
+  onMoveToPile,
   canDelete,
+  canMove,
 }: {
   card: Task;
+  piles: Pile[];
   dragging: boolean;
   onDragStart: (e: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
   onDragOver: (e: DragEvent<HTMLElement>) => void;
   onDelete: (id: number) => void;
   onOpen: (id: number) => void;
+  onMoveToPile: (cardId: number, pileId: number) => void;
   canDelete: boolean;
+  canMove: boolean;
 }) {
   const itemPct = card.itemsTotal === 0 ? 0 : Math.round((card.itemsDone / card.itemsTotal) * 100);
   const onCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1360,6 +1387,13 @@ function KanbanCard({
           {card.assignees.length > 0 && <AvatarStack assignees={card.assignees} />}
         </div>
         <div className={kStyles.cardActions}>
+          {canMove && card.id > 0 && (
+            <MovePileMenu
+              piles={piles}
+              currentPileId={card.pileId}
+              onMove={(pileId) => onMoveToPile(card.id, pileId)}
+            />
+          )}
           <button
             type="button"
             className={kStyles.iconBtn}

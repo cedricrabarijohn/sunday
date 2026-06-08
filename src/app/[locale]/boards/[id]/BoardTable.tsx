@@ -8,6 +8,7 @@ import {
   PaperclipIcon,
   ChecklistIcon,
 } from "@/components/Icons";
+import MovePileMenu from "./MovePileMenu";
 import type {
   Task,
   Pile,
@@ -44,6 +45,7 @@ type Props = {
   onPileDragOver: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onPileDragLeave: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onPileDrop: (e: DragEvent<HTMLElement>, pile: Pile) => void;
+  onMoveCardToPile: (cardId: number, pileId: number) => void;
 };
 
 export default function BoardTable(props: Props) {
@@ -124,6 +126,7 @@ export default function BoardTable(props: Props) {
                       <Row
                         card={card}
                         pile={pile}
+                        piles={piles}
                         caps={caps}
                         dragging={drag?.cardId === card.id}
                         onDeleteCard={props.onDeleteCard}
@@ -133,6 +136,7 @@ export default function BoardTable(props: Props) {
                         onCardDragStart={props.onCardDragStart}
                         onCardDragEnd={props.onCardDragEnd}
                         onCardDragOver={props.onCardDragOver}
+                        onMoveCardToPile={props.onMoveCardToPile}
                       />
                     </Fragment>
                   ))}
@@ -168,6 +172,7 @@ function DropIndicator({ colSpan }: { colSpan: number }) {
 function Row({
   card,
   pile,
+  piles,
   caps,
   dragging,
   onDeleteCard,
@@ -177,9 +182,11 @@ function Row({
   onCardDragStart,
   onCardDragEnd,
   onCardDragOver,
+  onMoveCardToPile,
 }: {
   card: Task;
   pile: Pile;
+  piles: Pile[];
   caps: Caps;
   dragging: boolean;
   onDeleteCard: (id: number) => void;
@@ -189,6 +196,7 @@ function Row({
   onCardDragStart: (e: DragEvent<HTMLElement>, card: Task) => void;
   onCardDragEnd: () => void;
   onCardDragOver: (e: DragEvent<HTMLElement>, pile: Pile, card: Task) => void;
+  onMoveCardToPile: (cardId: number, pileId: number) => void;
 }) {
   const open = () => card.id > 0 && onOpenCard(card.id);
   const itemPct =
@@ -318,6 +326,13 @@ function Row({
 
       <td className={styles.colActions}>
         <div className={styles.actions}>
+          {caps.editCard && card.id > 0 && (
+            <MovePileMenu
+              piles={piles}
+              currentPileId={card.pileId}
+              onMove={(pileId) => onMoveCardToPile(card.id, pileId)}
+            />
+          )}
           <button
             type="button"
             className={styles.iconBtn}
