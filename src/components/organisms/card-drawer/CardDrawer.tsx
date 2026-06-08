@@ -111,6 +111,9 @@ export default function CardDrawer({
 }: Props) {
   const toast = useToast();
   const [data, setData] = useState<CardDetail | null>(null);
+  // Latest `data` for effects that must read it without depending on it.
+  const dataRef = useRef<CardDetail | null>(null);
+  dataRef.current = data;
   const [newItem, setNewItem] = useState("");
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -143,12 +146,15 @@ export default function CardDrawer({
     setDescDragActive(false);
   }, [cardId]);
 
-  // Whenever we enter edit mode, seed the editor with the persisted
-  // description as real DOM. The editor is uncontrolled from then on;
-  // React does not touch it again until the next entry into edit mode.
+  // Seed the editor with the persisted description ONLY when entering edit
+  // mode. The editor is uncontrolled from then on; React must not touch it
+  // again (re-seeding on every `data` change would wipe in-progress edits —
+  // bold, typing, inserted images — whenever a live update lands).
   useEffect(() => {
-    if (!descEditing || !descRef.current || !data) return;
-    descRef.current.innerHTML = descriptionToHtml(data.card.description ?? "");
+    if (!descEditing || !descRef.current) return;
+    descRef.current.innerHTML = descriptionToHtml(
+      dataRef.current?.card.description ?? "",
+    );
     descRef.current.focus();
     // Place caret at end so the user can immediately keep typing.
     const sel = window.getSelection();
@@ -159,7 +165,7 @@ export default function CardDrawer({
       sel.removeAllRanges();
       sel.addRange(range);
     }
-  }, [descEditing, data]);
+  }, [descEditing]);
 
   // Fetch detail on mount
   useEffect(() => {
