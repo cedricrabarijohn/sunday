@@ -2344,6 +2344,21 @@ function styleMarkers(c: HTMLElement, inner: string): string {
   return s;
 }
 
+// Wrap already-serialized inner markdown with the markers implied by an
+// element's own tag and inline style. Applied both to child elements AND to a
+// top-level inline element (e.g. a bare <b>hey</b> with no paragraph around
+// it), whose own formatting would otherwise be lost.
+function wrapInline(el: HTMLElement, inner: string): string {
+  const tag = el.tagName;
+  if (tag === "STRONG" || tag === "B") return `**${inner}**`;
+  if (tag === "EM" || tag === "I") return `*${inner}*`;
+  if (tag === "U") return `__${inner}__`;
+  if (tag === "S" || tag === "STRIKE" || tag === "DEL") return `~~${inner}~~`;
+  if (tag === "CODE") return `\`${inner}\``;
+  // SPAN / FONT / etc.: formatting may live in inline CSS.
+  return styleMarkers(el, inner);
+}
+
 function inlineToMarkdown(el: Node): string {
   let out = "";
   for (const child of Array.from(el.childNodes)) {
@@ -2356,23 +2371,12 @@ function inlineToMarkdown(el: Node): string {
     const tag = c.tagName;
     if (tag === "BR") {
       out += "\n";
-    } else if (tag === "STRONG" || tag === "B") {
-      out += `**${inlineToMarkdown(c)}**`;
-    } else if (tag === "EM" || tag === "I") {
-      out += `*${inlineToMarkdown(c)}*`;
-    } else if (tag === "U") {
-      out += `__${inlineToMarkdown(c)}__`;
-    } else if (tag === "S" || tag === "STRIKE" || tag === "DEL") {
-      out += `~~${inlineToMarkdown(c)}~~`;
-    } else if (tag === "CODE") {
-      out += `\`${inlineToMarkdown(c)}\``;
     } else if (tag === "IMG") {
       const img = c as HTMLImageElement;
       const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
       out += `\n![${alt}](${img.src})\n`;
     } else {
-      // SPAN / FONT / etc.: formatting may live in inline CSS.
-      out += styleMarkers(c, inlineToMarkdown(c));
+      out += wrapInline(c, inlineToMarkdown(c));
     }
   }
   return out;
@@ -2442,7 +2446,8 @@ function serializeDescription(editor: HTMLElement): string {
         continue;
       }
       if (INLINE_TAGS.has(tag)) {
-        inlineBuf.push(inlineToMarkdown(el));
+        // Apply el's OWN tag/style, not just its children's.
+        inlineBuf.push(wrapInline(el, inlineToMarkdown(el)));
         continue;
       }
       if (tag === "IMG") {
