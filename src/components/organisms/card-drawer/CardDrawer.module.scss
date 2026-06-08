@@ -493,6 +493,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
+  min-height: 200px;
   color: var(--text-1);
   font-size: 14px;
   line-height: 1.6;
@@ -541,6 +542,7 @@
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
+  min-height: 200px;
   color: var(--text-mute);
   font-style: italic;
   font-size: 13.5px;
@@ -601,8 +603,8 @@
 
 /* --- ContentEditable inner area --- */
 .descEditor {
-  min-height: 160px;
-  max-height: 460px;
+  min-height: 220px;
+  max-height: 520px;
   overflow-y: auto;
   background: transparent;
   color: var(--text-1);
