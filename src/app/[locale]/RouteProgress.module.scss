@@ -1,0 +1,16 @@
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  z-index: 9999;
+  background: var(--accent);
+  box-shadow:
+    0 0 8px var(--accent),
+    0 0 2px var(--accent);
+  border-radius: 0 2px 2px 0;
+  pointer-events: none;
+  transition:
+    width 0.24s ease,
+    opacity 0.3s ease 0.08s;
+}

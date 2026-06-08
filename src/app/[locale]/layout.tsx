@@ -5,6 +5,7 @@ import { locales } from '@/i18n';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ConfirmProvider from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import ToastProvider from "@/components/organisms/toast/ToastProvider";
+import RouteProgress from "./RouteProgress";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -40,6 +41,7 @@ export default async function LocaleLayout({
         />
       </head>
       <body>
+        <RouteProgress />
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             <ConfirmProvider>
