@@ -15,6 +15,7 @@ import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
 import type { BoardEvent } from "@/lib/board-bus";
+import { rememberLastBoard } from "@/lib/last-board";
 import {
   BoardIcon,
   CalendarIcon,
@@ -128,6 +129,11 @@ export default function TasksClient({
     } catch {
       // localStorage unavailable (private mode etc.) — stay on default.
     }
+  }, [boardId]);
+
+  // Remember this as the last viewed board so `/` can jump back here.
+  useEffect(() => {
+    rememberLastBoard(boardId);
   }, [boardId]);
 
   // The open card is reflected in the URL (/boards/:id?card=:cardId) so it
