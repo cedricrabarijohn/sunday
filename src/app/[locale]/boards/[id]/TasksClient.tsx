@@ -130,28 +130,45 @@ export default function TasksClient({
     }
   }, [boardId]);
 
-  // Deep link from a notification: /boards/:id?card=:cardId opens that card.
-  // Read once after mount, then strip the param so a refresh or back-nav
-  // doesn't re-open it.
+  // The open card is reflected in the URL (/boards/:id?card=:cardId) so it
+  // survives a refresh and can be shared or deep-linked from a notification.
+  // Read it once on mount to restore the drawer.
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const raw = params.get("card");
+      const raw = new URLSearchParams(window.location.search).get("card");
       const id = raw ? Number(raw) : NaN;
-      if (Number.isFinite(id) && id > 0) {
-        setOpenCardId(id);
-        params.delete("card");
-        const qs = params.toString();
-        window.history.replaceState(
-          null,
-          "",
-          window.location.pathname + (qs ? `?${qs}` : ""),
-        );
-      }
+      if (Number.isFinite(id) && id > 0) setOpenCardId(id);
     } catch {
-      // Bad URL or no History API — nothing to deep link.
+      // Bad URL or no History API — nothing to restore.
     }
   }, []);
+
+  // Keep the ?card= param in sync with the open drawer without a full
+  // navigation, preserving any other query params.
+  const syncCardParam = (id: number | null) => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (id) params.set("card", String(id));
+      else params.delete("card");
+      const qs = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (qs ? `?${qs}` : ""),
+      );
+    } catch {
+      // No History API — the drawer still works, just without the URL sync.
+    }
+  };
+  const openCard = (id: number) => {
+    if (id <= 0) return;
+    setOpenCardId(id);
+    syncCardParam(id);
+  };
+  const closeCard = () => {
+    setOpenCardId(null);
+    syncCardParam(null);
+  };
 
   const changeView = (next: "board" | "table") => {
     setView(next);
@@ -973,7 +990,7 @@ export default function TasksClient({
             hint={hint}
             onAddCard={onAddCard}
             onDeleteCard={onDeleteCard}
-            onOpenCard={(id) => id > 0 && setOpenCardId(id)}
+            onOpenCard={openCard}
             onRenameCard={onRenameCard}
             onSetCardDue={onSetCardDue}
             onRenamePile={onRenamePile}
@@ -999,7 +1016,7 @@ export default function TasksClient({
                   draggingCardId={drag?.cardId ?? null}
                   onAddCard={onAddCard}
                   onDeleteCard={onDeleteCard}
-                  onOpenCard={(id) => id > 0 && setOpenCardId(id)}
+                  onOpenCard={openCard}
                   onRenamePile={onRenamePile}
                   onDeletePile={onDeletePile}
                   onCardDragStart={onCardDragStart}
@@ -1055,7 +1072,7 @@ export default function TasksClient({
           workspaceId={workspaceId}
           workspaceLabels={labels}
           onWorkspaceLabelsChange={setLabels}
-          onClose={() => setOpenCardId(null)}
+          onClose={closeCard}
           onCountsChange={(id, counts: CardCounts) =>
             setTasks((prev) =>
               prev.map((t) =>
