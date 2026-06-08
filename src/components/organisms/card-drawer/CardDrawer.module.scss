@@ -541,6 +541,20 @@
 .descView p + p {
   margin-top: 0.65rem;
 }
+.descView h1, .descView h2, .descView h3,
+.descEditor h1, .descEditor h2, .descEditor h3 {
+  margin: 1em 0 0.4em;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--text-1);
+}
+.descView h1, .descEditor h1 { font-size: 1.5em; }
+.descView h2, .descEditor h2 { font-size: 1.25em; }
+.descView h3, .descEditor h3 { font-size: 1.08em; }
+.descView > h1:first-child, .descView > h2:first-child, .descView > h3:first-child,
+.descEditor > h1:first-child, .descEditor > h2:first-child, .descEditor > h3:first-child {
+  margin-top: 0;
+}
 .descView ul, .descView ol {
   margin: 0;
   padding-left: 1.2rem;

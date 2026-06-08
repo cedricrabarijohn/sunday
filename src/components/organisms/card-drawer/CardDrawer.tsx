@@ -4,6 +4,7 @@ import {
   CSSProperties,
   DragEvent,
   FormEvent,
+  Fragment,
   ReactNode,
   useEffect,
   useMemo,
@@ -2295,6 +2296,13 @@ function descriptionToHtml(text: string): string {
     .map((block) => {
       const lines = block.split("\n");
 
+      // A heading is its own single-line block: "# ", "## " or "### ".
+      const heading = lines.length === 1 ? lines[0].match(/^(#{1,3})\s+(.+)$/) : null;
+      if (heading) {
+        const level = heading[1].length;
+        return `<h${level}>${inlineMd(heading[2])}</h${level}>`;
+      }
+
       const imgMatches = lines.map((l) => l.match(IMAGE_LINE));
       if (imgMatches.every((m) => m !== null)) {
         return (
@@ -2485,6 +2493,12 @@ function serializeDescription(editor: HTMLElement): string {
         }
         continue;
       }
+      if (/^H[1-6]$/.test(tag)) {
+        const level = Math.min(3, Number(tag[1])); // we support # to ###
+        const inner = inlineToMarkdown(el).trim();
+        if (inner) blocks.push(`${"#".repeat(level)} ${inner}`);
+        continue;
+      }
       if (
         tag === "P" ||
         tag === "DIV" ||
@@ -2667,6 +2681,7 @@ function DescriptionContent({ text }: { text: string }) {
 
 const TOOLBAR_BUTTONS: ReadonlyArray<{
   cmd: string;
+  value?: string;
   label: string;
   title: string;
   weight?: number;
@@ -2674,12 +2689,17 @@ const TOOLBAR_BUTTONS: ReadonlyArray<{
   underline?: boolean;
   strike?: boolean;
   mono?: boolean;
+  sepBefore?: boolean;
 }> = [
-  { cmd: "bold", label: "B", title: "Bold (Ctrl/Cmd+B)", weight: 700 },
+  { cmd: "formatBlock", value: "H1", label: "H1", title: "Heading 1", weight: 700 },
+  { cmd: "formatBlock", value: "H2", label: "H2", title: "Heading 2", weight: 700 },
+  { cmd: "formatBlock", value: "H3", label: "H3", title: "Heading 3", weight: 700 },
+  { cmd: "formatBlock", value: "P", label: "¶", title: "Normal text", sepBefore: true },
+  { cmd: "bold", label: "B", title: "Bold (Ctrl/Cmd+B)", weight: 700, sepBefore: true },
   { cmd: "italic", label: "I", title: "Italic (Ctrl/Cmd+I)", italic: true },
   { cmd: "underline", label: "U", title: "Underline (Ctrl/Cmd+U)", underline: true },
   { cmd: "strikeThrough", label: "S", title: "Strikethrough", strike: true },
-  { cmd: "insertUnorderedList", label: "•", title: "Bullet list" },
+  { cmd: "insertUnorderedList", label: "•", title: "Bullet list", sepBefore: true },
   { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
 ];
 
@@ -2710,29 +2730,31 @@ function DescToolbar({
   return (
     <div className={styles.toolbar} role="toolbar" aria-label="Formatting">
       {TOOLBAR_BUTTONS.map((b) => (
-        <button
-          key={b.cmd}
-          type="button"
-          className={styles.toolbarBtn}
-          title={b.title}
-          aria-label={b.title}
-          style={{
-            fontWeight: b.weight ?? 500,
-            fontStyle: b.italic ? "italic" : undefined,
-            textDecoration: b.underline
-              ? "underline"
-              : b.strike
-              ? "line-through"
-              : undefined,
-            fontFamily: b.mono ? "var(--font-mono)" : undefined,
-          }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onCmd(b.cmd);
-          }}
-        >
-          {b.label}
-        </button>
+        <Fragment key={`${b.cmd}-${b.value ?? b.label}`}>
+          {b.sepBefore && <span className={styles.toolbarSep} aria-hidden />}
+          <button
+            type="button"
+            className={styles.toolbarBtn}
+            title={b.title}
+            aria-label={b.title}
+            style={{
+              fontWeight: b.weight ?? 500,
+              fontStyle: b.italic ? "italic" : undefined,
+              textDecoration: b.underline
+                ? "underline"
+                : b.strike
+                ? "line-through"
+                : undefined,
+              fontFamily: b.mono ? "var(--font-mono)" : undefined,
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onCmd(b.cmd, b.value);
+            }}
+          >
+            {b.label}
+          </button>
+        </Fragment>
       ))}
       <button
         type="button"
