@@ -1582,6 +1582,10 @@ export default function CardDrawer({
                 <ul className={styles.commentList}>
                   {data.comments.map((c) => {
                     const isOwn = c.userId === data.currentUserId;
+                    // Highlight comments that mention the connected user.
+                    const mentionsMe =
+                      data.currentUserId != null &&
+                      (c.body ?? "").includes(`<@${data.currentUserId}>`);
                     const isAdmin = (data.capabilities ?? []).includes("manage_board_members");
                     const canEdit = isOwn;
                     const canDelete = isOwn || isAdmin;
@@ -1589,7 +1593,13 @@ export default function CardDrawer({
                     return (
                       <li key={c.id} className={styles.commentItem}>
                         <span className={styles.commentPip}>{initialsForAssignee({ userId: c.userId, firstname: c.firstname, lastname: c.lastname, email: c.email })}</span>
-                        <div className={styles.commentMain}>
+                        <div
+                          className={
+                            mentionsMe
+                              ? `${styles.commentMain} ${styles.commentMainMention}`
+                              : styles.commentMain
+                          }
+                        >
                           <div className={styles.commentMeta}>
                             <span className={styles.commentAuthor}>{nameForAssignee({ userId: c.userId, firstname: c.firstname, lastname: c.lastname, email: c.email })}</span>
                             <span className={styles.commentTime}>
