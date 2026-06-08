@@ -498,14 +498,11 @@
   font-size: 14px;
   line-height: 1.6;
   word-break: break-word;
-  cursor: text;
+  cursor: auto;
   text-align: left;
   width: 100%;
   font-family: inherit;
-  transition: border-color 140ms ease, background 140ms ease;
 }
-.descView:hover { border-color: var(--border-strong); background: var(--surface-2); }
-.descView:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .descView p {
   margin: 0;
 }
