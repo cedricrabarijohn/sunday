@@ -156,6 +156,12 @@ export default function CardDrawer({
       dataRef.current?.card.description ?? "",
     );
     descRef.current.focus();
+    // Make native shortcuts (Ctrl+B/I/U) emit tags rather than inline CSS.
+    try {
+      document.execCommand("styleWithCSS", false, "false");
+    } catch {
+      // Best-effort; the serializer also handles styled spans.
+    }
     // Place caret at end so the user can immediately keep typing.
     const sel = window.getSelection();
     if (sel) {
@@ -375,6 +381,13 @@ export default function CardDrawer({
 
   const applyCommand = (command: string, value?: string) => {
     descRef.current?.focus();
+    // Prefer semantic tags (<b>, <i>…) over inline CSS so serialization keeps
+    // the formatting.
+    try {
+      document.execCommand("styleWithCSS", false, "false");
+    } catch {
+      // Not all engines expose this; the serializer also handles styled spans.
+    }
     document.execCommand(command, false, value);
   };
 
@@ -2312,6 +2325,25 @@ function descriptionToHtml(text: string): string {
     .join("");
 }
 
+// Wrap markdown with markers implied by an element's inline CSS. Browsers
+// often apply Ctrl+B / Ctrl+I as `style="font-weight:bold"` on a <span>
+// rather than a <b> tag, so tag-matching alone loses the formatting.
+function styleMarkers(c: HTMLElement, inner: string): string {
+  if (!inner) return inner;
+  const fw = c.style.fontWeight;
+  const isBold = fw === "bold" || fw === "bolder" || (fw !== "" && Number(fw) >= 600);
+  const isItalic = c.style.fontStyle === "italic";
+  const deco = `${c.style.textDecoration} ${c.style.textDecorationLine}`;
+  const isUnder = deco.includes("underline");
+  const isStrike = deco.includes("line-through");
+  let s = inner;
+  if (isBold) s = `**${s}**`;
+  if (isItalic) s = `*${s}*`;
+  if (isUnder) s = `__${s}__`;
+  if (isStrike) s = `~~${s}~~`;
+  return s;
+}
+
 function inlineToMarkdown(el: Node): string {
   let out = "";
   for (const child of Array.from(el.childNodes)) {
@@ -2339,7 +2371,8 @@ function inlineToMarkdown(el: Node): string {
       const alt = (img.alt ?? "").replace(/[\]\[]/g, "");
       out += `\n![${alt}](${img.src})\n`;
     } else {
-      out += inlineToMarkdown(c);
+      // SPAN / FONT / etc.: formatting may live in inline CSS.
+      out += styleMarkers(c, inlineToMarkdown(c));
     }
   }
   return out;
