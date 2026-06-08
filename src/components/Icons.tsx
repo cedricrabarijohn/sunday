@@ -142,6 +142,15 @@ export function TableIcon(props: IconProps) {
   );
 }
 
+export function TagIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 11.5V5a2 2 0 0 1 2-2h6.5a2 2 0 0 1 1.4.6l7.5 7.5a2 2 0 0 1 0 2.8l-6.6 6.6a2 2 0 0 1-2.8 0L3.6 12.9a2 2 0 0 1-.6-1.4Z" />
+      <circle cx="8" cy="8" r="1.4" />
+    </svg>
+  );
+}
+
 export function BackIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

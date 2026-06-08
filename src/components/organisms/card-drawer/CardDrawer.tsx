@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { SettingsIcon } from "@/components/Icons";
+import { UsersIcon, TagIcon } from "@/components/Icons";
 import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 
@@ -1230,6 +1230,92 @@ export default function CardDrawer({
             ) : (
               <div className={styles.loadBlock} style={{ width: "70%" }} />
             )}
+            {data && (
+              <div className={styles.headControls}>
+                <MetaPopover
+                  open={assigneePickerOpen}
+                  setOpen={setAssigneePickerOpen}
+                  label="Assignees"
+                  triggerClassName={styles.metaTrigger}
+                  trigger={
+                    data.assignees.length === 0 ? (
+                      <span className={styles.metaEmpty}>
+                        <UsersIcon size={15} />
+                        <span>Assign</span>
+                      </span>
+                    ) : (
+                      <span className={styles.metaPips}>
+                        {data.assignees.slice(0, 4).map((a) => (
+                          <span
+                            key={a.userId}
+                            className={styles.metaPip}
+                            title={nameForAssignee(a)}
+                          >
+                            {initialsForAssignee(a)}
+                          </span>
+                        ))}
+                        {data.assignees.length > 4 && (
+                          <span className={styles.metaPipMore}>
+                            +{data.assignees.length - 4}
+                          </span>
+                        )}
+                      </span>
+                    )
+                  }
+                >
+                  <AssigneePicker
+                    members={boardMembers ?? []}
+                    loading={boardMembersLoading}
+                    selected={new Set(data.assignees.map((a) => a.userId))}
+                    onToggle={onToggleAssignee}
+                  />
+                </MetaPopover>
+
+                <MetaPopover
+                  open={pickerOpen}
+                  setOpen={setPickerOpen}
+                  label="Labels"
+                  triggerClassName={styles.metaTrigger}
+                  trigger={
+                    data.labels.length === 0 ? (
+                      <span className={styles.metaEmpty}>
+                        <TagIcon size={15} />
+                        <span>Label</span>
+                      </span>
+                    ) : (
+                      <span className={styles.metaChips}>
+                        {data.labels.map((l) => {
+                          const c = colorForName(l.color);
+                          return (
+                            <span
+                              key={l.id}
+                              className={styles.metaChip}
+                              style={{ background: c.soft, color: c.hue }}
+                            >
+                              <span
+                                className={styles.metaChipDot}
+                                style={{ background: c.hue }}
+                                aria-hidden
+                              />
+                              {l.title}
+                            </span>
+                          );
+                        })}
+                      </span>
+                    )
+                  }
+                >
+                  <LabelsPicker
+                    workspaceLabels={workspaceLabels}
+                    selected={new Set(data.labels.map((l) => l.id))}
+                    onToggle={onToggleLabel}
+                    onCreate={onCreateLabel}
+                    onEdit={onEditLabel}
+                    onDelete={onDeleteLabel}
+                  />
+                </MetaPopover>
+              </div>
+            )}
           </div>
           <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
             ✕
@@ -1245,113 +1331,6 @@ export default function CardDrawer({
           </div>
         ) : (
           <div className={styles.body}>
-            <section className={styles.section}>
-              <div className={styles.sectionHead}>
-                <span className={styles.titleWithCog}>
-                  <span className={styles.sectionLabel}>Labels</span>
-                  <EditPopover
-                    open={pickerOpen}
-                    setOpen={setPickerOpen}
-                    label="Edit labels"
-                  >
-                    <LabelsPicker
-                      workspaceLabels={workspaceLabels}
-                      selected={new Set(data.labels.map((l) => l.id))}
-                      onToggle={onToggleLabel}
-                      onCreate={onCreateLabel}
-                      onEdit={onEditLabel}
-                      onDelete={onDeleteLabel}
-                    />
-                  </EditPopover>
-                </span>
-              </div>
-              <div className={styles.cardLabels}>
-                {data.labels.length === 0 ? (
-                  <span className={styles.cardLabelsEmpty}>No labels yet. Add one to categorize this card.</span>
-                ) : (
-                  data.labels.map((l) => {
-                    const c = colorForName(l.color);
-                    return (
-                      <span
-                        key={l.id}
-                        className={styles.labelChip}
-                        style={{ background: c.soft, color: c.hue }}
-                      >
-                        <span
-                          className={styles.labelDot}
-                          style={{ background: c.hue }}
-                          aria-hidden
-                        />
-                        {l.title}
-                      </span>
-                    );
-                  })
-                )}
-              </div>
-            </section>
-
-            <section className={styles.section}>
-              <div className={styles.sectionHead}>
-                <span className={styles.titleWithCog}>
-                  <span className={styles.sectionLabel}>Assignees</span>
-                  <EditPopover
-                    open={assigneePickerOpen}
-                    setOpen={setAssigneePickerOpen}
-                    label="Edit assignees"
-                  >
-                    <AssigneePicker
-                      members={boardMembers ?? []}
-                      loading={boardMembersLoading}
-                      selected={new Set(data.assignees.map((a) => a.userId))}
-                      onToggle={onToggleAssignee}
-                    />
-                  </EditPopover>
-                </span>
-              </div>
-              <div className={styles.assigneeList}>
-                {data.assignees.length === 0 ? (
-                  <span className={styles.cardLabelsEmpty}>
-                    No one is assigned yet.
-                  </span>
-                ) : (
-                  data.assignees.map((a) => (
-                    <span key={a.userId} className={styles.assigneeChip} title={a.email ?? undefined}>
-                      <span className={styles.assigneePip}>{initialsForAssignee(a)}</span>
-                      {nameForAssignee(a)}
-                    </span>
-                  ))
-                )}
-              </div>
-            </section>
-
-            <section className={styles.section}>
-              <div className={styles.sectionHead}>
-                <span className={styles.sectionLabel}>Due date</span>
-                {data.card.dueAt && (
-                  <button
-                    type="button"
-                    className={styles.linkBtn}
-                    onClick={() => onChangeDueAt(null)}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <input
-                type="datetime-local"
-                className={styles.dueInput}
-                value={toLocalDatetimeValue(data.card.dueAt)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) {
-                    onChangeDueAt(null);
-                    return;
-                  }
-                  onChangeDueAt(new Date(v).toISOString());
-                }}
-              />
-            </section>
-
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Description</span>
@@ -1440,6 +1419,34 @@ export default function CardDrawer({
               ) : (
                 <DescriptionView text={data.card.description ?? ""} onEdit={enterEdit} />
               )}
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionLabel}>Due date</span>
+                {data.card.dueAt && (
+                  <button
+                    type="button"
+                    className={styles.linkBtn}
+                    onClick={() => onChangeDueAt(null)}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <input
+                type="datetime-local"
+                className={styles.dueInput}
+                value={toLocalDatetimeValue(data.card.dueAt)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) {
+                    onChangeDueAt(null);
+                    return;
+                  }
+                  onChangeDueAt(new Date(v).toISOString());
+                }}
+              />
             </section>
 
             <section className={styles.section}>
@@ -1890,17 +1897,22 @@ function LabelsPicker({
   );
 }
 
-// A small gear button beside a section title that opens its editor in a
-// popover, closing on an outside click or Escape.
-function EditPopover({
+// A trigger that opens an editor in a popover, closing on an outside click
+// or Escape. The trigger content is caller-supplied so it can be a gear, a
+// row of avatar pips, label chips, etc.
+function MetaPopover({
   open,
   setOpen,
   label,
+  trigger,
+  triggerClassName,
   children,
 }: {
   open: boolean;
   setOpen: (next: boolean) => void;
   label: string;
+  trigger: ReactNode;
+  triggerClassName?: string;
   children: ReactNode;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -1927,13 +1939,13 @@ function EditPopover({
     <div className={styles.popoverAnchor} ref={anchorRef}>
       <button
         type="button"
-        className={`${styles.cogBtn} ${open ? styles.cogBtnActive : ""}`}
+        className={`${triggerClassName ?? styles.metaTrigger} ${open ? styles.metaTriggerActive : ""}`}
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label={label}
         title={label}
       >
-        <SettingsIcon size={15} />
+        {trigger}
       </button>
       {open && (
         <div className={styles.popover} role="dialog">

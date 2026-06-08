@@ -754,32 +754,99 @@
 }
 .linkBtn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
 
-/* Section title + inline gear that opens an editor popover. */
-.titleWithCog {
-  display: inline-flex;
+/* Compact assignee/label controls that live in the card header. */
+.headControls {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
+  margin-top: 0.5rem;
 }
 
-.cogBtn {
+.metaTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.metaTrigger:hover,
+.metaTriggerActive {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Empty state: an icon + short verb ("Assign", "Label"). */
+.metaEmpty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Overlapping avatar pips for current assignees. */
+.metaPips {
+  display: inline-flex;
+  align-items: center;
+}
+.metaPip,
+.metaPipMore {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-3);
-  cursor: pointer;
-  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  border: 1.5px solid var(--surface);
+  flex-shrink: 0;
 }
-.cogBtn:hover,
-.cogBtnActive {
+.metaPip + .metaPip,
+.metaPip + .metaPipMore {
+  margin-left: -6px;
+}
+.metaPipMore {
   background: var(--surface-2);
-  color: var(--text-1);
-  border-color: var(--border);
+  color: var(--text-2);
+  margin-left: -6px;
+}
+
+/* Small label chips shown in the header. */
+.metaChips {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.metaChipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .popoverAnchor {
