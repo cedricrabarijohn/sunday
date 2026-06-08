@@ -16,20 +16,23 @@ import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog"
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
 import type { BoardEvent } from "@/lib/board-bus";
 import {
+  BoardIcon,
   CalendarIcon,
   ChecklistIcon,
   CommentIcon,
   FilterIcon,
   PaperclipIcon,
   SettingsIcon,
+  TableIcon,
   UsersIcon,
 } from "@/components/Icons";
 import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
+import BoardTable from "./BoardTable";
 
-type CardLabel = { id: number; title: string; color: string };
-type CardAssignee = {
+export type CardLabel = { id: number; title: string; color: string };
+export type CardAssignee = {
   userId: number;
   firstname: string | null;
   lastname: string | null;
@@ -44,7 +47,7 @@ export type WorkspaceLabel = {
   isDefault: number;
 };
 
-type Task = {
+export type Task = {
   id: number;
   title: string | null;
   pileId: number | null;
@@ -58,7 +61,7 @@ type Task = {
   dueAt: string | Date | null;
 };
 
-type Pile = {
+export type Pile = {
   id: number;
   title: string;
   color: string | null;
@@ -112,6 +115,27 @@ export default function TasksClient({
 
   const pileRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const titleRenameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Kanban vs. table, remembered per board. Read after mount so the
+  // server render (always "board") and the first client paint agree.
+  const [view, setView] = useState<"board" | "table">("board");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`sunday:boardView:${boardId}`);
+      if (saved === "table" || saved === "board") setView(saved);
+    } catch {
+      // localStorage unavailable (private mode etc.) — stay on default.
+    }
+  }, [boardId]);
+  const changeView = (next: "board" | "table") => {
+    setView(next);
+    try {
+      localStorage.setItem(`sunday:boardView:${boardId}`, next);
+    } catch {
+      // Non-fatal; the choice just won't persist.
+    }
+  };
 
   // Keep a live handle on the workspace labels so the SSE handler can
   // resolve label ids -> chips without re-subscribing on every change.
@@ -423,6 +447,52 @@ export default function TasksClient({
       if (!res.ok) {
         setTasks(snapshot);
         toast.error("Could not delete card");
+      }
+    } catch {
+      setTasks(snapshot);
+      toast.error("Network error.");
+    }
+  };
+
+  // --- inline card edits (table view)
+  const onRenameCard = (id: number, title: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
+    if (id < 0) return;
+    const existing = cardRenameTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    if (!title.trim()) return; // server rejects empty titles
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/tasks/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data.error || "Could not rename card");
+        }
+      } catch {
+        toast.error("Network error.");
+      }
+    }, 500);
+    cardRenameTimers.current.set(id, timer);
+  };
+
+  const onSetCardDue = async (id: number, dueAt: string | null) => {
+    const snapshot = tasks;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, dueAt } : t)));
+    if (id < 0) return;
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueAt }),
+      });
+      if (!res.ok) {
+        setTasks(snapshot);
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Could not set due date");
       }
     } catch {
       setTasks(snapshot);
@@ -770,6 +840,30 @@ export default function TasksClient({
               ? `${visibleCount}/${tasks.length} cards`
               : `${tasks.length} ${tasks.length === 1 ? "card" : "cards"}`}
           </span>
+          <div className={kStyles.viewToggle} role="tablist" aria-label="Board view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "board"}
+              className={`${kStyles.viewToggleBtn} ${view === "board" ? kStyles.viewToggleBtnActive : ""}`}
+              onClick={() => changeView("board")}
+              title="Board view"
+            >
+              <BoardIcon size={15} />
+              <span className={kStyles.viewToggleLabel}>Board</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "table"}
+              className={`${kStyles.viewToggleBtn} ${view === "table" ? kStyles.viewToggleBtnActive : ""}`}
+              onClick={() => changeView("table")}
+              title="Table view"
+            >
+              <TableIcon size={15} />
+              <span className={kStyles.viewToggleLabel}>Table</span>
+            </button>
+          </div>
           <BoardFilter
             filter={filter}
             setFilter={setFilter}
@@ -839,58 +933,82 @@ export default function TasksClient({
             </button>
           </div>
         )}
-        <div className={kStyles.scroller}>
-          {piles.map((pile) => (
-            <PileColumn
-              key={pile.id}
-              pile={pile}
-              cards={visibleCardsByPile.get(pile.id) ?? []}
-              dragHint={hint?.pileId === pile.id ? hint : null}
-              isDropTarget={hint?.pileId === pile.id && drag !== null}
-              draggingCardId={drag?.cardId ?? null}
-              onAddCard={onAddCard}
-              onDeleteCard={onDeleteCard}
-              onOpenCard={(id) => id > 0 && setOpenCardId(id)}
-              onRenamePile={onRenamePile}
-              onDeletePile={onDeletePile}
-              onCardDragStart={onCardDragStart}
-              onCardDragEnd={onCardDragEnd}
-              onCardDragOver={onCardDragOver}
-              onPileDragOver={onPileDragOver}
-              onPileDragLeave={onPileDragLeave}
-              onPileDrop={onPileDrop}
-              canManagePiles={can("manage_piles")}
-              canCreateCard={can("create_card")}
-              canDeleteCard={can("delete_card")}
-            />
-          ))}
-          {can("manage_piles") &&
-            (addingPile ? (
-              <AddPileForm onCancel={() => setAddingPile(false)} onCreate={onCreatePile} />
-            ) : (
-              <button
-                type="button"
-                className={`${kStyles.addPile} ${addPileDragOver ? kStyles.addPileDragOver : ""}`}
-                onClick={() => setAddingPile(true)}
-                onDragOver={(e) => {
-                  if (!drag) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (!addPileDragOver) setAddPileDragOver(true);
-                }}
-                onDragLeave={(e) => {
-                  if (!drag) return;
-                  const related = e.relatedTarget as Node | null;
-                  if (related && (e.currentTarget as Node).contains(related)) return;
-                  setAddPileDragOver(false);
-                }}
-                onDrop={onDropOnAddPile}
-              >
-                <span className={kStyles.addPileMark}>＋</span>
-                {drag ? "Drop here to create a new pile" : "Add another pile"}
-              </button>
-            ))}
-        </div>
+        {view === "table" && piles.length > 0 ? (
+          <BoardTable
+            piles={piles}
+            cardsByPile={visibleCardsByPile}
+            caps={{
+              editCard: can("edit_card"),
+              createCard: can("create_card"),
+              deleteCard: can("delete_card"),
+            }}
+            onAddCard={onAddCard}
+            onDeleteCard={onDeleteCard}
+            onOpenCard={(id) => id > 0 && setOpenCardId(id)}
+            onRenameCard={onRenameCard}
+            onSetCardDue={onSetCardDue}
+          />
+        ) : (
+          <div className={kStyles.scroller}>
+            {view === "board" &&
+              piles.map((pile) => (
+                <PileColumn
+                  key={pile.id}
+                  pile={pile}
+                  cards={visibleCardsByPile.get(pile.id) ?? []}
+                  dragHint={hint?.pileId === pile.id ? hint : null}
+                  isDropTarget={hint?.pileId === pile.id && drag !== null}
+                  draggingCardId={drag?.cardId ?? null}
+                  onAddCard={onAddCard}
+                  onDeleteCard={onDeleteCard}
+                  onOpenCard={(id) => id > 0 && setOpenCardId(id)}
+                  onRenamePile={onRenamePile}
+                  onDeletePile={onDeletePile}
+                  onCardDragStart={onCardDragStart}
+                  onCardDragEnd={onCardDragEnd}
+                  onCardDragOver={onCardDragOver}
+                  onPileDragOver={onPileDragOver}
+                  onPileDragLeave={onPileDragLeave}
+                  onPileDrop={onPileDrop}
+                  canManagePiles={can("manage_piles")}
+                  canCreateCard={can("create_card")}
+                  canDeleteCard={can("delete_card")}
+                />
+              ))}
+            {/* Pile management lives in the board view; the table groups
+                by existing piles. In the empty-board case we still show
+                the create-pile form here regardless of the chosen view. */}
+            {can("manage_piles") &&
+              (view === "board" || piles.length === 0) &&
+              (addingPile ? (
+                <AddPileForm onCancel={() => setAddingPile(false)} onCreate={onCreatePile} />
+              ) : (
+                view === "board" && (
+                  <button
+                    type="button"
+                    className={`${kStyles.addPile} ${addPileDragOver ? kStyles.addPileDragOver : ""}`}
+                    onClick={() => setAddingPile(true)}
+                    onDragOver={(e) => {
+                      if (!drag) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (!addPileDragOver) setAddPileDragOver(true);
+                    }}
+                    onDragLeave={(e) => {
+                      if (!drag) return;
+                      const related = e.relatedTarget as Node | null;
+                      if (related && (e.currentTarget as Node).contains(related)) return;
+                      setAddPileDragOver(false);
+                    }}
+                    onDrop={onDropOnAddPile}
+                  >
+                    <span className={kStyles.addPileMark}>＋</span>
+                    {drag ? "Drop here to create a new pile" : "Add another pile"}
+                  </button>
+                )
+              ))}
+          </div>
+        )}
       </div>
 
       {openCardId !== null && (

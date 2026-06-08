@@ -1,0 +1,379 @@
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding: 0.25rem 0 2rem;
+}
+
+/* --- group (one per pile) --- */
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.2rem 0.5rem;
+}
+.groupDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.groupTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text-1);
+}
+.groupCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+
+.tableScroller {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 720px;
+}
+
+.table thead th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1, var(--surface-2));
+  white-space: nowrap;
+}
+
+.row {
+  border-bottom: 1px solid var(--border);
+  transition: background 80ms ease;
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:hover {
+  background: var(--surface-2);
+}
+.row td {
+  padding: 0.35rem 0.8rem;
+  vertical-align: middle;
+}
+
+/* --- column sizing --- */
+.colTitle { width: 34%; min-width: 220px; }
+.colPeople { width: 120px; }
+.colDue { width: 150px; }
+.colLabels { width: 22%; min-width: 160px; }
+.colMeta { width: 150px; }
+.colActions { width: 72px; }
+
+.emptyRow td {
+  padding: 0.9rem 0.8rem;
+  color: var(--text-mute);
+  font-style: italic;
+  font-size: 12.5px;
+}
+
+.mute {
+  color: var(--text-mute);
+}
+
+/* --- title cell --- */
+.titleInput {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 0.35rem 0.5rem;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.titleInput:hover {
+  border-color: var(--border);
+}
+.titleInput:focus {
+  outline: none;
+  background: var(--bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.titleInput::placeholder {
+  color: var(--text-mute);
+}
+
+.titleText {
+  background: none;
+  border: none;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-1);
+  cursor: pointer;
+  width: 100%;
+}
+.titleText:hover {
+  text-decoration: underline;
+}
+
+/* --- generic clickable cell --- */
+.cellBtn {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.3rem;
+  margin: -0.25rem -0.3rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: inherit;
+  transition: background 100ms ease;
+}
+.cellBtn:hover {
+  background: var(--bg);
+}
+
+/* --- assignees --- */
+.avatarStack {
+  display: inline-flex;
+}
+.avatarPip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1.5px solid var(--bg);
+  color: var(--text-1);
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -7px;
+}
+.avatarPip:first-child {
+  margin-left: 0;
+}
+.avatarPipMore {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* --- labels --- */
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.chipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* --- due --- */
+.dueCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.dueInput {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 0.3rem 0.4rem;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.dueInput:hover {
+  border-color: var(--border);
+}
+.dueInput:focus {
+  outline: none;
+  background: var(--bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.dueCell[data-due="overdue"] .dueInput { color: var(--danger); font-weight: 500; }
+.dueCell[data-due="soon"] .dueInput { color: var(--text-1); font-weight: 500; }
+
+.dueClear {
+  background: none;
+  border: none;
+  color: var(--text-mute);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 0.15rem;
+  border-radius: 4px;
+}
+.dueClear:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.dueBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.dueBadge[data-due="overdue"] { color: var(--danger); }
+
+/* --- activity / meta --- */
+.metaBtn {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.3rem;
+  margin: -0.25rem -0.3rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-3);
+  transition: background 100ms ease;
+}
+.metaBtn:hover {
+  background: var(--bg);
+}
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.metaItem[data-complete="true"] {
+  color: var(--success, #2e7d32);
+}
+.miniBar {
+  width: 28px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.miniBarFill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* --- actions --- */
+.actions {
+  display: inline-flex;
+  gap: 0.2rem;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+.row:hover .actions {
+  opacity: 1;
+}
+.iconBtn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.iconBtn:hover {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+.iconBtnDanger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* --- add a card --- */
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.3rem 0.1rem;
+}
+.addPlus {
+  color: var(--text-mute);
+  font-size: 15px;
+  line-height: 1;
+  padding-left: 0.3rem;
+}
+.addInput {
+  flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0.35rem 0.5rem;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.addInput:hover {
+  border-color: var(--border);
+}
+.addInput:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.addInput::placeholder {
+  color: var(--text-mute);
+}
+
+/* On phones the action column is always visible (no hover). */
+@media (hover: none) {
+  .actions { opacity: 1; }
+}

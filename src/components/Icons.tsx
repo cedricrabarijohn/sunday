@@ -123,6 +123,25 @@ export function ChecklistIcon(props: IconProps) {
   );
 }
 
+export function BoardIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="5" height="16" rx="1.3" />
+      <rect x="10" y="4" width="5" height="11" rx="1.3" />
+      <rect x="17" y="4" width="4" height="14" rx="1.3" />
+    </svg>
+  );
+}
+
+export function TableIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M3 14.5h18M9 9v11" />
+    </svg>
+  );
+}
+
 export function BackIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
