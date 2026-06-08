@@ -41,6 +41,14 @@ export type BoardEvent =
   | { type: "card_updated"; cardId: number; title?: string; dueAt?: string | null }
   | { type: "card_labels"; cardId: number; labelIds: number[] }
   | { type: "card_assignees"; cardId: number; assignees: BoardAssignee[] }
+  | {
+      type: "card_counts";
+      cardId: number;
+      itemsTotal: number;
+      itemsDone: number;
+      attachments: number;
+      comments: number;
+    }
   | { type: "pile_created"; pile: BoardPileSummary }
   | { type: "pile_updated"; pileId: number; title: string }
   | { type: "pile_deleted"; pileId: number };

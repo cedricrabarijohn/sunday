@@ -13,6 +13,7 @@ import { requireCardCap, WORKSPACE_ADMIN_ROLE_ID } from "@/lib/workspace-access"
 import { emitNotifications } from "@/lib/notify";
 import { extractMentionedUserIds } from "@/lib/mentions";
 import { publishCard } from "@/lib/card-bus";
+import { publishCardCounts } from "@/lib/card-counts";
 
 export async function GET(
   _request: NextRequest,
@@ -165,6 +166,7 @@ export async function POST(
   };
 
   publishCard(cardId, { type: "comment_created", comment: created });
+  await publishCardCounts(guard.boardId, cardId);
 
   return NextResponse.json({ comment: created });
 }

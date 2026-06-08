@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { boardTaskItems } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireItemCap } from "@/lib/workspace-access";
+import { publishCardCounts } from "@/lib/card-counts";
 
 export async function PATCH(
   request: NextRequest,
@@ -36,6 +37,11 @@ export async function PATCH(
     .set({ ...updates, updatedAt: new Date() })
     .where(eq(boardTaskItems.id, itemId));
 
+  // Only the done toggle moves the badge; a title edit leaves counts alone.
+  if (updates.done !== undefined) {
+    await publishCardCounts(guard.boardId, guard.cardId);
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -51,6 +57,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     .update(boardTaskItems)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(eq(boardTaskItems.id, itemId));
+
+  await publishCardCounts(guard.boardId, guard.cardId);
 
   return NextResponse.json({ ok: true });
 }

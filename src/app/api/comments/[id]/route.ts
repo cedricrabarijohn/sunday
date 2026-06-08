@@ -5,6 +5,7 @@ import { boardTaskComments } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
 import { publishCard } from "@/lib/card-bus";
+import { publishCardCounts } from "@/lib/card-counts";
 
 /**
  * Edit own comment. Workspace/board admins may edit anyone's comment —
@@ -106,6 +107,7 @@ export async function DELETE(
     .where(eq(boardTaskComments.id, commentId));
 
   publishCard(comment.boardTaskId, { type: "comment_deleted", commentId });
+  await publishCardCounts(guard.boardId, comment.boardTaskId);
 
   return NextResponse.json({ ok: true });
 }

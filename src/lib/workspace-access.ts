@@ -395,6 +395,7 @@ export async function requireAttachmentCap(
         storageKey: string | null;
         boardTaskId: number;
       };
+      boardId: number;
       workspaceId: number;
       capabilities: BoardCapabilitySet;
     }>
@@ -444,6 +445,7 @@ export async function requireAttachmentCap(
       storageKey: row.storageKey,
       boardTaskId: row.boardTaskId,
     },
+    boardId: row.boardId,
     workspaceId: row.boardWorkspaceId,
     capabilities: caps,
   };

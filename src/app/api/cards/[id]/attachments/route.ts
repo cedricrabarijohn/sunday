@@ -5,6 +5,7 @@ import { boardTaskAttachments } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
 import { getStorage } from "@/lib/storage";
+import { publishCardCounts } from "@/lib/card-counts";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME = new Set([
@@ -79,6 +80,8 @@ export async function POST(
     createdAt: new Date(),
   });
   const attachmentId = Number((result as { insertId: number }).insertId);
+
+  await publishCardCounts(guard.boardId, cardId);
 
   return NextResponse.json(
     {

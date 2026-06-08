@@ -5,6 +5,7 @@ import { boardTaskAttachments } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireAttachmentCap } from "@/lib/workspace-access";
 import { getStorage } from "@/lib/storage";
+import { publishCardCounts } from "@/lib/card-counts";
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
@@ -19,6 +20,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     .update(boardTaskAttachments)
     .set({ deletedAt: new Date() })
     .where(eq(boardTaskAttachments.id, attachmentId));
+
+  await publishCardCounts(guard.boardId, attachment.boardTaskId);
 
   // Best-effort delete from object storage.
   let key = attachment.storageKey ?? null;

@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { boardTaskItems } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireCardCap } from "@/lib/workspace-access";
+import { publishCardCounts } from "@/lib/card-counts";
 
 export async function POST(
   request: NextRequest,
@@ -37,6 +38,8 @@ export async function POST(
     updatedAt: now,
   });
   const itemId = Number((result as { insertId: number }).insertId);
+
+  await publishCardCounts(guard.boardId, cardId);
 
   return NextResponse.json(
     { item: { id: itemId, title, done: 0, position } },

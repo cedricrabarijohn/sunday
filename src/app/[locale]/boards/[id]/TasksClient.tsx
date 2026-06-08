@@ -220,6 +220,21 @@ export default function TasksClient({
             ),
           );
           break;
+        case "card_counts":
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === ev.cardId
+                ? {
+                    ...t,
+                    itemsTotal: ev.itemsTotal,
+                    itemsDone: ev.itemsDone,
+                    attachments: ev.attachments,
+                    comments: ev.comments,
+                  }
+                : t,
+            ),
+          );
+          break;
         case "pile_created": {
           const p = ev.pile;
           setPiles((prev) =>
