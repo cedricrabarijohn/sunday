@@ -11,11 +11,61 @@
   flex-direction: column;
 }
 
+.group.groupDrop .tableScroller {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .groupHead {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0 0.2rem 0.5rem;
+}
+.groupTitleInput {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  padding: 0.15rem 0.4rem;
+  margin: -0.15rem -0.4rem;
+  min-width: 0;
+  max-width: 220px;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.groupTitleInput:hover {
+  border-color: var(--border);
+}
+.groupTitleInput:focus {
+  outline: none;
+  background: var(--bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.groupDelete {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-mute);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.groupDelete:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 .groupDot {
   width: 10px;
@@ -82,12 +132,43 @@
 }
 
 /* --- column sizing --- */
+.colHandle { width: 26px; }
 .colTitle { width: 34%; min-width: 220px; }
 .colPeople { width: 120px; }
 .colDue { width: 150px; }
 .colLabels { width: 22%; min-width: 160px; }
 .colMeta { width: 150px; }
 .colActions { width: 72px; }
+
+/* --- drag handle + dragging state --- */
+.handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  color: var(--text-mute);
+  cursor: grab;
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
+}
+.row:hover .handle {
+  color: var(--text-3);
+}
+.rowDragging {
+  opacity: 0.4;
+}
+
+/* --- drop indicator row --- */
+.dropRow td {
+  padding: 0 0.8rem;
+}
+.dropBar {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
 
 .emptyRow td {
   padding: 0.9rem 0.8rem;
@@ -371,6 +452,81 @@
 }
 .addInput::placeholder {
   color: var(--text-mute);
+}
+
+/* --- add a pile --- */
+.addPileBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: flex-start;
+  padding: 0.5rem 0.8rem;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.addPileBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--accent);
+}
+
+.addPileForm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+}
+.addPileInput {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  height: 34px;
+  padding: 0 0.6rem;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+.addPileInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.addPilePrimary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  height: 34px;
+  padding: 0 0.9rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.addPilePrimary:disabled {
+  background: var(--inset);
+  color: var(--text-mute);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+.addPileCancel {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.addPileCancel:hover {
+  color: var(--text-1);
 }
 
 /* On phones the action column is always visible (no hover). */

@@ -68,8 +68,8 @@ export type Pile = {
   position: number;
 };
 
-type DragState = { cardId: number; fromPileId: number | null } | null;
-type DropHint = { pileId: number; beforeCardId: number | null } | null;
+export type DragState = { cardId: number; fromPileId: number | null } | null;
+export type DropHint = { pileId: number; beforeCardId: number | null } | null;
 
 type BoardFilterState = {
   query: string;
@@ -501,7 +501,7 @@ export default function TasksClient({
   };
 
   // --- drag & drop
-  const onCardDragStart = (e: DragEvent<HTMLDivElement>, card: Task) => {
+  const onCardDragStart = (e: DragEvent<HTMLElement>, card: Task) => {
     if (card.id < 0) {
       e.preventDefault();
       return;
@@ -516,7 +516,7 @@ export default function TasksClient({
     setHint(null);
   };
 
-  const onCardDragOver = (e: DragEvent<HTMLDivElement>, pile: Pile, card: Task) => {
+  const onCardDragOver = (e: DragEvent<HTMLElement>, pile: Pile, card: Task) => {
     if (!drag) return;
     e.preventDefault();
     e.stopPropagation();
@@ -524,7 +524,7 @@ export default function TasksClient({
     setHint({ pileId: pile.id, beforeCardId: card.id });
   };
 
-  const onPileDragOver = (e: DragEvent<HTMLDivElement>, pile: Pile) => {
+  const onPileDragOver = (e: DragEvent<HTMLElement>, pile: Pile) => {
     if (!drag) return;
     e.preventDefault();
     setHint((prev) => {
@@ -533,14 +533,14 @@ export default function TasksClient({
     });
   };
 
-  const onPileDragLeave = (e: DragEvent<HTMLDivElement>, pile: Pile) => {
+  const onPileDragLeave = (e: DragEvent<HTMLElement>, pile: Pile) => {
     if (!drag) return;
     const related = e.relatedTarget as Node | null;
     if (related && (e.currentTarget as Node).contains(related)) return;
     setHint((prev) => (prev && prev.pileId === pile.id ? null : prev));
   };
 
-  const onPileDrop = async (e: DragEvent<HTMLDivElement>, pile: Pile) => {
+  const onPileDrop = async (e: DragEvent<HTMLElement>, pile: Pile) => {
     e.preventDefault();
     e.stopPropagation();
     if (!drag) return;
@@ -941,12 +941,24 @@ export default function TasksClient({
               editCard: can("edit_card"),
               createCard: can("create_card"),
               deleteCard: can("delete_card"),
+              managePiles: can("manage_piles"),
             }}
+            drag={drag}
+            hint={hint}
             onAddCard={onAddCard}
             onDeleteCard={onDeleteCard}
             onOpenCard={(id) => id > 0 && setOpenCardId(id)}
             onRenameCard={onRenameCard}
             onSetCardDue={onSetCardDue}
+            onRenamePile={onRenamePile}
+            onDeletePile={onDeletePile}
+            onCreatePile={onCreatePile}
+            onCardDragStart={onCardDragStart}
+            onCardDragEnd={onCardDragEnd}
+            onCardDragOver={onCardDragOver}
+            onPileDragOver={onPileDragOver}
+            onPileDragLeave={onPileDragLeave}
+            onPileDrop={onPileDrop}
           />
         ) : (
           <div className={kStyles.scroller}>
@@ -1084,12 +1096,12 @@ function PileColumn({
   onOpenCard: (id: number) => void;
   onRenamePile: (id: number, title: string) => void;
   onDeletePile: (pile: Pile) => void;
-  onCardDragStart: (e: DragEvent<HTMLDivElement>, card: Task) => void;
+  onCardDragStart: (e: DragEvent<HTMLElement>, card: Task) => void;
   onCardDragEnd: () => void;
-  onCardDragOver: (e: DragEvent<HTMLDivElement>, pile: Pile, card: Task) => void;
-  onPileDragOver: (e: DragEvent<HTMLDivElement>, pile: Pile) => void;
-  onPileDragLeave: (e: DragEvent<HTMLDivElement>, pile: Pile) => void;
-  onPileDrop: (e: DragEvent<HTMLDivElement>, pile: Pile) => void;
+  onCardDragOver: (e: DragEvent<HTMLElement>, pile: Pile, card: Task) => void;
+  onPileDragOver: (e: DragEvent<HTMLElement>, pile: Pile) => void;
+  onPileDragLeave: (e: DragEvent<HTMLElement>, pile: Pile) => void;
+  onPileDrop: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   canManagePiles: boolean;
   canCreateCard: boolean;
   canDeleteCard: boolean;
@@ -1197,9 +1209,9 @@ function KanbanCard({
 }: {
   card: Task;
   dragging: boolean;
-  onDragStart: (e: DragEvent<HTMLDivElement>) => void;
+  onDragStart: (e: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
-  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: DragEvent<HTMLElement>) => void;
   onDelete: (id: number) => void;
   onOpen: (id: number) => void;
   canDelete: boolean;
