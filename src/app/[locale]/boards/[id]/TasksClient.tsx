@@ -11,7 +11,6 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
@@ -99,7 +98,6 @@ export default function TasksClient({
 }) {
   const caps = new Set(capabilities);
   const can = (c: string) => caps.has(c);
-  const router = useRouter();
   const { confirm } = useConfirm();
   const toast = useToast();
   const [tasks, setTasks] = useState<Task[]>(initial);
