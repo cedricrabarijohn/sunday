@@ -20,6 +20,11 @@ export default function RouteProgress() {
   const trickle = useRef<ReturnType<typeof setInterval> | null>(null);
   const fade = useRef<ReturnType<typeof setTimeout> | null>(null);
   const active = useRef(false);
+  const startedAt = useRef(0);
+
+  // Keep the bar on screen at least this long so fast (e.g. cached or
+  // localhost) navigations still show a visible sweep instead of a flicker.
+  const MIN_VISIBLE_MS = 360;
 
   const stopTrickle = () => {
     if (trickle.current) {
@@ -38,6 +43,7 @@ export default function RouteProgress() {
     setFinishing(false);
     setVisible(true);
     setWidth(8);
+    startedAt.current = performance.now();
     stopTrickle();
     // Ease toward 90% and wait there until the route resolves.
     trickle.current = setInterval(() => {
@@ -48,14 +54,22 @@ export default function RouteProgress() {
   const done = () => {
     if (!active.current) return;
     active.current = false;
-    stopTrickle();
-    setWidth(100);
-    setFinishing(true);
-    fade.current = setTimeout(() => {
-      setVisible(false);
-      setWidth(0);
-      setFinishing(false);
-    }, 320);
+    const finish = () => {
+      stopTrickle();
+      setWidth(100);
+      setFinishing(true);
+      fade.current = setTimeout(() => {
+        setVisible(false);
+        setWidth(0);
+        setFinishing(false);
+      }, 320);
+    };
+    // Hold briefly so a near-instant navigation still reads as a full sweep
+    // rather than a flicker.
+    const elapsed = performance.now() - startedAt.current;
+    const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
+    if (wait === 0) finish();
+    else fade.current = setTimeout(finish, wait);
   };
 
   // The route committed — finish the bar.
@@ -67,7 +81,7 @@ export default function RouteProgress() {
   // Start on same-origin link clicks that change the path.
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.button !== 0) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const anchor = (e.target as HTMLElement | null)?.closest?.("a");
       if (!anchor) return;
@@ -86,8 +100,10 @@ export default function RouteProgress() {
       if (url.pathname === window.location.pathname) return;
       start();
     };
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    // Capture phase: Next's <Link> calls preventDefault() in the bubble
+    // phase to take over navigation, so we must run before it.
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   // Failsafe: never leave the bar hanging if a navigation is aborted.
