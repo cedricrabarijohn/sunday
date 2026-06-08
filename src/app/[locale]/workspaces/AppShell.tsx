@@ -171,8 +171,6 @@ export default function AppShell({
         </div>
       </aside>
 
-      <NotificationsBell />
-
       <div className={styles.content}>
         <main
           className={`${wide ? styles.mainWide : styles.main} ${styles.fadeIn}`}

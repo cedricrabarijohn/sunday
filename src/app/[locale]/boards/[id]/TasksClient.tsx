@@ -30,6 +30,7 @@ import styles from "../../workspaces/AppShell.module.scss";
 import kStyles from "./Kanban.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import BoardTable from "./BoardTable";
+import NotificationsBell from "../../workspaces/NotificationsBell";
 
 export type CardLabel = { id: number; title: string; color: string };
 export type CardAssignee = {
@@ -887,6 +888,7 @@ export default function TasksClient({
           >
             <SettingsIcon size={16} />
           </Link>
+          <NotificationsBell />
         </div>
       </div>
 
