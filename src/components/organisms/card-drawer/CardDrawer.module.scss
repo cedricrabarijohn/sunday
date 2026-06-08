@@ -614,6 +614,9 @@
   background: var(--surface-2);
 }
 .toolbarBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-2);
@@ -625,6 +628,13 @@
   border-radius: 5px;
   cursor: pointer;
   transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+
+.toolbarSep {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.25rem;
+  background: var(--border);
 }
 .toolbarBtn:hover {
   background: var(--surface);

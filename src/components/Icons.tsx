@@ -142,6 +142,16 @@ export function TableIcon(props: IconProps) {
   );
 }
 
+export function ImageIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9" r="1.6" />
+      <path d="m4 18 5-5 4 4 3-3 4 4" />
+    </svg>
+  );
+}
+
 export function TagIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

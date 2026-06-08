@@ -13,7 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { UsersIcon, TagIcon } from "@/components/Icons";
+import { UsersIcon, TagIcon, ImageIcon } from "@/components/Icons";
 import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 
@@ -461,6 +461,13 @@ export default function CardDrawer({
       editor.appendChild(img);
       editor.appendChild(document.createElement("br"));
     }
+  };
+
+  // Toolbar image button: same upload + insert flow as paste/drop, just a
+  // friendlier entry point.
+  const pickAndInsertImage = async (file: File) => {
+    const up = await uploadImageForDescription(file);
+    if (up) insertImageAtCursor(up.url, up.alt);
   };
 
   const onDescPaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -1394,7 +1401,7 @@ export default function CardDrawer({
                   onDragLeave={onDescDragLeave}
                   onDrop={onDescDrop}
                 >
-                  <DescToolbar onCmd={applyCommand} />
+                  <DescToolbar onCmd={applyCommand} onPickImage={pickAndInsertImage} />
                   <div
                     ref={descRef}
                     className={styles.descEditor}
@@ -2676,7 +2683,14 @@ const TOOLBAR_BUTTONS: ReadonlyArray<{
   { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
 ];
 
-function DescToolbar({ onCmd }: { onCmd: (cmd: string, value?: string) => void }) {
+function DescToolbar({
+  onCmd,
+  onPickImage,
+}: {
+  onCmd: (cmd: string, value?: string) => void;
+  onPickImage: (file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const wrapCode = () => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -2733,6 +2747,29 @@ function DescToolbar({ onCmd }: { onCmd: (cmd: string, value?: string) => void }
       >
         &lt;/&gt;
       </button>
+      <span className={styles.toolbarSep} aria-hidden />
+      <button
+        type="button"
+        className={styles.toolbarBtn}
+        title="Insert image"
+        aria-label="Insert image"
+        // Keep the editor's selection so the image lands at the caret.
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => fileRef.current?.click()}
+      >
+        <ImageIcon size={15} />
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onPickImage(file);
+          e.target.value = ""; // allow re-picking the same file
+        }}
+      />
     </div>
   );
 }
