@@ -1402,7 +1402,13 @@ export default function CardDrawer({
                   onDragLeave={onDescDragLeave}
                   onDrop={onDescDrop}
                 >
-                  <DescToolbar onCmd={applyCommand} onPickImage={pickAndInsertImage} />
+                  <DescToolbar
+                    onCmd={applyCommand}
+                    onPickImage={pickAndInsertImage}
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    saving={descSaving}
+                  />
                   <div
                     ref={descRef}
                     className={styles.descEditor}
@@ -2706,9 +2712,15 @@ const TOOLBAR_BUTTONS: ReadonlyArray<{
 function DescToolbar({
   onCmd,
   onPickImage,
+  onSave,
+  onCancel,
+  saving,
 }: {
   onCmd: (cmd: string, value?: string) => void;
   onPickImage: (file: File) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const wrapCode = () => {
@@ -2792,6 +2804,27 @@ function DescToolbar({
           e.target.value = ""; // allow re-picking the same file
         }}
       />
+
+      <div className={styles.toolbarActions}>
+        <button
+          type="button"
+          className={styles.toolbarGhost}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarPrimary}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onSave}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
     </div>
   );
 }
