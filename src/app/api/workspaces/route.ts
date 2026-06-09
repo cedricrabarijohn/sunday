@@ -6,12 +6,15 @@ import { requireAuth } from "@/lib/require-auth";
 
 const WORKSPACE_ADMIN_ROLE_ID = 1;
 
+// Labels are meant to be orthogonal to status — the piles ("To do",
+// "In progress"…) already carry the workflow state. So the defaults describe
+// the *kind* and *priority* of work instead of duplicating the columns.
 const DEFAULT_LABELS: Array<{ title: string; color: string }> = [
-  { title: "To do", color: "slate" },
-  { title: "In progress", color: "amber" },
-  { title: "Review", color: "sky" },
-  { title: "Blocked", color: "coral" },
-  { title: "Done", color: "lime" },
+  { title: "Bug", color: "coral" },
+  { title: "Feature", color: "indigo" },
+  { title: "Improvement", color: "sky" },
+  { title: "Urgent", color: "pink" },
+  { title: "Documentation", color: "teal" },
 ];
 
 export async function GET() {
