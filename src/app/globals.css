@@ -46,23 +46,25 @@
 }
 
 [data-theme="dark"] {
-  --bg:        #09090b;
-  --surface:   #111114;
-  --surface-2: #18181b;
-  --surface-hover: #1c1c20;
-  --inset:     #1f1f23;
+  /* Soft dark: a dark neutral base (not pure black) with clearly stepped
+     surfaces so panels read as layered instead of a flat black sheet. */
+  --bg:        #141417;
+  --surface:   #1b1b20;
+  --surface-2: #232329;
+  --surface-hover: #292930;
+  --inset:     #26262d;
 
-  --border:    #27272a;
-  --border-strong: #3f3f46;
+  --border:    #2e2e36;
+  --border-strong: #41414b;
 
-  --text-1:    #fafafa;
-  --text-2:    #a1a1aa;
-  --text-3:    #71717a;
-  --text-mute: #52525b;
+  --text-1:    #f4f4f6;
+  --text-2:    #b2b2bd;
+  --text-3:    #83838f;
+  --text-mute: #5d5d68;
 
-  --accent:        #7c7cf0;
-  --accent-hover:  #6b6be8;
-  --accent-soft:   rgba(124, 124, 240, 0.16);
+  --accent:        #8888f4;
+  --accent-hover:  #9696f7;
+  --accent-soft:   rgba(136, 136, 244, 0.16);
   --accent-fg:     #ffffff;
 
   --danger:      #ef4444;
