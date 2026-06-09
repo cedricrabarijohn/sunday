@@ -46,16 +46,16 @@
 }
 
 [data-theme="dark"] {
-  /* Soft dark: a dark neutral base (not pure black) with clearly stepped
-     surfaces so panels read as layered instead of a flat black sheet. */
-  --bg:        #141417;
-  --surface:   #1b1b20;
-  --surface-2: #232329;
-  --surface-hover: #292930;
-  --inset:     #26262d;
+  /* Soft dark with a subtle cool indigo tint that harmonizes with the iris
+     accent (committed baseline is the neutral-gray variant). */
+  --bg:        #141419;
+  --surface:   #1b1b23;
+  --surface-2: #23232d;
+  --surface-hover: #2a2a35;
+  --inset:     #262630;
 
-  --border:    #2e2e36;
-  --border-strong: #41414b;
+  --border:    #2f2f3b;
+  --border-strong: #43434f;
 
   --text-1:    #f4f4f6;
   --text-2:    #b2b2bd;
