@@ -514,6 +514,84 @@
   gap: 0.85rem;
 }
 
+/* Create-workspace CTA card (sits at the end of the grid). */
+.addCard {
+  border-style: dashed;
+  background: transparent;
+  min-height: 132px;
+  box-shadow: none;
+}
+.addCardBtn {
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: var(--text-2);
+  font-family: inherit;
+}
+.addCardBtn:hover {
+  border-color: var(--card-hue, var(--accent));
+  background: var(--surface);
+  color: var(--text-1);
+  transform: translateY(-1px);
+}
+.addCardIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 20px;
+  line-height: 1;
+}
+.addCardLabel {
+  font-size: 14px;
+  font-weight: 600;
+}
+.addCardForm {
+  justify-content: center;
+  gap: 0.7rem;
+  cursor: default;
+}
+.addCardInput {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-1);
+}
+.addCardInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.addCardActions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+.ghostBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.ghostBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border-strong);
+}
+
 .card {
   position: relative;
   display: flex;

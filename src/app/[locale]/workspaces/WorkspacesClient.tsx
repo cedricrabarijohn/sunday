@@ -10,9 +10,16 @@ type Workspace = { id: number; title: string | null };
 export default function WorkspacesClient({ initial }: { initial: Workspace[] }) {
   const [workspaces, setWorkspaces] = useState(initial);
   const [title, setTitle] = useState("");
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
+
+  function cancelCreate() {
+    setCreating(false);
+    setTitle("");
+    setError(null);
+  }
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -25,6 +32,7 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
     startTransition(() => {
       setWorkspaces((prev) => [...prev, { id: tempId, title: trimmed }]);
       setTitle("");
+      setCreating(false);
     });
 
     try {
@@ -70,59 +78,68 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
         </span>
       </div>
 
-      <form className={styles.composer} onSubmit={onCreate}>
-        <input
-          className={styles.composerInput}
-          placeholder="Name your new workspace and press enter"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={50}
-          aria-label="New workspace name"
-        />
-        <div className={styles.composerActions}>
-          <span className={styles.kbdHint}>↵</span>
-          <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
-            Create
-          </button>
-        </div>
-      </form>
-
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {workspaces.length === 0 ? (
-        <div className={styles.empty}>
-          <div className={styles.emptyMark}>＋</div>
-          <strong>No workspaces yet</strong>
-          Type a name above and hit enter to create your first one.
-        </div>
-      ) : (
-        <div className={styles.grid}>
-          {workspaces.map((w) => {
-            const c = colorForId(w.id);
-            const style = {
-              "--card-hue": c.hue,
-              "--card-soft": c.soft,
-            } as CSSProperties;
-            const letter = (w.title?.[0] || "W").toUpperCase();
-            return (
-              <Link
-                key={w.id}
-                href={w.id > 0 ? `/workspaces/${w.id}` : "#"}
-                className={styles.card}
-                style={style}
-                prefetch={w.id > 0}
-              >
-                <span className={styles.cardBadge}>{letter}</span>
-                <div className={styles.cardTitle}>{w.title || "Untitled"}</div>
-                <div className={styles.cardFooter}>
-                  <span className={styles.cardCount}>{c.name}</span>
-                  <span className={styles.cardArrow}>→</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      <div className={styles.grid}>
+        {workspaces.map((w) => {
+          const c = colorForId(w.id);
+          const style = {
+            "--card-hue": c.hue,
+            "--card-soft": c.soft,
+          } as CSSProperties;
+          const letter = (w.title?.[0] || "W").toUpperCase();
+          return (
+            <Link
+              key={w.id}
+              href={w.id > 0 ? `/workspaces/${w.id}` : "#"}
+              className={styles.card}
+              style={style}
+              prefetch={w.id > 0}
+            >
+              <span className={styles.cardBadge}>{letter}</span>
+              <div className={styles.cardTitle}>{w.title || "Untitled"}</div>
+              <div className={styles.cardFooter}>
+                <span className={styles.cardCount}>{c.name}</span>
+                <span className={styles.cardArrow}>→</span>
+              </div>
+            </Link>
+          );
+        })}
+
+        {creating ? (
+          <form className={`${styles.card} ${styles.addCard} ${styles.addCardForm}`} onSubmit={onCreate}>
+            <input
+              className={styles.addCardInput}
+              placeholder="Workspace name"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") cancelCreate();
+              }}
+              maxLength={50}
+              aria-label="New workspace name"
+              autoFocus
+            />
+            <div className={styles.addCardActions}>
+              <button type="button" className={styles.ghostBtn} onClick={cancelCreate}>
+                Cancel
+              </button>
+              <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
+                Create
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.card} ${styles.addCard} ${styles.addCardBtn}`}
+            onClick={() => setCreating(true)}
+          >
+            <span className={styles.addCardIcon}>＋</span>
+            <span className={styles.addCardLabel}>New workspace</span>
+          </button>
+        )}
+      </div>
     </>
   );
 }
