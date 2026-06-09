@@ -312,7 +312,7 @@
   border-radius: 50%;
   background: var(--success, #22c55e);
 }
-/* Expanding ring — transform + opacity only. */
+/* Expanding ring: transform + opacity only. */
 .previewLiveDot::after {
   content: "";
   position: absolute;
