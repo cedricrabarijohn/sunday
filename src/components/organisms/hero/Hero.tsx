@@ -150,6 +150,10 @@ const Hero = () => {
             <span className={styles.previewDot} />
             <span className={styles.previewDot} />
             <span className={styles.previewDot} />
+            <span className={styles.previewLive}>
+              <span className={styles.previewLiveDot} />
+              live
+            </span>
             <span className={styles.previewTabLabel}>sunday / engineering / sprint</span>
           </div>
 

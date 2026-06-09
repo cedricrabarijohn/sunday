@@ -294,6 +294,38 @@
   background: var(--border-strong);
 }
 
+.previewLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.previewLiveDot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success, #22c55e);
+}
+/* Expanding ring — transform + opacity only. */
+.previewLiveDot::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid var(--success, #22c55e);
+  animation: heroLivePulse 2.4s ease-out infinite;
+}
+@keyframes heroLivePulse {
+  0% { transform: scale(0.6); opacity: 0.7; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
 .previewTabLabel {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -349,7 +381,12 @@
   flex-direction: column;
   gap: 0.45rem;
   min-width: 0;
+  /* Entrance lives on the column (transform), so cards are free to float. */
+  animation: riseSm 460ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
+.previewKanban .previewCol:nth-child(1) { animation-delay: 360ms; }
+.previewKanban .previewCol:nth-child(2) { animation-delay: 440ms; }
+.previewKanban .previewCol:nth-child(3) { animation-delay: 520ms; }
 .previewColHead {
   display: flex;
   align-items: center;
@@ -376,11 +413,18 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
-  animation: riseSm 360ms ease-out both;
+  /* Gentle, compositor-only float (transform only). Negative delays desync
+     the cards instantly without a startup wait. */
+  animation: heroFloat 7s ease-in-out infinite;
 }
-.previewKanban .previewCol:nth-child(1) .previewCard { animation-delay: 480ms; }
-.previewKanban .previewCol:nth-child(2) .previewCard { animation-delay: 560ms; }
-.previewKanban .previewCol:nth-child(3) .previewCard { animation-delay: 640ms; }
+.previewKanban .previewCol:nth-child(1) .previewCard:last-child { animation-delay: -1.8s; }
+.previewKanban .previewCol:nth-child(2) .previewCard { animation-delay: -3.5s; }
+.previewKanban .previewCol:nth-child(3) .previewCard { animation-delay: -5.2s; }
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
 
 .previewCardLabels {
   display: flex;
@@ -461,4 +505,18 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-mute);
+}
+
+/* Respect users who ask for less motion: kill the looping animations and the
+   hover tilt, keep the static layout. */
+@media (prefers-reduced-motion: reduce) {
+  .previewCard,
+  .previewLiveDot::after,
+  .headlineAccent,
+  .eyebrowDot {
+    animation: none !important;
+  }
+  .preview:hover {
+    transform: none;
+  }
 }
