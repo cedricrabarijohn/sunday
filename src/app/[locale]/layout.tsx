@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { locales } from '@/i18n';
 
 // Self-hosted at build time (no runtime third-party request, no layout shift).
-const fontSans = Space_Grotesk({
+// Monospace-driven UI for a technical, dev-tool feel.
+const fontSans = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-sans-next",
   display: "swap",
