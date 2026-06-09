@@ -66,6 +66,18 @@ services:
     networks:
       - sunday-network
 
+  # Local SMTP catcher for development. Captures every outgoing email in a web
+  # UI (http://localhost:8025) instead of sending it for real.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ${NAMESPACE}_mailpit
+    restart: always
+    ports:
+      - "8025:8025" # web UI
+      - "1025:1025" # SMTP
+    networks:
+      - sunday-network
+
   app:
     build:
       context: .

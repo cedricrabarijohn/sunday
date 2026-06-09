@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users, workspaceInvites } from "@/db/schema";
+import { users, workspaceInvites, workspaces } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
+import { appUrl, sendMail } from "@/lib/mail";
+import { inviteEmail } from "@/lib/mail-templates";
 import {
   WORKSPACE_ADMIN_ROLE_ID,
   WORKSPACE_MEMBER_ROLE_ID,
@@ -87,6 +89,31 @@ export async function POST(
     expiresAt: expires,
   });
   const inviteId = Number((result as { insertId: number }).insertId);
+
+  // Email the invite link (best-effort; only when an address was given).
+  if (email) {
+    const [inviter] = await db
+      .select({ firstname: users.firstname, lastname: users.lastname, email: users.email })
+      .from(users)
+      .where(eq(users.id, auth.session.sub))
+      .limit(1);
+    const [ws] = await db
+      .select({ title: workspaces.title })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    const inviterName =
+      [inviter?.firstname, inviter?.lastname].filter(Boolean).join(" ") ||
+      inviter?.email ||
+      "Someone";
+    const { subject, html } = inviteEmail({
+      inviterName,
+      resourceKind: "workspace",
+      resourceName: ws?.title || "a workspace",
+      acceptUrl: `${appUrl()}/invites/${token}`,
+    });
+    await sendMail({ to: email, subject, html });
+  }
 
   return NextResponse.json(
     {

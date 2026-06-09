@@ -6,6 +6,8 @@ import { boardInvites, users } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
 import { BOARD_ADMIN_ROLE_ID, BOARD_MEMBER_ROLE_ID } from "@/lib/board-access";
+import { appUrl, sendMail } from "@/lib/mail";
+import { inviteEmail } from "@/lib/mail-templates";
 
 const ALLOWED_ROLE_IDS = new Set([BOARD_ADMIN_ROLE_ID, BOARD_MEMBER_ROLE_ID]);
 
@@ -79,6 +81,25 @@ export async function POST(
     expiresAt: expires,
   });
   const inviteId = Number((result as { insertId: number }).insertId);
+
+  if (email) {
+    const [inviter] = await db
+      .select({ firstname: users.firstname, lastname: users.lastname, email: users.email })
+      .from(users)
+      .where(eq(users.id, auth.session.sub))
+      .limit(1);
+    const inviterName =
+      [inviter?.firstname, inviter?.lastname].filter(Boolean).join(" ") ||
+      inviter?.email ||
+      "Someone";
+    const { subject, html } = inviteEmail({
+      inviterName,
+      resourceKind: "board",
+      resourceName: guard.board.title || "a board",
+      acceptUrl: `${appUrl()}/board-invites/${token}`,
+    });
+    await sendMail({ to: email, subject, html });
+  }
 
   return NextResponse.json(
     {
