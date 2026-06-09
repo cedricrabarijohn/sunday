@@ -77,3 +77,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.divider {
+  height: 1px;
+  margin: 0.3rem 0.25rem;
+  background: var(--border);
+}
+
+.menuItemDanger {
+  color: var(--danger, #c4322a);
+}
+.menuItemDanger:hover {
+  background: var(--danger-soft, rgba(196, 50, 42, 0.1));
+}

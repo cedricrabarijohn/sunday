@@ -161,7 +161,6 @@
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
-.card:hover .cardActions { opacity: 1; }
 .card:active { cursor: grabbing; }
 
 /* Buttons inside the card keep their own cursor so the card-level
@@ -617,8 +616,6 @@
   display: inline-flex;
   gap: 0.2rem;
   align-items: center;
-  opacity: 0;
-  transition: opacity 140ms ease;
 }
 
 .iconBtn {

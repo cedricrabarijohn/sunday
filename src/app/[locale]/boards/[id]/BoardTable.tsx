@@ -8,7 +8,7 @@ import {
   PaperclipIcon,
   ChecklistIcon,
 } from "@/components/Icons";
-import MovePileMenu from "./MovePileMenu";
+import CardActionsMenu from "./CardActionsMenu";
 import type {
   Task,
   Pile,
@@ -104,12 +104,12 @@ export default function BoardTable(props: Props) {
                 <thead>
                   <tr>
                     {caps.editCard && <th className={styles.colHandle} aria-hidden />}
+                    <th className={styles.colActions} aria-label="Actions" />
                     <th className={styles.colTitle}>Card</th>
                     <th className={styles.colPeople}>Assignees</th>
                     <th className={styles.colDue}>Due</th>
                     <th className={styles.colLabels}>Labels</th>
                     <th className={styles.colMeta}>Activity</th>
-                    <th className={styles.colActions} aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -231,6 +231,18 @@ function Row({
         </td>
       )}
 
+      <td className={styles.colActions}>
+        <CardActionsMenu
+          piles={piles}
+          currentPileId={card.pileId}
+          canMove={caps.editCard && card.id > 0}
+          canDelete={caps.deleteCard && card.id > 0}
+          onMove={(pileId) => onMoveCardToPile(card.id, pileId)}
+          onDelete={() => onDeleteCard(card.id)}
+          onOpen={open}
+        />
+      </td>
+
       <td className={styles.colTitle}>
         {caps.editCard ? (
           <input
@@ -322,38 +334,6 @@ function Row({
             <span className={styles.mute}>—</span>
           )}
         </button>
-      </td>
-
-      <td className={styles.colActions}>
-        <div className={styles.actions}>
-          {caps.editCard && card.id > 0 && (
-            <MovePileMenu
-              piles={piles}
-              currentPileId={card.pileId}
-              onMove={(pileId) => onMoveCardToPile(card.id, pileId)}
-            />
-          )}
-          <button
-            type="button"
-            className={styles.iconBtn}
-            onClick={open}
-            aria-label="Open card"
-            title="Open card"
-          >
-            ›
-          </button>
-          {caps.deleteCard && (
-            <button
-              type="button"
-              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-              onClick={() => onDeleteCard(card.id)}
-              aria-label="Delete card"
-              title="Delete"
-            >
-              ×
-            </button>
-          )}
-        </div>
       </td>
     </tr>
   );
