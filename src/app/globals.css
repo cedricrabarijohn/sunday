@@ -37,10 +37,11 @@
   --radius:    8px;
   --radius-lg: 12px;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
-    "Liberation Mono", monospace;
+  --font-sans: var(--font-sans-next), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-mono-next), ui-monospace, "SF Mono", "JetBrains Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
 
   color-scheme: light;
 }

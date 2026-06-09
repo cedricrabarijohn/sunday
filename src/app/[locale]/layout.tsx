@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { locales } from '@/i18n';
+
+// Self-hosted at build time (no runtime third-party request, no layout shift).
+const fontSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans-next",
+  display: "swap",
+});
+const fontMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono-next",
+  display: "swap",
+});
 import { ThemeProvider } from '@/context/ThemeContext';
 import ConfirmProvider from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import ToastProvider from "@/components/organisms/toast/ToastProvider";
@@ -32,7 +45,12 @@ export default async function LocaleLayout({
   // Fetch messages for the locale
   const messages = await getMessages();
   return (
-    <html lang={locale} data-theme="light" suppressHydrationWarning>
+    <html
+      lang={locale}
+      data-theme="light"
+      className={`${fontSans.variable} ${fontMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
