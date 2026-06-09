@@ -23,12 +23,19 @@ export default function BoardsClient({
   const can = (c: string) => caps.has(c);
   const [boards, setBoards] = useState(initial);
   const [title, setTitle] = useState("");
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
   const wsColor = colorForId(workspaceId);
   const { confirm } = useConfirm();
+
+  function cancelCreate() {
+    setCreating(false);
+    setTitle("");
+    setError(null);
+  }
 
   async function onDelete(e: MouseEvent, board: Board) {
     e.preventDefault();
@@ -71,6 +78,7 @@ export default function BoardsClient({
         { id: tempId, title: trimmed, createdAt: new Date().toISOString() },
       ]);
       setTitle("");
+      setCreating(false);
     });
 
     try {
@@ -125,35 +133,54 @@ export default function BoardsClient({
         </div>
       </div>
 
-      {can("create_board") && (
-        <form className={styles.composer} onSubmit={onCreate}>
-          <input
-            className={styles.composerInput}
-            placeholder="Name a new board and press enter"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={100}
-            aria-label="New board name"
-          />
-          <div className={styles.composerActions}>
-            <span className={styles.kbdHint}>↵</span>
-            <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
-              Create
-            </button>
-          </div>
-        </form>
-      )}
-
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {boards.length === 0 ? (
+      {boards.length === 0 && !can("create_board") ? (
         <div className={styles.empty}>
           <div className={styles.emptyMark}>≡</div>
           <strong>No boards yet</strong>
-          A board holds a list of tasks. Create your first one above.
+          You don&apos;t have permission to create boards in this workspace.
         </div>
       ) : (
         <div className={styles.grid}>
+          {can("create_board") &&
+            (creating ? (
+              <form
+                className={`${styles.card} ${styles.addCard} ${styles.addCardForm}`}
+                onSubmit={onCreate}
+              >
+                <input
+                  className={styles.addCardInput}
+                  placeholder="Board name"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") cancelCreate();
+                  }}
+                  maxLength={100}
+                  aria-label="New board name"
+                  autoFocus
+                />
+                <div className={styles.addCardActions}>
+                  <button type="button" className={styles.ghostBtn} onClick={cancelCreate}>
+                    Cancel
+                  </button>
+                  <button type="submit" className={styles.primaryBtn} disabled={!title.trim()}>
+                    Create
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.card} ${styles.addCard} ${styles.addCardBtn}`}
+                onClick={() => setCreating(true)}
+              >
+                <span className={styles.addCardIcon}>＋</span>
+                <span className={styles.addCardLabel}>New board</span>
+              </button>
+            ))}
+
           {boards.map((b) => {
             const c = colorForId(b.id);
             const style = {

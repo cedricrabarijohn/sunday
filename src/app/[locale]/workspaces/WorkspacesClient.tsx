@@ -81,31 +81,6 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
       <div className={styles.grid}>
-        {workspaces.map((w) => {
-          const c = colorForId(w.id);
-          const style = {
-            "--card-hue": c.hue,
-            "--card-soft": c.soft,
-          } as CSSProperties;
-          const letter = (w.title?.[0] || "W").toUpperCase();
-          return (
-            <Link
-              key={w.id}
-              href={w.id > 0 ? `/workspaces/${w.id}` : "#"}
-              className={styles.card}
-              style={style}
-              prefetch={w.id > 0}
-            >
-              <span className={styles.cardBadge}>{letter}</span>
-              <div className={styles.cardTitle}>{w.title || "Untitled"}</div>
-              <div className={styles.cardFooter}>
-                <span className={styles.cardCount}>{c.name}</span>
-                <span className={styles.cardArrow}>→</span>
-              </div>
-            </Link>
-          );
-        })}
-
         {creating ? (
           <form className={`${styles.card} ${styles.addCard} ${styles.addCardForm}`} onSubmit={onCreate}>
             <input
@@ -139,6 +114,31 @@ export default function WorkspacesClient({ initial }: { initial: Workspace[] }) 
             <span className={styles.addCardLabel}>New workspace</span>
           </button>
         )}
+
+        {workspaces.map((w) => {
+          const c = colorForId(w.id);
+          const style = {
+            "--card-hue": c.hue,
+            "--card-soft": c.soft,
+          } as CSSProperties;
+          const letter = (w.title?.[0] || "W").toUpperCase();
+          return (
+            <Link
+              key={w.id}
+              href={w.id > 0 ? `/workspaces/${w.id}` : "#"}
+              className={styles.card}
+              style={style}
+              prefetch={w.id > 0}
+            >
+              <span className={styles.cardBadge}>{letter}</span>
+              <div className={styles.cardTitle}>{w.title || "Untitled"}</div>
+              <div className={styles.cardFooter}>
+                <span className={styles.cardCount}>{c.name}</span>
+                <span className={styles.cardArrow}>→</span>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </>
   );

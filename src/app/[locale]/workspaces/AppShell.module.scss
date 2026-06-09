@@ -575,22 +575,6 @@
   gap: 0.4rem;
   justify-content: flex-end;
 }
-.ghostBtn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-2);
-  font-family: inherit;
-  font-size: 13px;
-  padding: 0.45rem 0.7rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
-}
-.ghostBtn:hover {
-  background: var(--surface-2);
-  color: var(--text-1);
-  border-color: var(--border-strong);
-}
 
 .card {
   position: relative;
