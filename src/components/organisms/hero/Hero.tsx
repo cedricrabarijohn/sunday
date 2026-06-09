@@ -97,17 +97,18 @@ const Hero = () => {
         <div className={styles.copy}>
           <div className={styles.eyebrow}>
             <span className={styles.eyebrowDot} />
-            <span>Project management, served fresh on Sundays</span>
+            <span>a side project that got a little out of hand</span>
           </div>
           <h1 className={styles.headline}>
             Plan before{" "}
             <span className={styles.headlineAccent}>Monday comes.</span>
           </h1>
           <p className={styles.subhead}>
-            Sunday is a fast, focused project tool. Organize work on{" "}
-            <code>kanban boards</code>, flip to a <code>table view</code>, tag
-            cards with <code>labels</code>, assign teammates — and watch every
-            change sync live.
+            It&apos;s boards and cards, nothing you haven&apos;t seen. What&apos;s
+            missing is the rest of it: the setup wizard, the sales call, the
+            per-seat invoice, the trial that expires right when you start
+            counting on it. Make a board, drag a card, tick a box. Then go enjoy
+            what&apos;s left of the weekend.
           </p>
           <div className={styles.ctaRow}>
             <button
@@ -128,19 +129,19 @@ const Hero = () => {
 
           <div className={styles.caps}>
             <div className={styles.cap}>
-              <span className={styles.capLabel}>Views</span>
-              <span className={styles.capValue}>Board &amp; table</span>
-              <span className={styles.capDelta}>Kanban or spreadsheet</span>
+              <span className={styles.capLabel}>what it is</span>
+              <span className={styles.capValue}>Boards &amp; a table view</span>
+              <span className={styles.capDelta}>drag, drop, done</span>
             </div>
             <div className={styles.cap}>
-              <span className={styles.capLabel}>Cards</span>
-              <span className={styles.capValue}>Labels &amp; owners</span>
-              <span className={styles.capDelta}>Checklists, due dates, files</span>
+              <span className={styles.capLabel}>what it isn&apos;t</span>
+              <span className={styles.capValue}>No AI, no upsells</span>
+              <span className={styles.capDelta}>and no &ldquo;talk to sales&rdquo;</span>
             </div>
             <div className={styles.cap}>
-              <span className={styles.capLabel}>Realtime</span>
-              <span className={styles.capValue}>Live sync</span>
-              <span className={styles.capDelta}>Everyone sees it instantly</span>
+              <span className={styles.capLabel}>the catch</span>
+              <span className={styles.capValue}>It&apos;s still v0.1</span>
+              <span className={styles.capDelta}>so be a little patient</span>
             </div>
           </div>
         </div>
@@ -222,7 +223,7 @@ const Hero = () => {
       <footer className={styles.foot}>
         <div className={styles.footInner}>
           <span className={styles.footLeft}>sunday</span>
-          <span className={styles.footMeta}>v0.1 / {new Date().getFullYear()}</span>
+          <span className={styles.footMeta}>still v0.1 · built on weekends · {new Date().getFullYear()}</span>
         </div>
       </footer>
     </section>
