@@ -100,8 +100,8 @@ const Hero = () => {
             <span>Project management, served fresh on Sundays</span>
           </div>
           <h1 className={styles.headline}>
-            Plan the week.{" "}
-            <span className={styles.headlineAccent}>Ship the week.</span>
+            Plan before{" "}
+            <span className={styles.headlineAccent}>Monday comes.</span>
           </h1>
           <p className={styles.subhead}>
             Sunday is a fast, focused project tool. Organize work on{" "}
