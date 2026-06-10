@@ -286,12 +286,73 @@
 }
 
 .sidebarFoot {
-  padding: 0.75rem 0.8rem;
+  position: relative;
+  padding: 0.55rem 0.6rem;
   border-top: 1px solid var(--border);
+}
+
+.accountTrigger {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  padding: 0.35rem 0.45rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 100ms ease, border-color 100ms ease;
 }
+.accountTrigger:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.accountCaret {
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.accountMenu {
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: calc(100% - 0.2rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  z-index: 20;
+  animation: accountMenuIn 120ms ease-out both;
+}
+@keyframes accountMenuIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.accountItem {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+.accountItem:hover { background: var(--surface-2); }
+.accountItemDanger { color: var(--danger, #dc2626); }
+.accountItemDanger:hover { background: var(--danger-soft, rgba(220, 38, 38, 0.08)); }
 
 .avatar {
   width: 30px;

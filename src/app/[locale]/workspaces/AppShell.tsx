@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { colorForId } from "@/lib/palette";
 import NotificationsBell from "./NotificationsBell";
 import styles from "./AppShell.module.scss";
@@ -39,11 +39,34 @@ export default function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
 
-  // Close the mobile drawer on route change
+  // Close the mobile drawer on route change. Resetting on navigation is the
+  // intended behavior here, not a cascading-render bug.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
   }, [pathname]);
+
+  // Close the account menu on outside click or Escape
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccountOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountOpen]);
 
   // Esc to close on mobile
   useEffect(() => {
@@ -159,14 +182,40 @@ export default function AppShell({
           </div>
         </div>
 
-        <div className={styles.sidebarFoot}>
-          <span className={styles.avatar}>{initials(user)}</span>
-          <div className={styles.userBlock}>
-            <div className={styles.userName}>{name}</div>
-            <div className={styles.userEmail}>{user.email}</div>
-          </div>
-          <button className={styles.iconBtn} onClick={onLogout} type="button" aria-label="Sign out">
-            ➜🚪
+        <div className={styles.sidebarFoot} ref={accountRef}>
+          {accountOpen && (
+            <div className={styles.accountMenu} role="menu">
+              <Link
+                href="/me/settings"
+                className={styles.accountItem}
+                role="menuitem"
+                onClick={() => setAccountOpen(false)}
+              >
+                Account settings
+              </Link>
+              <button
+                type="button"
+                className={`${styles.accountItem} ${styles.accountItemDanger}`}
+                role="menuitem"
+                onClick={onLogout}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            className={styles.accountTrigger}
+            onClick={() => setAccountOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+          >
+            <span className={styles.avatar}>{initials(user)}</span>
+            <div className={styles.userBlock}>
+              <div className={styles.userName}>{name}</div>
+              <div className={styles.userEmail}>{user.email}</div>
+            </div>
+            <span className={styles.accountCaret} aria-hidden>⌄</span>
           </button>
         </div>
       </aside>
