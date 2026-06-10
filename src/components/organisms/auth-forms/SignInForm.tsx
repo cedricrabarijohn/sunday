@@ -82,6 +82,10 @@ export default function SignInForm() {
         </button>
       </form>
 
+      <div className={styles.subLink}>
+        <Link href="/users/forgot_password">Forgot your password?</Link>
+      </div>
+
       <div className={styles.footer}>
         Don&apos;t have an account?
         <Link

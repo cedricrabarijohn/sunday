@@ -94,6 +94,26 @@
   animation-delay: 160ms;
 }
 
+.lead {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-2);
+  margin-bottom: 1.4rem;
+  margin-top: -0.8rem;
+  animation: rise 360ms ease-out both;
+  animation-delay: 200ms;
+}
+
+.subLink {
+  margin-top: 0.9rem;
+  font-size: 13px;
+  text-align: center;
+  animation: rise 360ms ease-out both;
+  animation-delay: 480ms;
+}
+.subLink a { color: var(--text-3); }
+.subLink a:hover { color: var(--accent); text-decoration: underline; }
+
 .form > * {
   animation: riseSm 360ms ease-out both;
 }

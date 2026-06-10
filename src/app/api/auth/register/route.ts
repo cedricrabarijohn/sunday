@@ -3,8 +3,12 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { createSessionToken, hashPassword, setSessionCookie } from "@/lib/auth";
+import { createAuthToken } from "@/lib/auth-tokens";
+import { appUrl, sendMail } from "@/lib/mail";
+import { verifyEmail } from "@/lib/mail-templates";
 
 const USER_ROLE_ID = 2;
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +50,17 @@ export async function POST(request: NextRequest) {
 
     const token = await createSessionToken({ sub: userId, email });
     await setSessionCookie(token);
+
+    // Send a confirmation email (best-effort — never blocks signup).
+    try {
+      const verifyToken = await createAuthToken(userId, "email_verify", VERIFY_TTL_MS);
+      const { subject, html } = verifyEmail({
+        verifyUrl: `${appUrl()}/users/verify_email?token=${verifyToken}`,
+      });
+      await sendMail({ to: email, subject, html });
+    } catch (err) {
+      console.error("[mail] verification email failed:", err);
+    }
 
     return NextResponse.json(
       { user: { id: userId, email, firstname, lastname } },

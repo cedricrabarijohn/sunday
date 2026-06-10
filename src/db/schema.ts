@@ -31,6 +31,17 @@ export const users = mysqlTable("users", {
   deletedAt: datetime("deleted_at"),
   hashedPassword: varchar("hashed_password", { length: 255 }),
   lastBoardId: int("last_board_id"),
+  emailVerifiedAt: datetime("email_verified_at"),
+});
+
+export const authTokens = mysqlTable("auth_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  purpose: varchar("purpose", { length: 20 }).notNull(),
+  token: varchar("token", { length: 64 }).notNull(),
+  createdAt: datetime("created_at"),
+  expiresAt: datetime("expires_at"),
+  usedAt: datetime("used_at"),
 });
 
 export const workspaces = mysqlTable("workspaces", {
