@@ -6,9 +6,21 @@ import { NextRequest } from "next/server";
 const COOKIE_NAME = "sunday_session";
 const ALG = "HS256";
 
+// The placeholder shipped in .env.example — refusing it in production stops a
+// deploy that would let anyone forge a session.
+const PLACEHOLDER_SECRET = "change-me-to-a-random-64-char-string-in-production";
+
 function getSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET is not set");
+  if (
+    process.env.NODE_ENV === "production" &&
+    (secret === PLACEHOLDER_SECRET || secret.length < 32)
+  ) {
+    throw new Error(
+      "JWT_SECRET must be a strong, unique value (>= 32 chars) in production.",
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 
