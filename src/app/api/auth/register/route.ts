@@ -6,12 +6,16 @@ import { createSessionToken, hashPassword, setSessionCookie } from "@/lib/auth";
 import { createAuthToken } from "@/lib/auth-tokens";
 import { appUrl, sendMail } from "@/lib/mail";
 import { verifyEmail } from "@/lib/mail-templates";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const USER_ROLE_ID = 2;
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(`register:${clientIp(request)}`, 5, 10 * 60_000);
+    if (limited) return limited;
+
     const body = await request.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });

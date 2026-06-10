@@ -5,10 +5,14 @@ import { users } from "@/db/schema";
 import { createAuthToken } from "@/lib/auth-tokens";
 import { appUrl, sendMail } from "@/lib/mail";
 import { passwordResetEmail } from "@/lib/mail-templates";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(`forgot:${clientIp(request)}`, 5, 15 * 60_000);
+  if (limited) return limited;
+
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   // Always answer the same way so the form can't be used to probe which

@@ -4,8 +4,12 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 import { consumeAuthToken } from "@/lib/auth-tokens";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(`reset:${clientIp(request)}`, 10, 15 * 60_000);
+  if (limited) return limited;
+
   const body = await request.json().catch(() => null);
   const token = typeof body?.token === "string" ? body.token : "";
   const password = typeof body?.password === "string" ? body.password : "";

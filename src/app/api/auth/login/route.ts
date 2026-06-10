@@ -3,9 +3,13 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { createSessionToken, setSessionCookie, verifyPassword } from "@/lib/auth";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = rateLimit(`login:${clientIp(request)}`, 10, 60_000);
+    if (limited) return limited;
+
     const body = await request.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
