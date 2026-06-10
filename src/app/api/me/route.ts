@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest) {
   if (!firstname || !lastname || !email) {
     return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
   }
-  if (firstname.length > 30 || lastname.length > 30 || email.length > 30) {
+  if (firstname.length > 100 || lastname.length > 100 || email.length > 255) {
     return NextResponse.json({ error: "One of the fields is too long" }, { status: 400 });
   }
   if (!/.+@.+\..+/.test(email)) {

@@ -8,6 +8,13 @@
       "when": 1781089288644,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1781112487613,
+      "tag": "0001_widen_user_fields",
+      "breakpoints": true
     }
   ]
 }

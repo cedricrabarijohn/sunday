@@ -25,9 +25,9 @@ export const roleCapabilities = mysqlTable(
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   roleId: int("role_id"),
-  firstname: varchar("firstname", { length: 30 }),
-  lastname: varchar("lastname", { length: 30 }),
-  email: varchar("email", { length: 30 }),
+  firstname: varchar("firstname", { length: 100 }),
+  lastname: varchar("lastname", { length: 100 }),
+  email: varchar("email", { length: 255 }),
   deletedAt: datetime("deleted_at"),
   hashedPassword: varchar("hashed_password", { length: 255 }),
   lastBoardId: int("last_board_id"),
