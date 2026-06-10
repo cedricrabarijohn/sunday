@@ -120,6 +120,13 @@ export default function TasksClient({
   const titleRenameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRenameTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
+  // Last cross-pile move, for undo (toast button + Ctrl/Cmd+Z).
+  const lastMoveRef = useRef<{
+    cardId: number;
+    fromPileId: number;
+    restoreBeforeId: number | null;
+  } | null>(null);
+
   // Kanban vs. table, remembered per board. Read after mount so the
   // server render (always "board") and the first client paint agree.
   const [view, setView] = useState<"board" | "table">("board");
@@ -616,10 +623,22 @@ export default function TasksClient({
     cardId: number,
     targetPileId: number,
     beforeCardId: number | null,
+    opts?: { silent?: boolean },
   ) => {
     const snapshot = tasks;
     const moved = snapshot.find((t) => t.id === cardId);
     if (!moved) return;
+
+    // Where the card sat in its source pile, so an undo can restore the exact
+    // spot (insert before whatever followed it; null = it was last).
+    const movingFrom = moved.pileId;
+    const isCrossPile = movingFrom !== null && movingFrom !== targetPileId;
+    const sourceOrderFull = movingFrom != null ? cardsByPile.get(movingFrom) ?? [] : [];
+    const movedIdx = sourceOrderFull.findIndex((c) => c.id === cardId);
+    const restoreBeforeId =
+      movedIdx >= 0 && movedIdx + 1 < sourceOrderFull.length
+        ? sourceOrderFull[movedIdx + 1].id
+        : null;
 
     // Build optimistic ordered list per pile
     const targetCardsBefore = (cardsByPile.get(targetPileId) ?? []).filter(
@@ -673,12 +692,56 @@ export default function TasksClient({
         const data = await res.json().catch(() => ({}));
         setTasks(snapshot);
         toast.error(data.error || "Could not move card");
+        return;
+      }
+      // Offer an undo for cross-pile moves (not for in-pile reordering, and
+      // not when this move IS an undo).
+      if (isCrossPile && !opts?.silent && movingFrom !== null) {
+        const record = { cardId, fromPileId: movingFrom, restoreBeforeId };
+        lastMoveRef.current = record;
+        const toPile = piles.find((p) => p.id === targetPileId);
+        toast.info(
+          `Moved “${moved.title || "card"}” to ${toPile?.title || "another pile"}`,
+          {
+            ttl: 6000,
+            action: { label: "Undo", onClick: () => undoMoveRef.current(record) },
+          },
+        );
       }
     } catch {
       setTasks(snapshot);
       toast.error("Network error.");
     }
   };
+
+  // Undo a specific cross-pile move (silent — no toast, no new undo entry).
+  const undoMove = (rec: {
+    cardId: number;
+    fromPileId: number;
+    restoreBeforeId: number | null;
+  }) => {
+    if (lastMoveRef.current?.cardId === rec.cardId) lastMoveRef.current = null;
+    moveCard(rec.cardId, rec.fromPileId, rec.restoreBeforeId, { silent: true });
+  };
+  // Latest undo fn behind a ref so the toast button and the keydown handler
+  // never call a stale closure.
+  const undoMoveRef = useRef(undoMove);
+  undoMoveRef.current = undoMove;
+
+  // Ctrl/Cmd+Z undoes the last cross-pile move (ignored while typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, [contenteditable]")) return;
+      const rec = lastMoveRef.current;
+      if (!rec) return;
+      e.preventDefault();
+      undoMoveRef.current(rec);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Move without dragging: drop the card at the bottom of the chosen pile.
   const onMoveToPile = (cardId: number, pileId: number) => {

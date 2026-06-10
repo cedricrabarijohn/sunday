@@ -15,16 +15,20 @@ import styles from "./Toast.module.scss";
 
 type ToastKind = "success" | "error" | "info";
 
+type ToastAction = { label: string; onClick: () => void };
+type ToastOptions = { ttl?: number; action?: ToastAction };
+
 type Toast = {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 };
 
 type ToastApi = {
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
+  success: (message: string, opts?: ToastOptions) => void;
+  error: (message: string, opts?: ToastOptions) => void;
+  info: (message: string, opts?: ToastOptions) => void;
 };
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -44,6 +48,8 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
   const counter = useRef(0);
 
   useEffect(() => {
+    // Portal mount guard for SSR — intentional one-shot, not a render loop.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -52,19 +58,19 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (kind: ToastKind, message: string) => {
+    (kind: ToastKind, message: string, opts?: ToastOptions) => {
       counter.current += 1;
       const id = counter.current;
-      setToasts((prev) => [...prev, { id, kind, message }]);
-      window.setTimeout(() => dismiss(id), DEFAULT_TTL);
+      setToasts((prev) => [...prev, { id, kind, message, action: opts?.action }]);
+      window.setTimeout(() => dismiss(id), opts?.ttl ?? DEFAULT_TTL);
     },
     [dismiss],
   );
 
   const api: ToastApi = {
-    success: (m) => push("success", m),
-    error: (m) => push("error", m),
-    info: (m) => push("info", m),
+    success: (m, o) => push("success", m, o),
+    error: (m, o) => push("error", m, o),
+    info: (m, o) => push("info", m, o),
   };
 
   return (
@@ -85,6 +91,18 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
                   {t.kind === "info" ? <CheckIcon size={14} /> : null}
                 </span>
                 <span className={styles.body}>{t.message}</span>
+                {t.action && (
+                  <button
+                    type="button"
+                    className={styles.action}
+                    onClick={() => {
+                      t.action?.onClick();
+                      dismiss(t.id);
+                    }}
+                  >
+                    {t.action.label}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={styles.close}
