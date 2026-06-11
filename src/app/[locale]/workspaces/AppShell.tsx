@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { colorForId } from "@/lib/palette";
 import NotificationsBell from "./NotificationsBell";
+import ThemeSwatches from "@/components/atoms/theme-swatches/ThemeSwatches";
 import styles from "./AppShell.module.scss";
 
 export type SidebarWorkspace = { id: number; title: string | null };
@@ -185,6 +186,10 @@ export default function AppShell({
         <div className={styles.sidebarFoot} ref={accountRef}>
           {accountOpen && (
             <div className={styles.accountMenu} role="menu">
+              <div className={styles.accountThemeRow}>
+                <span className={styles.accountThemeLabel}>Theme</span>
+                <ThemeSwatches />
+              </div>
               <Link
                 href="/me/settings"
                 className={styles.accountItem}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { PALETTE } from "@/lib/palette";
+import ThemeSwatches from "@/components/atoms/theme-swatches/ThemeSwatches";
 import styles from "./Hero.module.scss";
 
 // Palette by name, for readable references below.
@@ -81,6 +82,7 @@ const Hero = () => {
         <div className={styles.navInner}>
           <Link href="/" className={styles.brand}>sunday</Link>
           <div className={styles.navActions}>
+            <ThemeSwatches />
             <Link href="/users/sign_in" className={styles.linkBtn}>Sign in</Link>
             <button
               type="button"

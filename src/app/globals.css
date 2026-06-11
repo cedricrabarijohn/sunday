@@ -80,6 +80,105 @@
   color-scheme: dark;
 }
 
+/* Warm light theme — easier on the eyes than stark white. */
+[data-theme="sand"] {
+  --bg:        #f4ede0;
+  --surface:   #fffdf8;
+  --surface-2: #efe7d6;
+  --surface-hover: #ece2cd;
+  --inset:     #e8ddc8;
+
+  --border:    #e0d4bc;
+  --border-strong: #cdbd9c;
+
+  --text-1:    #3a3326;
+  --text-2:    #6b5f49;
+  --text-3:    #8a7c61;
+  --text-mute: #a89a7e;
+
+  --accent:        #b06a2c;
+  --accent-hover:  #9a5a20;
+  --accent-soft:   rgba(176, 106, 44, 0.12);
+  --accent-fg:     #ffffff;
+
+  --danger:      #c4322a;
+  --danger-soft: rgba(196, 50, 42, 0.08);
+  --success:     #4d7c1f;
+  --warning:     #b45309;
+
+  --shadow-sm: 0 1px 2px rgba(80, 60, 20, 0.06);
+  --shadow-md: 0 4px 12px rgba(80, 60, 20, 0.08);
+  --shadow-lg: 0 12px 40px rgba(80, 60, 20, 0.12);
+
+  color-scheme: light;
+}
+
+/* Deep navy dark with a blue accent. */
+[data-theme="midnight"] {
+  --bg:        #0c1222;
+  --surface:   #121a2e;
+  --surface-2: #1a2440;
+  --surface-hover: #202c4d;
+  --inset:     #1d2742;
+
+  --border:    #25304f;
+  --border-strong: #3a4a73;
+
+  --text-1:    #eef2fb;
+  --text-2:    #aeb9d4;
+  --text-3:    #7e89a8;
+  --text-mute: #586288;
+
+  --accent:        #6ea8fe;
+  --accent-hover:  #5b9bfd;
+  --accent-soft:   rgba(110, 168, 254, 0.16);
+  --accent-fg:     #06122a;
+
+  --danger:      #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --success:     #34d399;
+  --warning:     #fbbf24;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
+/* Muted low-contrast dark ("dim") — softer than full black. */
+[data-theme="dim"] {
+  --bg:        #15202b;
+  --surface:   #1c2732;
+  --surface-2: #243340;
+  --surface-hover: #2a3a48;
+  --inset:     #22303c;
+
+  --border:    #2f3d4a;
+  --border-strong: #44525f;
+
+  --text-1:    #e7e9ea;
+  --text-2:    #aab8c2;
+  --text-3:    #8899a6;
+  --text-mute: #66757f;
+
+  --accent:        #1d9bf0;
+  --accent-hover:  #1a8cd8;
+  --accent-soft:   rgba(29, 155, 240, 0.16);
+  --accent-fg:     #ffffff;
+
+  --danger:      #f4585c;
+  --danger-soft: rgba(244, 88, 92, 0.14);
+  --success:     #00ba7c;
+  --warning:     #ffd400;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; padding: 0; margin: 0; }
 
 html, body { max-width: 100vw; }
