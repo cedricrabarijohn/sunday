@@ -1296,9 +1296,11 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Scroll long member lists; capped in vh for small screens. */
+  max-height: min(50vh, 320px);
+  overflow-y: auto;
   animation: pickerIn 200ms ease-out both;
 }
 
@@ -1346,7 +1348,14 @@
   to   { opacity: 1; transform: none; }
 }
 
-.pickerList { display: flex; flex-direction: column; }
+.pickerList {
+  display: flex;
+  flex-direction: column;
+  /* Scroll long label lists; capped in vh so it fits small screens. The
+     "New label" form stays below, always reachable. */
+  max-height: min(45vh, 300px);
+  overflow-y: auto;
+}
 
 .pickerEmpty {
   padding: 0.85rem 1rem;
