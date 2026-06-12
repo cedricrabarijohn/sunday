@@ -130,7 +130,12 @@ export const boardColumnTypes = mysqlTable("board_column_types", {
 
 export const boardColumns = mysqlTable("board_columns", {
   id: int("id").autoincrement().primaryKey(),
-  label: varchar("label", { length: 20 }),
+  label: varchar("label", { length: 60 }),
+  // Custom-field type: text | number | select | multi_select | date | checkbox | url
+  type: varchar("type", { length: 20 }),
+  // Type-specific config (e.g. select options) as JSON.
+  config: json("config"),
+  position: int("position"),
   boardId: int("board_id"),
   boardColumnTypeId: int("board_column_type_id"),
   deletedAt: datetime("deleted_at"),

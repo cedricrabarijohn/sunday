@@ -15,6 +15,13 @@
       "when": 1781112487613,
       "tag": "0001_widen_user_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1781246741945,
+      "tag": "0002_custom_fields",
+      "breakpoints": true
     }
   ]
 }
