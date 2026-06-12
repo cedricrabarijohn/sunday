@@ -1,15 +1,39 @@
 # Sunday
 
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+![Self-hostable](https://img.shields.io/badge/self--hostable-Docker-2496ed)
+
 A small, fast, self-hostable project management tool — workspaces, boards,
 kanban/table views, cards with labels, assignees, checklists, attachments and
 comments, real-time sync, and an invite/auth system with email.
 
 > Plan before Monday comes.
 
+<p align="center">
+  <img src="docs/screenshots/landing.png" alt="Sunday landing page" width="800">
+</p>
+
+---
+
+## Screenshots
+
+| Kanban board | Card detail |
+| --- | --- |
+| ![Kanban board](docs/screenshots/board-kanban.png) | ![Card detail](docs/screenshots/card-drawer.png) |
+
+| Table view | Light theme |
+| --- | --- |
+| ![Table view](docs/screenshots/board-table.png) | ![Light theme](docs/screenshots/board-light.png) |
+
+> Regenerate these with `bun run screenshots` (needs the app running locally).
+
 ---
 
 ## Table of contents
 
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [Quick start](#quick-start)
@@ -183,3 +207,14 @@ built for horizontal scale — the real-time pub/sub and rate limiter are
 in-process. The path to scale (Redis pub/sub, a job queue, read replicas) is
 documented in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#scaling-roadmap). Don't
 build it before metrics demand it.
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for the dev
+setup, conventions, and the migration workflow, and please follow the
+[Code of Conduct](./CODE_OF_CONDUCT.md). Bug reports and feature requests go
+through the issue templates.
+
+## License
+
+[MIT](./LICENSE) © Cedric Rabarijohn

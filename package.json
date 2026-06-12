@@ -2,6 +2,13 @@
   "name": "sunday",
   "version": "0.1.0",
   "private": true,
+  "description": "A small, fast, self-hostable project management tool — kanban + table boards, labels, assignees, realtime sync.",
+  "license": "MIT",
+  "author": "Cedric Rabarijohn",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Wikolabs/sunday.git"
+  },
   "scripts": {
     "dev": "NODE_ENV=development next dev",
     "build": "NODE_ENV=production next build",
@@ -11,7 +18,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "screenshots": "JWT_SECRET=$(grep ^JWT_SECRET= .env | cut -d= -f2-) node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1052.0",
@@ -36,6 +44,7 @@
     "drizzle-kit": "^0.30.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "puppeteer-core": "^25.1.0",
     "tsx": "^4.19.0",
     "typescript": "^5"
   }
