@@ -32,6 +32,16 @@ import kStyles from "./Kanban.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import BoardTable from "./BoardTable";
 import MovePileMenu from "./MovePileMenu";
+import type { FieldConfig, FieldType } from "@/lib/fields";
+
+export type FieldValue = string | number | boolean | string[] | null;
+export type BoardColumn = {
+  id: number;
+  label: string | null;
+  type: FieldType | string | null;
+  config: FieldConfig;
+  position: number | null;
+};
 import NotificationsBell from "../../workspaces/NotificationsBell";
 
 export type CardLabel = { id: number; title: string; color: string };
@@ -62,6 +72,7 @@ export type Task = {
   labels: CardLabel[];
   assignees: CardAssignee[];
   dueAt: string | Date | null;
+  fields?: Record<number, FieldValue>;
 };
 
 export type Pile = {
@@ -89,6 +100,7 @@ export default function TasksClient({
   initial,
   initialPiles,
   initialLabels,
+  initialColumns,
   capabilities,
   currentUserId,
 }: {
@@ -99,6 +111,7 @@ export default function TasksClient({
   initial: Task[];
   initialPiles: Pile[];
   initialLabels: WorkspaceLabel[];
+  initialColumns: BoardColumn[];
   capabilities: string[];
   currentUserId: number;
 }) {
@@ -109,6 +122,7 @@ export default function TasksClient({
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [piles, setPiles] = useState<Pile[]>(initialPiles);
   const [labels, setLabels] = useState<WorkspaceLabel[]>(initialLabels);
+  const [columns, setColumns] = useState<BoardColumn[]>(initialColumns);
   const [title, setTitle] = useState<string>(boardTitle || "");
   const [openCardId, setOpenCardId] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState>(null);
@@ -746,6 +760,82 @@ export default function TasksClient({
     moveCard(cardId, pileId, null);
   };
 
+  // --- custom fields ---
+  const onSetFieldValue = async (cardId: number, columnId: number, value: FieldValue) => {
+    const snapshot = tasks;
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === cardId ? { ...t, fields: { ...(t.fields ?? {}), [columnId]: value } } : t,
+      ),
+    );
+    if (cardId < 0) return;
+    try {
+      const res = await fetch(`/api/cards/${cardId}/columns/${columnId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setTasks(snapshot);
+        toast.error(d.error || "Could not save field");
+      }
+    } catch {
+      setTasks(snapshot);
+      toast.error("Network error.");
+    }
+  };
+
+  const onCreateField = async (input: { label: string; type: FieldType; config?: FieldConfig }) => {
+    try {
+      const res = await fetch(`/api/boards/${boardId}/columns`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(d.error || "Could not add field");
+        return;
+      }
+      setColumns((prev) => [...prev, d.column as BoardColumn]);
+    } catch {
+      toast.error("Network error.");
+    }
+  };
+
+  const onRenameField = (columnId: number, label: string) => {
+    setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, label } : c)));
+    fetch(`/api/columns/${columnId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label }),
+    }).catch(() => {});
+  };
+
+  const onDeleteField = async (columnId: number) => {
+    const col = columns.find((c) => c.id === columnId);
+    const ok = await confirm({
+      title: `Delete field “${col?.label ?? ""}”?`,
+      message: "Its values on every card will be removed. This cannot be undone.",
+      confirmLabel: "Delete field",
+      danger: true,
+    });
+    if (!ok) return;
+    const snap = columns;
+    setColumns((prev) => prev.filter((c) => c.id !== columnId));
+    try {
+      const res = await fetch(`/api/columns/${columnId}`, { method: "DELETE" });
+      if (!res.ok) {
+        setColumns(snap);
+        toast.error("Could not delete field");
+      }
+    } catch {
+      setColumns(snap);
+      toast.error("Network error.");
+    }
+  };
+
   // --- drop a card on Add pile: create a new pile and drop the card into it
   const onDropOnAddPile = async (e: DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -1064,11 +1154,13 @@ export default function TasksClient({
           <BoardTable
             piles={piles}
             cardsByPile={visibleCardsByPile}
+            columns={columns}
             caps={{
               editCard: can("edit_card"),
               createCard: can("create_card"),
               deleteCard: can("delete_card"),
               managePiles: can("manage_piles"),
+              editBoard: can("edit_board"),
             }}
             drag={drag}
             hint={hint}
@@ -1087,6 +1179,10 @@ export default function TasksClient({
             onPileDragLeave={onPileDragLeave}
             onPileDrop={onPileDrop}
             onMoveCardToPile={onMoveToPile}
+            onSetFieldValue={onSetFieldValue}
+            onCreateField={onCreateField}
+            onRenameField={onRenameField}
+            onDeleteField={onDeleteField}
           />
         ) : (
           <div className={kStyles.scroller}>

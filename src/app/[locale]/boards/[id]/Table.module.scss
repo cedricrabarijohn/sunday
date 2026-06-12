@@ -533,3 +533,185 @@
 @media (hover: none) {
   .actions { opacity: 1; }
 }
+
+/* --- custom fields --- */
+.colField { min-width: 120px; max-width: 200px; }
+.colAddField { width: 36px; }
+
+.fieldInput {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+}
+.fieldInput:hover { border-color: var(--border); }
+.fieldInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.fieldSelect {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.3rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+  cursor: pointer;
+}
+.fieldSelect:hover { border-color: var(--border); }
+.fieldSelect:focus { outline: none; border-color: var(--accent); }
+
+.fieldCheckbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.fieldRO {
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.fieldChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.fieldChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.fieldHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+}
+.fieldHeadInput {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0.1rem 0.25rem;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+.fieldHeadInput:hover { border-color: var(--border); }
+.fieldHeadInput:focus { outline: none; border-color: var(--accent); }
+.fieldHeadDelete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-mute);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 0.15rem;
+  opacity: 0;
+  transition: opacity 100ms ease, color 100ms ease;
+}
+.fieldHead:hover .fieldHeadDelete { opacity: 1; }
+.fieldHeadDelete:hover { color: var(--danger, #c4322a); }
+
+.addFieldBtn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.addFieldBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--accent);
+}
+
+.addFieldForm {
+  position: fixed;
+  z-index: 1000;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 14px 36px -12px rgba(0, 0, 0, 0.3);
+}
+.addFieldInput,
+.addFieldSelect,
+.addFieldOptions {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+}
+.addFieldInput:focus,
+.addFieldSelect:focus,
+.addFieldOptions:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.addFieldOptions { resize: vertical; min-height: 56px; }
+.addFieldActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+.addFieldCancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.addFieldCreate {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--accent-fg);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.addFieldCreate:disabled { opacity: 0.5; cursor: not-allowed; }

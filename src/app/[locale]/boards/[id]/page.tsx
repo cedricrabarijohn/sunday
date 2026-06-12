@@ -2,9 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  boardColumns,
   boardPiles,
   boardTaskAssignees,
   boardTaskAttachments,
+  boardTaskColumns,
   boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
@@ -17,10 +19,11 @@ import {
   workspaces,
 } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
+import { parseConfig, parseValue } from "@/lib/fields";
 import { loadBoardCapabilities } from "@/lib/board-access";
 import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access";
 import AppShell from "../../workspaces/AppShell";
-import TasksClient from "./TasksClient";
+import TasksClient, { type FieldValue } from "./TasksClient";
 
 export default async function BoardDetail({
   params,
@@ -238,6 +241,38 @@ export default async function BoardDetail({
     assigneesByCard.set(row.cardId, arr);
   }
 
+  // Custom fields (board columns) and their per-card values.
+  const columnRows = await db
+    .select({
+      id: boardColumns.id,
+      label: boardColumns.label,
+      type: boardColumns.type,
+      config: boardColumns.config,
+      position: boardColumns.position,
+    })
+    .from(boardColumns)
+    .where(and(eq(boardColumns.boardId, boardId), isNull(boardColumns.deletedAt)))
+    .orderBy(asc(boardColumns.position), asc(boardColumns.id));
+  const boardColumnsOut = columnRows.map((c) => ({ ...c, config: parseConfig(c.config) }));
+
+  const fieldsByCard = new Map<number, Record<number, FieldValue>>();
+  if (taskIds.length && boardColumnsOut.length) {
+    const valueRows = await db
+      .select({
+        cardId: boardTaskColumns.boardTaskId,
+        columnId: boardTaskColumns.boardColumnId,
+        value: boardTaskColumns.value,
+      })
+      .from(boardTaskColumns)
+      .where(sql`${boardTaskColumns.boardTaskId} IN (${sql.join(taskIds, sql`, `)})`);
+    for (const v of valueRows) {
+      if (v.cardId == null || v.columnId == null) continue;
+      const m = fieldsByCard.get(v.cardId) ?? {};
+      m[v.columnId] = parseValue(v.value) as FieldValue;
+      fieldsByCard.set(v.cardId, m);
+    }
+  }
+
   const tasks = rawTasks.map((t) => {
     const itemStat = itemsById.get(t.id);
     const attachmentStat = attachmentsById.get(t.id);
@@ -250,6 +285,7 @@ export default async function BoardDetail({
       comments: Number(commentStat?.total ?? 0),
       labels: labelsByCard.get(t.id) ?? [],
       assignees: assigneesByCard.get(t.id) ?? [],
+      fields: fieldsByCard.get(t.id) ?? {},
     };
   });
 
@@ -284,6 +320,7 @@ export default async function BoardDetail({
         initial={tasks}
         initialPiles={piles}
         initialLabels={workspaceLabels}
+        initialColumns={boardColumnsOut}
         capabilities={capabilities}
         currentUserId={session.sub}
       />

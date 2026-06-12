@@ -9,13 +9,17 @@ import {
   ChecklistIcon,
 } from "@/components/Icons";
 import CardActionsMenu from "./CardActionsMenu";
+import { FieldCell, FieldHeaderCell, AddFieldCell } from "./TableFields";
 import type {
   Task,
   Pile,
   CardAssignee,
   DragState,
   DropHint,
+  BoardColumn,
+  FieldValue,
 } from "./TasksClient";
+import type { FieldType, SelectOption } from "@/lib/fields";
 import styles from "./Table.module.scss";
 
 type Caps = {
@@ -23,14 +27,20 @@ type Caps = {
   createCard: boolean;
   deleteCard: boolean;
   managePiles: boolean;
+  editBoard: boolean;
 };
 
 type Props = {
   piles: Pile[];
   cardsByPile: Map<number, Task[]>;
+  columns: BoardColumn[];
   caps: Caps;
   drag: DragState;
   hint: DropHint;
+  onSetFieldValue: (cardId: number, columnId: number, value: FieldValue) => void;
+  onCreateField: (input: { label: string; type: FieldType; config?: { options: SelectOption[] } }) => void;
+  onRenameField: (columnId: number, label: string) => void;
+  onDeleteField: (columnId: number) => void;
   onAddCard: (pileId: number, title: string) => Promise<void>;
   onDeleteCard: (id: number) => void;
   onOpenCard: (id: number) => void;
@@ -49,10 +59,13 @@ type Props = {
 };
 
 export default function BoardTable(props: Props) {
-  const { piles, cardsByPile, caps, drag, hint } = props;
-  // Card | Assignees | Due | Labels | Activity | actions, plus a leading
-  // drag-handle column when the viewer can move cards.
-  const colSpan = 6 + (caps.editCard ? 1 : 0);
+  const { piles, cardsByPile, columns, caps, drag, hint } = props;
+  // handle? | actions | Card | Assignees | Due | Labels | Activity | <custom…> | +field?
+  const colSpan =
+    6 +
+    (caps.editCard ? 1 : 0) +
+    columns.length +
+    (caps.editBoard ? 1 : 0);
 
   return (
     <div className={styles.tableWrap}>
@@ -110,6 +123,16 @@ export default function BoardTable(props: Props) {
                     <th className={styles.colDue}>Due</th>
                     <th className={styles.colLabels}>Labels</th>
                     <th className={styles.colMeta}>Activity</th>
+                    {columns.map((col) => (
+                      <FieldHeaderCell
+                        key={col.id}
+                        col={col}
+                        editBoard={caps.editBoard}
+                        onRename={props.onRenameField}
+                        onDelete={props.onDeleteField}
+                      />
+                    ))}
+                    {caps.editBoard && <AddFieldCell onCreate={props.onCreateField} />}
                   </tr>
                 </thead>
                 <tbody>
@@ -127,6 +150,7 @@ export default function BoardTable(props: Props) {
                         card={card}
                         pile={pile}
                         piles={piles}
+                        columns={columns}
                         caps={caps}
                         dragging={drag?.cardId === card.id}
                         onDeleteCard={props.onDeleteCard}
@@ -137,6 +161,7 @@ export default function BoardTable(props: Props) {
                         onCardDragEnd={props.onCardDragEnd}
                         onCardDragOver={props.onCardDragOver}
                         onMoveCardToPile={props.onMoveCardToPile}
+                        onSetFieldValue={props.onSetFieldValue}
                       />
                     </Fragment>
                   ))}
@@ -173,6 +198,7 @@ function Row({
   card,
   pile,
   piles,
+  columns,
   caps,
   dragging,
   onDeleteCard,
@@ -183,10 +209,12 @@ function Row({
   onCardDragEnd,
   onCardDragOver,
   onMoveCardToPile,
+  onSetFieldValue,
 }: {
   card: Task;
   pile: Pile;
   piles: Pile[];
+  columns: BoardColumn[];
   caps: Caps;
   dragging: boolean;
   onDeleteCard: (id: number) => void;
@@ -197,6 +225,7 @@ function Row({
   onCardDragEnd: () => void;
   onCardDragOver: (e: DragEvent<HTMLElement>, pile: Pile, card: Task) => void;
   onMoveCardToPile: (cardId: number, pileId: number) => void;
+  onSetFieldValue: (cardId: number, columnId: number, value: FieldValue) => void;
 }) {
   const open = () => card.id > 0 && onOpenCard(card.id);
   const itemPct =
@@ -335,6 +364,18 @@ function Row({
           )}
         </button>
       </td>
+
+      {columns.map((col) => (
+        <td key={col.id} className={styles.colField}>
+          <FieldCell
+            col={col}
+            value={card.fields?.[col.id] ?? null}
+            editable={caps.editCard && card.id > 0}
+            onChange={(v) => onSetFieldValue(card.id, col.id, v)}
+          />
+        </td>
+      ))}
+      {caps.editBoard && <td className={styles.colAddField} aria-hidden />}
     </tr>
   );
 }
