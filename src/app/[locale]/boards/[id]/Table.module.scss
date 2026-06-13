@@ -569,6 +569,11 @@
 }
 .fieldSelect:hover { border-color: var(--border); }
 .fieldSelect:focus { outline: none; border-color: var(--accent); }
+/* Native dropdown popup: force themed colors so options aren't white-on-white. */
+.fieldSelect option {
+  background: var(--surface);
+  color: var(--text-1);
+}
 
 .fieldCheckbox {
   width: 16px;
@@ -687,6 +692,7 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+.addFieldSelect option { background: var(--surface); color: var(--text-1); }
 .addFieldOptions { resize: vertical; min-height: 56px; }
 .addFieldActions {
   display: flex;

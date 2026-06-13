@@ -1232,6 +1232,7 @@ export default function TasksClient({
                   pile={pile}
                   cards={visibleCardsByPile.get(pile.id) ?? []}
                   piles={piles}
+                  columns={columns}
                   dragHint={hint?.pileId === pile.id ? hint : null}
                   isDropTarget={hint?.pileId === pile.id && drag !== null}
                   draggingCardId={drag?.cardId ?? null}
@@ -1323,6 +1324,12 @@ export default function TasksClient({
             setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, dueAt } : t)))
           }
           onDelete={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
+          boardColumns={columns}
+          fields={tasks.find((t) => t.id === openCardId)?.fields ?? {}}
+          editFields={can("edit_card")}
+          onFieldChange={(columnId, value) =>
+            openCardId != null && onSetFieldValue(openCardId, columnId, value)
+          }
         />
       )}
     </>
@@ -1335,6 +1342,7 @@ function PileColumn({
   pile,
   cards,
   piles,
+  columns,
   dragHint,
   isDropTarget,
   draggingCardId,
@@ -1358,6 +1366,7 @@ function PileColumn({
   pile: Pile;
   cards: Task[];
   piles: Pile[];
+  columns: BoardColumn[];
   dragHint: DropHint;
   isDropTarget: boolean;
   draggingCardId: number | null;
@@ -1439,6 +1448,7 @@ function PileColumn({
             <KanbanCard
               card={card}
               piles={piles}
+              columns={columns}
               dragging={draggingCardId === card.id}
               onDragStart={(e) => onCardDragStart(e, card)}
               onDragEnd={onCardDragEnd}
@@ -1472,9 +1482,41 @@ function PileColumn({
   );
 }
 
+/** Compact display chips for a card's custom-field values (kanban). */
+function fieldChipsFor(
+  card: Task,
+  columns: BoardColumn[],
+): { key: string; label: string; color?: string }[] {
+  const out: { key: string; label: string; color?: string }[] = [];
+  const fields = card.fields ?? {};
+  for (const col of [...columns].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))) {
+    const v = fields[col.id];
+    if (v == null || v === "" || (Array.isArray(v) && v.length === 0)) continue;
+    const name = col.label ?? "";
+    const opts = col.config?.options ?? [];
+    if (col.type === "select" && typeof v === "string") {
+      const o = opts.find((x) => x.id === v);
+      if (o) out.push({ key: `${col.id}`, label: o.label, color: o.color });
+    } else if (col.type === "multi_select" && Array.isArray(v)) {
+      for (const id of v) {
+        const o = opts.find((x) => x.id === id);
+        if (o) out.push({ key: `${col.id}:${id}`, label: o.label, color: o.color });
+      }
+    } else if (col.type === "checkbox") {
+      if (v === true) out.push({ key: `${col.id}`, label: `✓ ${name}` });
+    } else if (col.type === "date" && typeof v === "string") {
+      out.push({ key: `${col.id}`, label: `${name}: ${v.slice(0, 10)}` });
+    } else {
+      out.push({ key: `${col.id}`, label: `${name}: ${String(v)}` });
+    }
+  }
+  return out;
+}
+
 function KanbanCard({
   card,
   piles,
+  columns,
   dragging,
   onDragStart,
   onDragEnd,
@@ -1487,6 +1529,7 @@ function KanbanCard({
 }: {
   card: Task;
   piles: Pile[];
+  columns: BoardColumn[];
   dragging: boolean;
   onDragStart: (e: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
@@ -1498,6 +1541,7 @@ function KanbanCard({
   canMove: boolean;
 }) {
   const itemPct = card.itemsTotal === 0 ? 0 : Math.round((card.itemsDone / card.itemsTotal) * 100);
+  const fieldChips = fieldChipsFor(card, columns);
   const onCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (card.id < 0) return;
     const target = e.target as HTMLElement;
@@ -1548,6 +1592,28 @@ function KanbanCard({
       <div className={kStyles.cardTitle}>
         {card.title?.trim() ? card.title : <span className={kStyles.cardTitleMute}>Untitled</span>}
       </div>
+      {fieldChips.length > 0 && (
+        <div className={kStyles.cardChips}>
+          {fieldChips.map((f) => {
+            const c = f.color ? colorForName(f.color) : null;
+            return (
+              <span
+                key={f.key}
+                className={kStyles.cardChip}
+                style={
+                  c
+                    ? { background: c.soft, color: c.hue }
+                    : { background: "var(--surface-2)", color: "var(--text-2)" }
+                }
+                title={f.label}
+              >
+                {c && <span className={kStyles.cardChipDot} style={{ background: c.hue }} aria-hidden />}
+                {f.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
       <div className={kStyles.cardFoot}>
         <div className={kStyles.cardBadges}>
           {card.dueAt && <DueBadge dueAt={card.dueAt} />}

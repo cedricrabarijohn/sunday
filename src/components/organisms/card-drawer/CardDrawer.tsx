@@ -17,6 +17,8 @@ import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog"
 import { UsersIcon, TagIcon, ImageIcon } from "@/components/Icons";
 import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
+import { FieldCell } from "@/app/[locale]/boards/[id]/TableFields";
+import type { BoardColumn, FieldValue } from "@/app/[locale]/boards/[id]/TasksClient";
 
 type Item = { id: number; title: string | null; done: number; position: number | null };
 type Attachment = {
@@ -99,6 +101,10 @@ type Props = {
   onAssigneesChange?: (cardId: number, assignees: Assignee[]) => void;
   onDueAtChange?: (cardId: number, dueAt: string | null) => void;
   onDelete?: (cardId: number) => void;
+  boardColumns?: BoardColumn[];
+  fields?: Record<number, FieldValue>;
+  editFields?: boolean;
+  onFieldChange?: (columnId: number, value: FieldValue) => void;
 };
 
 function formatBytes(n: number | null) {
@@ -120,6 +126,10 @@ export default function CardDrawer({
   onAssigneesChange,
   onDueAtChange,
   onDelete,
+  boardColumns,
+  fields,
+  editFields,
+  onFieldChange,
 }: Props) {
   const toast = useToast();
   const [data, setData] = useState<CardDetail | null>(null);
@@ -1403,6 +1413,31 @@ export default function CardDrawer({
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {boardColumns && boardColumns.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHead}>
+                  <span className={styles.sectionLabel}>Fields</span>
+                </div>
+                <div className={styles.fieldGrid}>
+                  {[...boardColumns]
+                    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+                    .map((col) => (
+                      <div className={styles.fieldRow} key={col.id}>
+                        <span className={styles.fieldRowLabel}>{col.label}</span>
+                        <div className={styles.fieldRowValue}>
+                          <FieldCell
+                            col={col}
+                            value={fields?.[col.id] ?? null}
+                            editable={Boolean(editFields)}
+                            onChange={(v) => onFieldChange?.(col.id, v)}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                </div>
               </section>
             )}
 

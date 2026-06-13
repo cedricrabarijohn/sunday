@@ -235,7 +235,12 @@ function Row({
 
   const onRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const target = e.target as HTMLElement;
-    if (target.closest("input, textarea, button, a, [contenteditable], [data-handle]")) return;
+    if (
+      target.closest(
+        "input, textarea, select, option, label, button, a, [contenteditable], [data-handle]",
+      )
+    )
+      return;
     open();
   };
 

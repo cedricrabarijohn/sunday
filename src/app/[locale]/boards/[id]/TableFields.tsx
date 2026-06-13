@@ -88,6 +88,7 @@ export function FieldCell({
           className={styles.fieldSelect}
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value || null)}
+          onClick={(e) => e.stopPropagation()}
         >
           <option value="">—</option>
           {opts.map((o) => (
