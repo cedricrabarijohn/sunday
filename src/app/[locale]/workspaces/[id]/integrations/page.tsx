@@ -77,9 +77,10 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
         baseUrl: conn.baseUrl ?? "",
         enabled: conn.enabled === 1,
         secret: conn.secret ?? "",
+        donePileName: conn.donePileName ?? "",
         webhookUrl: `${appUrl()}/api/webhooks/gitea/${conn.webhookToken}`,
       }
-    : { connected: false, baseUrl: "", enabled: true, secret: "", webhookUrl: "" };
+    : { connected: false, baseUrl: "", enabled: true, secret: "", donePileName: "", webhookUrl: "" };
 
   return (
     <AppShell

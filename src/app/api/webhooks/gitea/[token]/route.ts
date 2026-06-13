@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boardTasks, boards, cardLinks, scmConnections } from "@/db/schema";
 import { parseCardRefs, verifyGiteaSignature } from "@/lib/scm";
+import { moveCardToPileByName } from "@/lib/card-move";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Only link cards that actually belong to this connection's workspace.
   const candidateIds = [...new Set(drafts.map((d) => d.cardId))];
   const validRows = await db
-    .select({ id: boardTasks.id })
+    .select({ id: boardTasks.id, boardId: boardTasks.boardId, pileId: boardTasks.pileId })
     .from(boardTasks)
     .innerJoin(boards, eq(boards.id, boardTasks.boardId))
     .where(
@@ -86,12 +87,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         isNull(boardTasks.deletedAt),
       ),
     );
-  const valid = new Set(validRows.map((r) => r.id));
+  const validById = new Map(validRows.map((r) => [r.id, r]));
 
   const now = new Date();
   let linked = 0;
   for (const d of drafts) {
-    if (!valid.has(d.cardId) || !d.ref) continue;
+    if (!validById.has(d.cardId) || !d.ref) continue;
     await db
       .insert(cardLinks)
       .values({ ...d, createdAt: now, updatedAt: now })
@@ -99,5 +100,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     linked += 1;
   }
 
-  return NextResponse.json({ ok: true, linked });
+  // Auto-advance: a merged PR moves each linked card to the configured pile
+  // in its own board. Best-effort — never let a move failure fail the hook.
+  let moved = 0;
+  const isMergedPr =
+    event === "pull_request" &&
+    (payload.pull_request as Record<string, unknown> | undefined)?.merged === true;
+  if (isMergedPr && conn.donePileName) {
+    const movedCardIds = new Set<number>();
+    for (const d of drafts) {
+      const card = validById.get(d.cardId);
+      if (!card || card.boardId == null || movedCardIds.has(card.id)) continue;
+      movedCardIds.add(card.id);
+      try {
+        if (await moveCardToPileByName({ id: card.id, boardId: card.boardId, pileId: card.pileId }, conn.donePileName)) {
+          moved += 1;
+        }
+      } catch {
+        // Linking already succeeded; a failed move must not 500 the webhook.
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, linked, moved });
 }

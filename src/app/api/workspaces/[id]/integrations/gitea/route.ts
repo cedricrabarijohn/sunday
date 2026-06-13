@@ -25,6 +25,7 @@ function present(row: NonNullable<Awaited<ReturnType<typeof load>>>) {
     baseUrl: row.baseUrl,
     enabled: row.enabled === 1,
     secret: row.secret,
+    donePileName: row.donePileName ?? "",
     webhookUrl: `${appUrl()}/api/webhooks/gitea/${row.webhookToken}`,
   };
 }
@@ -53,11 +54,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Base URL must start with http(s)://" }, { status: 400 });
   }
   const enabled = body?.enabled === false ? 0 : 1;
+  const donePileName =
+    typeof body?.donePileName === "string" ? body.donePileName.trim().slice(0, 60) || null : undefined;
   const now = new Date();
 
   const existing = await load(workspaceId);
   if (existing) {
     const set: Record<string, unknown> = { baseUrl, enabled, updatedAt: now };
+    if (donePileName !== undefined) set.donePileName = donePileName;
     if (body?.regenerateSecret === true) set.secret = randomToken(18);
     await db.update(scmConnections).set(set).where(eq(scmConnections.id, existing.id));
   } else {
@@ -68,6 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       webhookToken: randomToken(24),
       secret: randomToken(18),
       enabled,
+      donePileName: donePileName ?? null,
       createdAt: now,
       updatedAt: now,
     });

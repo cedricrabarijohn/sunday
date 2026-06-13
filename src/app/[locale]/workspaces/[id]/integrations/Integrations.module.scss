@@ -98,6 +98,19 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+.hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+.hint code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.02rem 0.3rem;
+}
 
 .copyRow {
   display: flex;

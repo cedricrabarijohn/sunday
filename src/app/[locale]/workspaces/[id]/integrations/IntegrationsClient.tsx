@@ -9,6 +9,7 @@ type Gitea = {
   baseUrl: string;
   enabled: boolean;
   secret: string;
+  donePileName: string;
   webhookUrl: string;
 };
 
@@ -24,6 +25,7 @@ export default function IntegrationsClient({
   const toast = useToast();
   const [gitea, setGitea] = useState<Gitea>(initial);
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
+  const [donePileName, setDonePileName] = useState(initial.donePileName);
   const [saving, setSaving] = useState(false);
 
   const endpoint = `/api/workspaces/${workspaceId}/integrations/gitea`;
@@ -46,6 +48,7 @@ export default function IntegrationsClient({
         baseUrl: data.baseUrl ?? "",
         enabled: data.enabled,
         secret: data.secret ?? "",
+        donePileName: data.donePileName ?? "",
         webhookUrl: data.webhookUrl ?? "",
       });
       if (msg) toast.success(msg);
@@ -64,8 +67,9 @@ export default function IntegrationsClient({
         toast.error("Could not disconnect");
         return;
       }
-      setGitea({ connected: false, baseUrl: "", enabled: true, secret: "", webhookUrl: "" });
+      setGitea({ connected: false, baseUrl: "", enabled: true, secret: "", donePileName: "", webhookUrl: "" });
       setBaseUrl("");
+      setDonePileName("");
       toast.success("Gitea disconnected");
     } catch {
       toast.error("Network error.");
@@ -146,21 +150,37 @@ export default function IntegrationsClient({
               <strong> Push</strong> and <strong> Pull Request</strong> events.
             </div>
 
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="donePile">Move card on merge (optional)</label>
+              <input
+                id="donePile"
+                className={styles.input}
+                placeholder="e.g. Done"
+                value={donePileName}
+                onChange={(e) => setDonePileName(e.target.value)}
+                maxLength={60}
+              />
+              <span className={styles.hint}>
+                When a merged PR references <code>#cardId</code>, that card moves to the pile with this
+                exact name in its own board. Leave empty to disable.
+              </span>
+            </div>
+
             <div className={styles.actions}>
-              <button className={styles.ghost} disabled={saving} onClick={() => save({ baseUrl }, "Saved")}>
-                Save URL
+              <button className={styles.ghost} disabled={saving} onClick={() => save({ baseUrl, donePileName }, "Saved")}>
+                Save changes
               </button>
               <button
                 className={styles.ghost}
                 disabled={saving}
-                onClick={() => save({ baseUrl, enabled: !gitea.enabled }, gitea.enabled ? "Paused" : "Resumed")}
+                onClick={() => save({ baseUrl, donePileName, enabled: !gitea.enabled }, gitea.enabled ? "Paused" : "Resumed")}
               >
                 {gitea.enabled ? "Pause" : "Resume"}
               </button>
               <button
                 className={styles.ghost}
                 disabled={saving}
-                onClick={() => save({ baseUrl, regenerateSecret: true }, "Secret regenerated")}
+                onClick={() => save({ baseUrl, donePileName, regenerateSecret: true }, "Secret regenerated")}
               >
                 Regenerate secret
               </button>

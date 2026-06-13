@@ -1,0 +1,1 @@
+ALTER TABLE `scm_connections` ADD `done_pile_name` varchar(60);

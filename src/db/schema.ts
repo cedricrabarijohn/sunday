@@ -43,6 +43,9 @@ export const scmConnections = mysqlTable("scm_connections", {
   webhookToken: varchar("webhook_token", { length: 64 }).notNull(),
   secret: varchar("secret", { length: 64 }),
   enabled: tinyint("enabled").notNull().default(1),
+  // When a PR referencing a card is merged, move that card to the pile with
+  // this title in its own board. Empty/null disables auto-move.
+  donePileName: varchar("done_pile_name", { length: 60 }),
   createdAt: datetime("created_at"),
   updatedAt: datetime("updated_at"),
 });
