@@ -7,6 +7,7 @@ import {
   boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
+  cardLinks,
   labels,
   users,
 } from "@/db/schema";
@@ -95,6 +96,21 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     )
     .orderBy(asc(boardTaskComments.createdAt), asc(boardTaskComments.id));
 
+  // Linked commits / PRs (SCM integration). Empty unless the workspace has
+  // connected Gitea and a webhook linked something to this card.
+  const links = await db
+    .select({
+      id: cardLinks.id,
+      kind: cardLinks.kind,
+      ref: cardLinks.ref,
+      title: cardLinks.title,
+      url: cardLinks.url,
+      state: cardLinks.state,
+    })
+    .from(cardLinks)
+    .where(eq(cardLinks.cardId, cardId))
+    .orderBy(asc(cardLinks.id));
+
   // Managing the workspace label catalog (create/edit/delete) is a
   // workspace-scoped capability, distinct from the board caps above.
   const wsCaps = await loadCapabilities(guard.workspaceId, auth.session.sub);
@@ -106,6 +122,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     labels: cardLabels,
     assignees,
     comments,
+    links,
     capabilities: Array.from(guard.capabilities),
     canManageLabels: wsCaps.has("manage_labels"),
     currentUserId: auth.session.sub,
