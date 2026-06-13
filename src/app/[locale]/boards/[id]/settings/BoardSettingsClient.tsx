@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import { colorForId } from "@/lib/palette";
-import { BackIcon, TrashIcon, UsersIcon } from "@/components/Icons";
+import { BackIcon, TableIcon, TrashIcon, UsersIcon } from "@/components/Icons";
 import shellStyles from "../../../workspaces/AppShell.module.scss";
 import styles from "./BoardSettings.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
@@ -152,6 +152,21 @@ export default function BoardSettingsClient({
             <div className={styles.rowLinkTitle}>Members</div>
             <div className={styles.rowLinkSub}>
               Manage who can see this board and invite new people.
+            </div>
+          </div>
+        </Link>
+      </section>
+
+      <section className={styles.section}>
+        <header className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Customize</h2>
+        </header>
+        <Link href={`/boards/${boardId}/fields`} className={styles.rowLink}>
+          <TableIcon size={18} />
+          <div className={styles.rowLinkText}>
+            <div className={styles.rowLinkTitle}>Custom fields</div>
+            <div className={styles.rowLinkSub}>
+              Add and configure the typed columns that appear on cards and in the table.
             </div>
           </div>
         </Link>

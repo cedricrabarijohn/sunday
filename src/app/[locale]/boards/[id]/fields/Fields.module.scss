@@ -1,0 +1,245 @@
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.crumb:hover { color: var(--text-1); }
+
+.note {
+  max-width: 720px;
+  margin: 0 0 1.2rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-width: 720px;
+}
+.empty {
+  padding: 1.4rem;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-3);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.fieldCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1rem;
+}
+.fieldTop {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.reorder {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.reorder button {
+  width: 22px;
+  height: 16px;
+  line-height: 1;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.reorder button:disabled { opacity: 0.35; cursor: not-allowed; }
+.reorder button:not(:disabled):hover { border-color: var(--border-strong); color: var(--text-1); }
+
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+.nameInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.nameStatic { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-1); }
+
+.typeBadge {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+}
+.deleteBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.deleteBtn:hover { color: var(--danger); background: var(--danger-soft); }
+
+.options {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.optDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.optInput {
+  width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-1);
+}
+.optInput:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.optChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.swatches {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatchOn { border-color: var(--text-1); }
+
+.optRemove {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.optRemove:hover { color: var(--danger); background: var(--danger-soft); }
+
+.addOption {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  font-size: 12.5px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+.addOption:hover { border-color: var(--accent); }
+
+.createCard {
+  max-width: 720px;
+  margin-top: 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.2rem;
+}
+.createTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 0.8rem;
+}
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.input,
+.select,
+.textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-1);
+}
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.select option { background: var(--surface); color: var(--text-1); }
+.textarea { resize: vertical; min-height: 64px; }
+.createActions { display: flex; justify-content: flex-end; }
+.btnPrimary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }

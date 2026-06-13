@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
-  const updates: { label?: string; config?: unknown } = {};
+  const updates: { label?: string; config?: unknown; position?: number } = {};
 
   if (typeof body?.label === "string") {
     const label = body.label.trim();
@@ -46,6 +46,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body?.config !== undefined) {
     // Only select-likes carry config; keep the field's existing type.
     updates.config = normalizeConfig((col.type as FieldType) ?? "text", body.config);
+  }
+  if (typeof body?.position === "number" && Number.isFinite(body.position)) {
+    updates.position = Math.trunc(body.position);
   }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
