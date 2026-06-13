@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { boardTasks, boards, cardLinks, scmConnections } from "@/db/schema";
 import { parseCardRefs, verifyGiteaSignature } from "@/lib/scm";
 import { moveCardToPileByName } from "@/lib/card-move";
+import { publishCardCounts } from "@/lib/card-counts";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const now = new Date();
   let linked = 0;
+  const touchedCards = new Set<number>();
   for (const d of drafts) {
     if (!validById.has(d.cardId) || !d.ref) continue;
     await db
@@ -98,6 +100,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .values({ ...d, createdAt: now, updatedAt: now })
       .onDuplicateKeyUpdate({ set: { title: d.title, url: d.url, state: d.state, updatedAt: now } });
     linked += 1;
+    touchedCards.add(d.cardId);
+  }
+
+  // Refresh the live "linked code" badge on every open board view.
+  for (const cardId of touchedCards) {
+    const card = validById.get(cardId);
+    if (card?.boardId != null) await publishCardCounts(card.boardId, cardId);
   }
 
   // Auto-advance: a merged PR moves each linked card to the configured pile

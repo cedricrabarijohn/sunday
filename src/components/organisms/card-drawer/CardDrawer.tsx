@@ -1370,6 +1370,42 @@ export default function CardDrawer({
           </div>
         ) : (
           <div className={styles.body}>
+            {data.links && data.links.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHead}>
+                  <span className={styles.sectionLabel}>Linked code</span>
+                  <span className={styles.sectionCount}>{data.links.length}</span>
+                </div>
+                <ul className={styles.linkList}>
+                  {data.links.map((l) => (
+                    <li key={l.id}>
+                      <a
+                        className={styles.linkRow}
+                        href={l.url ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <span className={styles.linkKind} data-kind={l.kind}>
+                          {l.kind === "pr" ? "PR" : l.kind === "branch" ? "⎇" : "◇"}
+                        </span>
+                        <span className={styles.linkTitle}>
+                          {l.title || (l.kind === "pr" ? `Pull request #${l.ref}` : l.ref)}
+                        </span>
+                        <span className={styles.linkRef}>
+                          {l.kind === "commit" ? l.ref.slice(0, 7) : `#${l.ref}`}
+                        </span>
+                        {l.state && (
+                          <span className={styles.linkState} data-state={l.state}>
+                            {l.state}
+                          </span>
+                        )}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Description</span>
@@ -1621,42 +1657,6 @@ export default function CardDrawer({
                 <span className={styles.dropHint}>PNG, JPG, GIF, WebP up to 5 MB</span>
               </label>
             </section>
-
-            {data.links && data.links.length > 0 && (
-              <section className={styles.section}>
-                <div className={styles.sectionHead}>
-                  <span className={styles.sectionLabel}>Linked code</span>
-                  <span className={styles.sectionCount}>{data.links.length}</span>
-                </div>
-                <ul className={styles.linkList}>
-                  {data.links.map((l) => (
-                    <li key={l.id}>
-                      <a
-                        className={styles.linkRow}
-                        href={l.url ?? "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <span className={styles.linkKind} data-kind={l.kind}>
-                          {l.kind === "pr" ? "PR" : l.kind === "branch" ? "⎇" : "◇"}
-                        </span>
-                        <span className={styles.linkTitle}>
-                          {l.title || (l.kind === "pr" ? `Pull request #${l.ref}` : l.ref)}
-                        </span>
-                        <span className={styles.linkRef}>
-                          {l.kind === "commit" ? l.ref.slice(0, 7) : `#${l.ref}`}
-                        </span>
-                        {l.state && (
-                          <span className={styles.linkState} data-state={l.state}>
-                            {l.state}
-                          </span>
-                        )}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
 
             <section className={styles.section}>
               <div className={styles.sectionHead}>

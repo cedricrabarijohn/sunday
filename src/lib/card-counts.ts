@@ -4,6 +4,7 @@ import {
   boardTaskAttachments,
   boardTaskComments,
   boardTaskItems,
+  cardLinks,
 } from "@/db/schema";
 import { publishBoard } from "@/lib/board-bus";
 
@@ -48,6 +49,11 @@ export async function publishCardCounts(
       ),
     );
 
+  const [linkRow] = await db
+    .select({ total: sql<number>`COUNT(*)` })
+    .from(cardLinks)
+    .where(eq(cardLinks.cardId, cardId));
+
   publishBoard(boardId, {
     type: "card_counts",
     cardId,
@@ -55,5 +61,6 @@ export async function publishCardCounts(
     itemsDone: Number(itemRow?.done ?? 0),
     attachments: Number(attachmentRow?.total ?? 0),
     comments: Number(commentRow?.total ?? 0),
+    links: Number(linkRow?.total ?? 0),
   });
 }

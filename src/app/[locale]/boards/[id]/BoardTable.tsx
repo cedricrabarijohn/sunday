@@ -5,6 +5,7 @@ import { colorForName } from "@/lib/palette";
 import {
   CalendarIcon,
   CommentIcon,
+  LinkIcon,
   PaperclipIcon,
   ChecklistIcon,
 } from "@/components/Icons";
@@ -359,9 +360,16 @@ function Row({
               {card.attachments}
             </span>
           )}
-          {card.itemsTotal === 0 && card.comments === 0 && card.attachments === 0 && (
-            <span className={styles.mute}>—</span>
+          {card.links > 0 && (
+            <span className={styles.metaItem} title={`${card.links} linked commit(s)/PR(s)`}>
+              <LinkIcon size={12} />
+              {card.links}
+            </span>
           )}
+          {card.itemsTotal === 0 &&
+            card.comments === 0 &&
+            card.attachments === 0 &&
+            card.links === 0 && <span className={styles.mute}>—</span>}
         </button>
       </td>
 

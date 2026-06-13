@@ -48,6 +48,7 @@ export type BoardEvent =
       itemsDone: number;
       attachments: number;
       comments: number;
+      links: number;
     }
   | { type: "pile_created"; pile: BoardPileSummary }
   | { type: "pile_updated"; pileId: number; title: string }

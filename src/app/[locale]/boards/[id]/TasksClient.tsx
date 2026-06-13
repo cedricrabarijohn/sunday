@@ -22,6 +22,7 @@ import {
   ChecklistIcon,
   CommentIcon,
   FilterIcon,
+  LinkIcon,
   PaperclipIcon,
   PlugIcon,
   SettingsIcon,
@@ -70,6 +71,7 @@ export type Task = {
   itemsDone: number;
   attachments: number;
   comments: number;
+  links: number;
   labels: CardLabel[];
   assignees: CardAssignee[];
   dueAt: string | Date | null;
@@ -91,7 +93,16 @@ type BoardFilterState = {
   assigneeIds: Set<number>;
   labelIds: Set<number>;
   due: "any" | "withDue" | "overdue";
+  // Custom-field filters: column id → selected option ids (select / multi_select).
+  fields: Map<number, Set<string>>;
 };
+
+/** Total number of selected custom-field options across all fields. */
+function fieldFilterCount(fields: Map<number, Set<string>>): number {
+  let n = 0;
+  for (const set of fields.values()) n += set.size;
+  return n;
+}
 
 export default function TasksClient({
   boardId,
@@ -245,6 +256,7 @@ export default function TasksClient({
                     itemsDone: 0,
                     attachments: 0,
                     comments: 0,
+                    links: 0,
                     labels: [],
                     assignees: [],
                     dueAt: null,
@@ -324,6 +336,7 @@ export default function TasksClient({
                     itemsDone: ev.itemsDone,
                     attachments: ev.attachments,
                     comments: ev.comments,
+                    links: ev.links,
                   }
                 : t,
             ),
@@ -389,6 +402,7 @@ export default function TasksClient({
     assigneeIds: new Set<number>(),
     labelIds: new Set<number>(),
     due: "any",
+    fields: new Map<number, Set<string>>(),
   });
 
   const queryNorm = filter.query.trim().toLowerCase();
@@ -396,7 +410,8 @@ export default function TasksClient({
     (queryNorm ? 1 : 0) +
     filter.assigneeIds.size +
     filter.labelIds.size +
-    (filter.due === "any" ? 0 : 1);
+    (filter.due === "any" ? 0 : 1) +
+    fieldFilterCount(filter.fields);
 
   const matchesFilter = (t: Task): boolean => {
     if (queryNorm) {
@@ -409,6 +424,14 @@ export default function TasksClient({
     }
     if (filter.labelIds.size > 0) {
       const hasOne = t.labels.some((l) => filter.labelIds.has(l.id));
+      if (!hasOne) return false;
+    }
+    for (const [colId, optIds] of filter.fields) {
+      if (optIds.size === 0) continue;
+      const v = t.fields?.[colId];
+      const hasOne = Array.isArray(v)
+        ? v.some((id) => optIds.has(id))
+        : typeof v === "string" && optIds.has(v);
       if (!hasOne) return false;
     }
     if (filter.due === "withDue" && !t.dueAt) return false;
@@ -467,6 +490,7 @@ export default function TasksClient({
         itemsDone: 0,
         attachments: 0,
         comments: 0,
+        links: 0,
         labels: [],
         assignees: [],
         dueAt: null,
@@ -1088,6 +1112,7 @@ export default function TasksClient({
             setFilter={setFilter}
             allAssignees={allAssigneesOnBoard}
             allLabels={labels}
+            columns={columns}
             currentUserId={currentUserId}
           />
           <Link
@@ -1156,6 +1181,7 @@ export default function TasksClient({
                   assigneeIds: new Set(),
                   labelIds: new Set(),
                   due: "any",
+                  fields: new Map(),
                 })
               }
             >
@@ -1552,6 +1578,12 @@ function KanbanCard({
               <span>{card.comments}</span>
             </span>
           )}
+          {card.links > 0 && (
+            <span className={kStyles.cardBadge} title={`${card.links} linked commit(s)/PR(s)`}>
+              <LinkIcon size={11} />
+              <span>{card.links}</span>
+            </span>
+          )}
           {card.assignees.length > 0 && <AvatarStack assignees={card.assignees} />}
         </div>
         <div className={kStyles.cardActions}>
@@ -1658,14 +1690,22 @@ function BoardFilter({
   setFilter,
   allAssignees,
   allLabels,
+  columns,
   currentUserId,
 }: {
   filter: BoardFilterState;
   setFilter: (next: BoardFilterState) => void;
   allAssignees: CardAssignee[];
   allLabels: WorkspaceLabel[];
+  columns: BoardColumn[];
   currentUserId: number;
 }) {
+  // Only select / multi_select fields with options are filterable.
+  const filterableFields = columns.filter(
+    (c) =>
+      (c.type === "select" || c.type === "multi_select") &&
+      (c.config?.options?.length ?? 0) > 0,
+  );
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1688,7 +1728,8 @@ function BoardFilter({
     (filter.query.trim() ? 1 : 0) +
     filter.assigneeIds.size +
     filter.labelIds.size +
-    (filter.due === "any" ? 0 : 1);
+    (filter.due === "any" ? 0 : 1) +
+    fieldFilterCount(filter.fields);
 
   const toggleAssignee = (uid: number) => {
     const next = new Set(filter.assigneeIds);
@@ -1702,8 +1743,28 @@ function BoardFilter({
     else next.add(lid);
     setFilter({ ...filter, labelIds: next });
   };
+  const toggleFieldOption = (colId: number, optId: string) => {
+    const fields = new Map(filter.fields);
+    const next = new Set(fields.get(colId));
+    if (next.has(optId)) next.delete(optId);
+    else next.add(optId);
+    if (next.size === 0) fields.delete(colId);
+    else fields.set(colId, next);
+    setFilter({ ...filter, fields });
+  };
+  const clearField = (colId: number) => {
+    const fields = new Map(filter.fields);
+    fields.delete(colId);
+    setFilter({ ...filter, fields });
+  };
   const reset = () =>
-    setFilter({ query: "", assigneeIds: new Set(), labelIds: new Set(), due: "any" });
+    setFilter({
+      query: "",
+      assigneeIds: new Set(),
+      labelIds: new Set(),
+      due: "any",
+      fields: new Map(),
+    });
 
   return (
     <div className={kStyles.filterWrap} ref={wrapRef}>
@@ -1827,6 +1888,54 @@ function BoardFilter({
               </div>
             )}
           </div>
+
+          {filterableFields.map((col) => {
+            const selected = filter.fields.get(col.id) ?? new Set<string>();
+            return (
+              <div className={kStyles.filterSection} key={col.id}>
+                <div className={kStyles.filterHead}>
+                  <span>{col.label || "Field"}</span>
+                  {selected.size > 0 && (
+                    <button
+                      type="button"
+                      className={kStyles.filterClear}
+                      onClick={() => clearField(col.id)}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className={kStyles.filterChips}>
+                  {(col.config?.options ?? []).map((opt) => {
+                    const active = selected.has(opt.id);
+                    const c = opt.color ? colorForName(opt.color) : null;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        className={`${kStyles.filterChip} ${active ? kStyles.filterChipActive : ""}`}
+                        style={
+                          active && c
+                            ? { background: c.soft, color: c.hue, borderColor: c.soft }
+                            : undefined
+                        }
+                        onClick={() => toggleFieldOption(col.id, opt.id)}
+                      >
+                        {c && (
+                          <span
+                            className={kStyles.cardChipDot}
+                            style={{ background: c.hue, marginRight: 6 }}
+                            aria-hidden
+                          />
+                        )}
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
 
           <div className={kStyles.filterSection}>
             <div className={kStyles.filterHead}>
