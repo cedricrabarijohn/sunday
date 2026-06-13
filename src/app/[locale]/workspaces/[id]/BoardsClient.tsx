@@ -125,6 +125,11 @@ export default function BoardsClient({
           <Link href={`/workspaces/${workspaceId}/members`} className={styles.ghostBtn}>
             Members
           </Link>
+          {can("manage_members") && (
+            <Link href={`/workspaces/${workspaceId}/integrations`} className={styles.ghostBtn}>
+              Integrations
+            </Link>
+          )}
           <span className={styles.pageMeta}>
             {boards.length.toString().padStart(2, "0")}{" "}
             {boards.length === 1 ? "board" : "boards"}
