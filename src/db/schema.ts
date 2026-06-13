@@ -34,6 +34,36 @@ export const users = mysqlTable("users", {
   emailVerifiedAt: datetime("email_verified_at"),
 });
 
+/** SCM integration (Gitea, later GitHub/GitLab) — one per workspace+provider. */
+export const scmConnections = mysqlTable("scm_connections", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspace_id").notNull(),
+  provider: varchar("provider", { length: 20 }).notNull().default("gitea"),
+  baseUrl: varchar("base_url", { length: 255 }),
+  webhookToken: varchar("webhook_token", { length: 64 }).notNull(),
+  secret: varchar("secret", { length: 64 }),
+  enabled: tinyint("enabled").notNull().default(1),
+  createdAt: datetime("created_at"),
+  updatedAt: datetime("updated_at"),
+});
+
+/** A commit / PR / branch linked to a card by an SCM webhook. */
+export const cardLinks = mysqlTable(
+  "card_links",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    cardId: int("card_id").notNull(),
+    kind: varchar("kind", { length: 16 }).notNull(),
+    ref: varchar("ref", { length: 255 }).notNull(),
+    title: varchar("title", { length: 255 }),
+    url: varchar("url", { length: 500 }),
+    state: varchar("state", { length: 20 }),
+    createdAt: datetime("created_at"),
+    updatedAt: datetime("updated_at"),
+  },
+  (t) => [uniqueIndex("uq_card_link").on(t.cardId, t.kind, t.ref)],
+);
+
 export const authTokens = mysqlTable("auth_tokens", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("user_id").notNull(),
