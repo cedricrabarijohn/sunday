@@ -21,7 +21,7 @@ import {
 import { getSessionFromCookie } from "@/lib/auth";
 import { parseConfig, parseValue } from "@/lib/fields";
 import { loadBoardCapabilities } from "@/lib/board-access";
-import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access";
+import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities, loadMembership } from "@/lib/workspace-access";
 import AppShell from "../../workspaces/AppShell";
 import TasksClient, { type FieldValue } from "./TasksClient";
 
@@ -89,6 +89,8 @@ export default async function BoardDetail({
 
   const wsMembership = await loadMembership(board.workspaceId, session.sub);
   const isWsAdmin = wsMembership?.workspaceRoleId === WORKSPACE_ADMIN_ROLE_ID;
+  const wsCapabilities = await loadCapabilities(board.workspaceId, session.sub);
+  const canManageMembers = wsCapabilities.has("manage_members");
 
   const workspaceBoards = isWsAdmin
     ? await db
@@ -322,6 +324,7 @@ export default async function BoardDetail({
         initialLabels={workspaceLabels}
         initialColumns={boardColumnsOut}
         capabilities={capabilities}
+        canManageMembers={canManageMembers}
         currentUserId={session.sub}
       />
     </AppShell>

@@ -23,6 +23,7 @@ import {
   CommentIcon,
   FilterIcon,
   PaperclipIcon,
+  PlugIcon,
   SettingsIcon,
   TableIcon,
   UsersIcon,
@@ -102,6 +103,7 @@ export default function TasksClient({
   initialLabels,
   initialColumns,
   capabilities,
+  canManageMembers,
   currentUserId,
 }: {
   boardId: number;
@@ -113,6 +115,7 @@ export default function TasksClient({
   initialLabels: WorkspaceLabel[];
   initialColumns: BoardColumn[];
   capabilities: string[];
+  canManageMembers: boolean;
   currentUserId: number;
 }) {
   const caps = new Set(capabilities);
@@ -1095,6 +1098,16 @@ export default function TasksClient({
           >
             <UsersIcon size={16} />
           </Link>
+          {canManageMembers && (
+            <Link
+              href={`/workspaces/${workspaceId}/integrations`}
+              className={styles.iconHeaderBtn}
+              title="Integrations"
+              aria-label="Integrations"
+            >
+              <PlugIcon size={16} />
+            </Link>
+          )}
           <Link
             href={`/boards/${boardId}/settings`}
             className={styles.iconHeaderBtn}

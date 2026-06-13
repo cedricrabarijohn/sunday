@@ -34,6 +34,16 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
+export function PlugIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 2v6M15 2v6" />
+      <path d="M7 8h10v3a5 5 0 0 1-10 0V8Z" />
+      <path d="M12 16v6" />
+    </svg>
+  );
+}
+
 export function UsersIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
