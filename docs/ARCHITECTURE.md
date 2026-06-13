@@ -70,6 +70,15 @@ Each returns either the loaded row + capability set, or a ready-made
 > board cap (`edit_card`). The UI hides catalog actions when the user lacks
 > `manage_labels`.
 
+> **Integrations** (the Gitea connection) are gated by the `manage_members`
+> workspace cap — both the settings page (`notFound()` otherwise) and the
+> `api/workspaces/[id]/integrations/gitea` routes (`requireWorkspaceCap`). The
+> "Integrations" links in the workspace header and the board header render only
+> when the user holds that cap, but the server enforces it independently.
+
+> **Custom fields** are board-scoped: defining/renaming/deleting a field needs
+> `edit_board`; setting a field's value on a card needs `edit_card`.
+
 ## Real-time (Server-Sent Events)
 
 Two in-process pub/sub buses, each a module singleton pinned to `globalThis`
@@ -120,6 +129,49 @@ notification). All sends are fire-and-forget — failures are logged, never thro
 emails each recipient. Notification emails reuse the card deep link
 (`/boards/:id?card=:cardId`) so clicking one opens straight to the card.
 
+## Custom fields
+
+A board can define extra typed columns beyond the built-ins. `src/lib/fields.ts`
+owns the type system — `text`, `number`, `select`, `multi_select`, `date`,
+`checkbox`, `url` — with `normalizeConfig` (e.g. generating stable ids for
+select options) and `coerceValue` (validating a value against its type/config).
+
+- **Definitions** live in `board_columns` (`label`, `type`, `config`,
+  `position`); **per-card values** in `board_task_columns` (unique on
+  `board_column_id` + `board_task_id`, upserted on write).
+- Both `config` and `value` are JSON columns. MariaDB's driver returns them as
+  strings, so reads go through `parseConfig` / `parseValue` before use.
+- Routes: `api/boards/[id]/columns` (list/create), `api/columns/[id]`
+  (rename/retype/soft-delete), `api/cards/[id]/columns/[columnId]` (set/clear a
+  value). The table view renders typed inline editors per column.
+
+## Integrations (SCM)
+
+An **optional, opt-in** Gitea integration links commits and pull requests to
+cards. It is invisible until a workspace admin connects it — nothing about it
+appears for workspaces that never do.
+
+- **Connection**: one `scm_connections` row per workspace+provider, created from
+  the Integrations settings page. It holds the Gitea `base_url`, a random
+  `webhook_token` (routes the inbound URL), a `secret` (verifies it), an
+  `enabled` flag (Pause), and an optional `done_pile_name` (auto-move target).
+- **Inbound webhook**: `api/webhooks/gitea/[token]` takes no session. It finds
+  the connection by token (404 if unknown or paused — never revealing which),
+  verifies the `X-Gitea-Signature` HMAC against the secret (401 otherwise), then
+  parses `#cardId` refs out of commit messages / PR titles+bodies
+  (`src/lib/scm.ts`). Links are upserted into `card_links`.
+- **Workspace isolation**: the receiver only ever touches cards whose board
+  belongs to the connection's own workspace (`INNER JOIN boards … WHERE
+  boards.workspace_id = conn.workspace_id`). A webhook for one workspace can
+  never reach another's cards.
+- **Auto-move on merge**: when a merged PR references a card and the connection
+  has a `done_pile_name`, `src/lib/card-move.ts` moves that card to the
+  matching pile in its own board, re-packs both piles, and publishes a
+  `card_moved` event so open views update live. Best-effort — a move failure
+  never fails the webhook.
+
+Linked commits/PRs are shown in a "Linked code" section on the card drawer.
+
 ## Data model
 
 The schema is in `src/db/schema.ts`. Roughly:
@@ -130,6 +182,10 @@ The schema is in `src/db/schema.ts`. Roughly:
 - **Board content**: `board_piles`, `board_tasks` (cards), `board_task_items`
   (checklist), `board_task_assignees`, `board_task_labels`, `labels`,
   `board_task_attachments`, `board_task_comments`.
+- **Custom fields**: `board_columns` (field definitions), `board_task_columns`
+  (per-card values).
+- **Integrations**: `scm_connections` (per-workspace Gitea config),
+  `card_links` (commits/PRs linked to a card).
 - **Invites & notifications**: `workspace_invites`, `board_invites`,
   `notifications`.
 

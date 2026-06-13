@@ -55,6 +55,11 @@ comments, real-time sync, and an invite/auth system with email.
 - **Cards**: title, rich description (headings, bold/italic, inline images),
   labels, assignees, due dates, checklists (sub-tasks), file attachments, and
   threaded comments with `@mentions`.
+- **Custom fields**: per-board columns (text, number, select, multi-select,
+  date, checkbox, URL) edited inline in the table view.
+- **Optional Gitea integration** (opt-in per workspace): link commits and pull
+  requests to cards via `#cardId`, and optionally auto-move a card to a chosen
+  pile when its PR merges. Off until an admin connects it.
 - **Real-time**: changes (card create/move/update/delete, pile changes, badge
   counts, comments) stream to other viewers over Server-Sent Events — no refresh.
 - **Move without dragging**: a "move to pile" menu on every card, plus

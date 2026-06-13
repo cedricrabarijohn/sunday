@@ -40,6 +40,20 @@ How to ship Sunday safely, and how to scale it later.
   blocking).
 - Remove dev-only data (e.g. the "Stress Test" demo board).
 
+### Integrations (Gitea webhooks)
+
+The optional Gitea integration receives webhooks at
+`/api/webhooks/gitea/<token>`. If you use it:
+
+- **`APP_URL` must be the public URL.** The webhook URL shown to admins (to paste
+  into Gitea) is built from it; a wrong value yields an unreachable hook.
+- **Keep that path publicly reachable** from your Gitea server through the
+  reverse proxy. It needs **no auth allowlist** — it authenticates itself via the
+  secret `token` in the URL plus the `X-Gitea-Signature` HMAC. Unknown/paused
+  tokens get `404`, bad signatures `401`.
+- No extra env or open ports are required; the integration is dormant until a
+  workspace admin connects it.
+
 ## Migrations in production
 
 ```bash
