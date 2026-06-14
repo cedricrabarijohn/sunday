@@ -70,7 +70,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
     .from(scmConnections)
     .where(eq(scmConnections.workspaceId, workspaceId));
 
-  const SUPPORTED = ["gitea", "github"] as const;
+  const SUPPORTED = ["gitea", "github", "gitlab", "bitbucket"] as const;
   const providers = SUPPORTED.map((provider) => {
     const conn = conns.find((c) => c.provider === provider);
     return conn

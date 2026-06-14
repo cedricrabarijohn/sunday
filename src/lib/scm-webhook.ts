@@ -2,11 +2,19 @@ import { NextResponse } from "next/server";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boardTasks, boards, cardLinks, scmConnections } from "@/db/schema";
-import { parseCardRefs, verifyGiteaSignature, verifyGithubSignature } from "@/lib/scm";
+import {
+  parseCardRefs,
+  verifyGiteaSignature,
+  verifyGithubSignature,
+  verifyGitlabToken,
+} from "@/lib/scm";
 import { moveCardToPileByName } from "@/lib/card-move";
 import { publishCardCounts } from "@/lib/card-counts";
 
-export type ScmProvider = "gitea" | "github";
+export type ScmProvider = "gitea" | "github" | "gitlab" | "bitbucket";
+export const SCM_PROVIDERS: ScmProvider[] = ["gitea", "github", "gitlab", "bitbucket"];
+export const isScmProvider = (v: string): v is ScmProvider =>
+  (SCM_PROVIDERS as string[]).includes(v);
 
 type LinkDraft = {
   cardId: number;
@@ -17,36 +25,160 @@ type LinkDraft = {
   state: string | null;
 };
 
-function verifySignature(
-  provider: ScmProvider,
-  raw: string,
-  signature: string | null,
-  secret: string | null,
-): boolean {
-  return provider === "github"
-    ? verifyGithubSignature(raw, signature, secret)
-    : verifyGiteaSignature(raw, signature, secret);
+type NormalizedCommit = { id: string; message: string; url: string | null };
+type Normalized =
+  | { kind: "push"; commits: NormalizedCommit[] }
+  | {
+      kind: "pr";
+      ref: string;
+      title: string | null;
+      body: string | null;
+      url: string | null;
+      merged: boolean;
+      state: string | null;
+    }
+  | { kind: "ignore" };
+
+type Rec = Record<string, unknown>;
+const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+const get = (o: unknown, k: string): unknown => (o && typeof o === "object" ? (o as Rec)[k] : undefined);
+
+/** push payload whose commits live at `commits[]` ({id|hash, message, url}). */
+function pushFromCommits(commitsRaw: unknown): Normalized {
+  const commits: NormalizedCommit[] = [];
+  if (Array.isArray(commitsRaw)) {
+    for (const c of commitsRaw) {
+      commits.push({
+        id: String(get(c, "id") ?? get(c, "hash") ?? ""),
+        message: str(get(c, "message")) ?? "",
+        url: str(get(c, "url")),
+      });
+    }
+  }
+  return { kind: "push", commits };
 }
 
+/** Gitea/GitHub pull_request object. */
+function prFromPullRequest(prRaw: unknown): Normalized {
+  const merged = get(prRaw, "merged") === true;
+  const state = merged ? "merged" : str(get(prRaw, "state"));
+  return {
+    kind: "pr",
+    ref: String(get(prRaw, "number") ?? ""),
+    title: str(get(prRaw, "title")),
+    body: str(get(prRaw, "body")),
+    url: str(get(prRaw, "html_url")),
+    merged,
+    state,
+  };
+}
+
+type Adapter = {
+  verify(raw: string, headers: Headers, secret: string | null): boolean;
+  parse(headers: Headers, payload: Rec): Normalized;
+};
+
+const ADAPTERS: Record<ScmProvider, Adapter> = {
+  gitea: {
+    verify: (raw, h, s) => verifyGiteaSignature(raw, h.get("x-gitea-signature"), s),
+    parse: (h, p) => {
+      const e = h.get("x-gitea-event");
+      if (e === "push") return pushFromCommits(p.commits);
+      if (e === "pull_request") return prFromPullRequest(p.pull_request);
+      return { kind: "ignore" };
+    },
+  },
+  github: {
+    verify: (raw, h, s) => verifyGithubSignature(raw, h.get("x-hub-signature-256"), s),
+    parse: (h, p) => {
+      const e = h.get("x-github-event");
+      if (e === "push") return pushFromCommits(p.commits);
+      if (e === "pull_request") return prFromPullRequest(p.pull_request);
+      return { kind: "ignore" };
+    },
+  },
+  gitlab: {
+    verify: (_raw, h, s) => verifyGitlabToken(h.get("x-gitlab-token"), s),
+    parse: (h, p) => {
+      const e = h.get("x-gitlab-event");
+      if (e === "Push Hook") return pushFromCommits(p.commits);
+      if (e === "Merge Request Hook") {
+        const oa = p.object_attributes;
+        const state = str(get(oa, "state")); // opened | merged | closed
+        const merged = state === "merged" || get(oa, "action") === "merge";
+        return {
+          kind: "pr",
+          ref: String(get(oa, "iid") ?? ""),
+          title: str(get(oa, "title")),
+          body: str(get(oa, "description")),
+          url: str(get(oa, "url")),
+          merged,
+          state,
+        };
+      }
+      return { kind: "ignore" };
+    },
+  },
+  bitbucket: {
+    // Bitbucket signs with the same HMAC-SHA256 scheme as GitHub, under X-Hub-Signature.
+    verify: (raw, h, s) => verifyGithubSignature(raw, h.get("x-hub-signature"), s),
+    parse: (h, p) => {
+      const e = h.get("x-event-key");
+      if (e === "repo:push") {
+        const commits: NormalizedCommit[] = [];
+        const changes = get(p.push, "changes");
+        if (Array.isArray(changes)) {
+          for (const ch of changes) {
+            const cs = get(ch, "commits");
+            if (Array.isArray(cs)) {
+              for (const c of cs) {
+                commits.push({
+                  id: String(get(c, "hash") ?? ""),
+                  message: str(get(c, "message")) ?? "",
+                  url: str(get(get(get(c, "links"), "html"), "href")),
+                });
+              }
+            }
+          }
+        }
+        return { kind: "push", commits };
+      }
+      if (typeof e === "string" && e.startsWith("pullrequest:")) {
+        const pr = p.pullrequest;
+        const state = str(get(pr, "state"))?.toLowerCase() ?? null; // open | merged | declined
+        const merged = e === "pullrequest:fulfilled" || state === "merged";
+        return {
+          kind: "pr",
+          ref: String(get(pr, "id") ?? ""),
+          title: str(get(pr, "title")),
+          body: str(get(pr, "description")),
+          url: str(get(get(get(pr, "links"), "html"), "href")),
+          merged,
+          state: merged ? "merged" : state,
+        };
+      }
+      return { kind: "ignore" };
+    },
+  },
+};
+
 /**
- * Shared receiver for Gitea / GitHub webhooks. Both speak the same `push`
- * and `pull_request` shapes; only the signature scheme and the event/signature
- * header names differ (handled by each provider's thin route). Links commits
+ * Shared receiver for every SCM provider. Each provider's thin route hands us
+ * the raw body + headers; the adapter verifies the request and normalizes the
+ * payload into commits / a PR. From there the flow is identical: link commits
  * and PRs that reference `#cardId` to cards in the connection's own workspace,
- * refreshes live badge counts, and moves a card on PR merge when configured.
+ * refresh live badge counts, and move a card on PR merge when configured.
  */
 export async function processScmWebhook({
   provider,
   token,
   raw,
-  event,
-  signature,
+  headers,
 }: {
   provider: ScmProvider;
   token: string;
   raw: string;
-  event: string | null;
-  signature: string | null;
+  headers: Headers;
 }): Promise<NextResponse> {
   const [conn] = await db
     .select()
@@ -56,44 +188,44 @@ export async function processScmWebhook({
   // Don't reveal whether a token exists.
   if (!conn || conn.enabled !== 1) return NextResponse.json({ ok: false }, { status: 404 });
 
-  if (!verifySignature(provider, raw, signature, conn.secret)) {
+  const adapter = ADAPTERS[provider];
+  if (!adapter.verify(raw, headers, conn.secret)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  let payload: Record<string, unknown>;
+  let payload: Rec;
   try {
     payload = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const drafts: LinkDraft[] = [];
+  const norm = adapter.parse(headers, payload);
 
-  if (event === "push" && Array.isArray(payload.commits)) {
-    for (const c of payload.commits as Array<Record<string, unknown>>) {
-      const message = typeof c.message === "string" ? c.message : "";
-      for (const cardId of parseCardRefs(message)) {
+  const drafts: LinkDraft[] = [];
+  if (norm.kind === "push") {
+    for (const c of norm.commits) {
+      if (!c.id) continue;
+      for (const cardId of parseCardRefs(c.message)) {
         drafts.push({
           cardId,
           kind: "commit",
-          ref: String(c.id ?? "").slice(0, 255),
-          title: message.split("\n")[0].slice(0, 255),
-          url: typeof c.url === "string" ? c.url : null,
+          ref: c.id.slice(0, 255),
+          title: c.message.split("\n")[0].slice(0, 255),
+          url: c.url,
           state: null,
         });
       }
     }
-  } else if (event === "pull_request" && payload.pull_request) {
-    const pr = payload.pull_request as Record<string, unknown>;
-    const state = pr.merged === true ? "merged" : typeof pr.state === "string" ? pr.state : null;
-    for (const cardId of parseCardRefs(pr.title as string, pr.body as string)) {
+  } else if (norm.kind === "pr") {
+    for (const cardId of parseCardRefs(norm.title, norm.body)) {
       drafts.push({
         cardId,
         kind: "pr",
-        ref: String(pr.number ?? ""),
-        title: typeof pr.title === "string" ? pr.title.slice(0, 255) : null,
-        url: typeof pr.html_url === "string" ? pr.html_url : null,
-        state,
+        ref: norm.ref,
+        title: norm.title ? norm.title.slice(0, 255) : null,
+        url: norm.url,
+        state: norm.state,
       });
     }
   }
@@ -137,10 +269,7 @@ export async function processScmWebhook({
   // Auto-advance: a merged PR moves each linked card to the configured pile
   // in its own board. Best-effort — never let a move failure fail the hook.
   let moved = 0;
-  const isMergedPr =
-    event === "pull_request" &&
-    (payload.pull_request as Record<string, unknown> | undefined)?.merged === true;
-  if (isMergedPr && conn.donePileName) {
+  if (norm.kind === "pr" && norm.merged && conn.donePileName) {
     const movedCardIds = new Set<number>();
     for (const d of drafts) {
       const card = validById.get(d.cardId);

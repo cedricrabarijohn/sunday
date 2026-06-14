@@ -4,7 +4,7 @@ import { ReactNode, useState } from "react";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import styles from "./Integrations.module.scss";
 
-type Provider = "gitea" | "github";
+type Provider = "gitea" | "github" | "gitlab" | "bitbucket";
 
 type ProviderState = {
   provider: Provider;
@@ -42,6 +42,31 @@ const META: Record<
         <strong>Payload URL</strong> and <strong>Secret</strong> above, content type to{" "}
         <code>application/json</code>, choose <strong>Let me select individual events</strong>, and
         tick <strong>Pushes</strong> and <strong>Pull requests</strong>.
+      </>
+    ),
+  },
+  gitlab: {
+    name: "GitLab",
+    baseLabel: "GitLab base URL (optional)",
+    basePlaceholder: "https://gitlab.com",
+    help: (
+      <>
+        In GitLab: your project → <strong>Settings → Webhooks</strong>. Set the{" "}
+        <strong>URL</strong> above, paste the secret into the <strong>Secret token</strong> field, and
+        tick <strong>Push events</strong> and <strong>Merge request events</strong>.
+      </>
+    ),
+  },
+  bitbucket: {
+    name: "Bitbucket",
+    baseLabel: "Bitbucket base URL (optional)",
+    basePlaceholder: "https://bitbucket.org",
+    help: (
+      <>
+        In Bitbucket: your repo → <strong>Repository settings → Webhooks → Add webhook</strong>. Set
+        the <strong>URL</strong> and <strong>Secret</strong> above, then under triggers select{" "}
+        <strong>Repository push</strong> and the <strong>Pull request</strong> events (created,
+        updated, merged).
       </>
     ),
   },

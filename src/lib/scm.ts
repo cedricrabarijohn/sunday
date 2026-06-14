@@ -28,6 +28,18 @@ export function verifyGithubSignature(
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+/**
+ * Verify a GitLab webhook: GitLab sends the raw secret back in the
+ * `X-Gitlab-Token` header (no HMAC) — compare it in constant time.
+ */
+export function verifyGitlabToken(token: string | null, secret: string | null): boolean {
+  if (!secret) return true; // no secret set → accept (a secret is strongly recommended)
+  if (!token) return false;
+  const a = Buffer.from(token);
+  const b = Buffer.from(secret);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /** Extract card references like "#42" from a commit message / PR title+body. */
 export function parseCardRefs(...texts: (string | null | undefined)[]): number[] {
   const ids = new Set<number>();

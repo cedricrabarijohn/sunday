@@ -6,10 +6,9 @@ import { requireAuth } from "@/lib/require-auth";
 import { requireWorkspaceCap } from "@/lib/workspace-access";
 import { appUrl } from "@/lib/mail";
 import { randomToken } from "@/lib/scm";
-import type { ScmProvider } from "@/lib/scm-webhook";
+import { isScmProvider, type ScmProvider } from "@/lib/scm-webhook";
 
-const PROVIDERS: ScmProvider[] = ["gitea", "github"];
-const isProvider = (v: string): v is ScmProvider => (PROVIDERS as string[]).includes(v);
+const isProvider = isScmProvider;
 
 async function load(workspaceId: number, provider: ScmProvider) {
   const [row] = await db
