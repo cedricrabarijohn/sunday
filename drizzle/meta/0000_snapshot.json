@@ -1788,8 +1788,8 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "workspace_role_capabilities_workspace_role_id_workspace_capability_id_pk": {
-          "name": "workspace_role_capabilities_workspace_role_id_workspace_capability_id_pk",
+        "workspace_role_caps_pk": {
+          "name": "workspace_role_caps_pk",
           "columns": [
             "workspace_role_id",
             "workspace_capability_id"

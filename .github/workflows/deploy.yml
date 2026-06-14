@@ -77,7 +77,24 @@ jobs:
               -f docker/docker-compose.production.yml \
               up -d --build app db minio minio-init mailpit
 
-            sleep 6
+            # Wait for the app container to finish bun install + build + start before applying migrations.
+            # The startup typically takes 60-120 s on this VM. Poll readiness via HTTP 200 on the public port.
+            echo "Waiting for sunday_app readiness on :3060 (up to 5 min)..."
+            for i in $(seq 1 30); do
+              if curl -sf -o /dev/null --max-time 5 http://localhost:3060/; then
+                echo "App ready after $((i * 10))s"
+                break
+              fi
+              sleep 10
+            done
+
+            # Apply pending Drizzle migrations · idempotent, safe to run on every deploy.
+            docker exec sunday_app bun run db:migrate || {
+              echo "db:migrate failed · last 30 app logs:" >&2
+              docker logs --tail 30 sunday_app || true
+              exit 1
+            }
+
             if docker ps --format '{{.Names}}' | grep -q '^sunday_app$'; then
               echo "Sunday deployed at $(date) on http://${HOSTNAME:-187.124.167.18}:3060"
             else
