@@ -1120,7 +1120,10 @@ export default function TasksClient({
             workspaceId={workspaceId}
             canManageMembers={canManageMembers}
           />
-          <NotificationsBell />
+          {/* On mobile the bell lives in the AppShell top bar instead. */}
+          <span className={styles.bellDesktopOnly}>
+            <NotificationsBell />
+          </span>
         </div>
       </div>
 

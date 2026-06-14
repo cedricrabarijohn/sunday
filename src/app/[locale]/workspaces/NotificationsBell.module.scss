@@ -1,8 +1,8 @@
 .wrap {
   position: relative;
-  width: auto;
-  padding-top: 2px;
-  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .bellBtn {
@@ -10,13 +10,14 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   color: var(--text-1);
   cursor: pointer;
-  font-size: 16px;
   background: none;
-  border: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
 }
 .bellBtn:hover {
   background: var(--surface-2);
@@ -34,22 +35,23 @@
 
 .dot {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -3px;
+  right: -3px;
+  pointer-events: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  box-sizing: border-box;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   background: var(--accent);
-  color: var(--bg);
-  border: 2px solid var(--bg);
+  color: var(--accent-fg, var(--bg));
+  border: 2px solid var(--surface);
   border-radius: 999px;
-  font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
-  box-sizing: content-box;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .menu {
@@ -164,14 +166,6 @@
   font-style: italic;
 }
 
-/* On phones the floating bell would collide with the sticky mobile
-   bar — move it just below the bar instead. */
-@media (max-width: 880px) {
-  .wrap {
-    top: 60px;
-    right: 12px;
-  }
-}
 @media (max-width: 880px) {
   .menu {
     width: min(360px, calc(100vw - 24px));

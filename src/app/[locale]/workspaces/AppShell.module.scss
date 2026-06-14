@@ -19,6 +19,7 @@
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   align-items: center;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   grid-column: 1 / -1;
 }
@@ -39,7 +40,17 @@
 
 .mobileBar .brand {
   flex: 1;
+  min-width: 0;
   text-align: left;
+}
+
+/* The board-header bell is hidden on mobile — the mobile top bar shows it. */
+.bellDesktopOnly {
+  display: inline-flex;
+  align-items: center;
+}
+@media (max-width: 880px) {
+  .bellDesktopOnly { display: none; }
 }
 
 .mobileBar .avatar {

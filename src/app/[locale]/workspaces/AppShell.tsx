@@ -102,6 +102,7 @@ export default function AppShell({
           <span className={styles.menuIcon}>☰</span>
         </button>
         <Link href="/workspaces" className={styles.brand}>sunday</Link>
+        <NotificationsBell />
         <span className={styles.avatar} aria-hidden>{initials(user)}</span>
       </header>
 
