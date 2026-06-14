@@ -19,39 +19,70 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.WIKOLABS_VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Pull code and restart on VM
+      - name: Pack source tree
+        run: |
+          # Tarball the source tree without .git and without runner-side node_modules.
+          # Inside the container the entrypoint runs bun install + bun build at startup.
+          tar czf /tmp/sunday-src.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='.github' \
+            .
+
+      - name: Upload source to VM
         env:
           SSH_OPTS: "-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o ConnectionAttempts=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
         run: |
+          # The same SSH/SCP retry pattern as the landing-page deploy · runner IPs can
+          # hit a slow route to Hostinger that times out. Retry up to 4 times.
           attempt=1
           until [ $attempt -gt 4 ]; do
-            echo "::group::Deploy attempt $attempt"
-            if ssh $SSH_OPTS \
+            echo "::group::Upload attempt $attempt"
+            if scp $SSH_OPTS /tmp/sunday-src.tar.gz \
+                 ${{ secrets.WIKOLABS_VM_USER }}@${{ secrets.WIKOLABS_VM_HOST }}:/tmp/ \
+               && ssh $SSH_OPTS \
                  ${{ secrets.WIKOLABS_VM_USER }}@${{ secrets.WIKOLABS_VM_HOST }} \
-                 'bash -s' <<'DEPLOY'; then
-              set -e
-              cd /root/sunday
-              git fetch --all
-              git reset --hard origin/main
-              # Override file at docker/docker-compose.production.yml maps the app to host port 3060 and keeps internal services internal-only.
-              docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.production.yml up -d --build app db minio minio-init mailpit
-              sleep 6
-              if docker ps --format '{{.Names}}' | grep -q sunday_app; then
-                echo "Sunday deployed at $(date) on http://${{ secrets.WIKOLABS_VM_HOST }}:3060"
-              else
-                echo "Sunday app failed to start" >&2
-                docker logs --tail 50 sunday_app || true
-                exit 1
-              fi
-DEPLOY
+                 "mkdir -p /root/sunday && tar xzf /tmp/sunday-src.tar.gz -C /root/sunday && rm -f /tmp/sunday-src.tar.gz"; then
               echo "::endgroup::"
-              echo "Deploy succeeded on attempt $attempt"
-              exit 0
+              echo "Upload succeeded on attempt $attempt"
+              break
             fi
             echo "::endgroup::"
-            echo "Deploy attempt $attempt failed, retrying in $((attempt * 10))s..."
+            echo "Upload attempt $attempt failed, retrying in $((attempt * 10))s..."
             sleep $((attempt * 10))
             attempt=$((attempt + 1))
           done
-          echo "Deploy failed after 4 attempts" >&2
-          exit 1
+          if [ $attempt -gt 4 ]; then
+            echo "Upload failed after 4 attempts" >&2
+            exit 1
+          fi
+
+      - name: Run docker compose on VM
+        env:
+          SSH_OPTS: "-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o ConnectionAttempts=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+        run: |
+          ssh $SSH_OPTS \
+            ${{ secrets.WIKOLABS_VM_USER }}@${{ secrets.WIKOLABS_VM_HOST }} << 'DEPLOY'
+            set -e
+            cd /root/sunday
+
+            if [ ! -f .env ]; then
+              echo "Missing /root/sunday/.env · create it before the first deploy (see deploy workflow comments)." >&2
+              exit 1
+            fi
+
+            docker compose --env-file .env \
+              -f docker/docker-compose.yml \
+              -f docker/docker-compose.production.yml \
+              up -d --build app db minio minio-init mailpit
+
+            sleep 6
+            if docker ps --format '{{.Names}}' | grep -q '^sunday_app$'; then
+              echo "Sunday deployed at $(date) on http://${HOSTNAME:-187.124.167.18}:3060"
+            else
+              echo "Sunday app failed to start · last 50 logs:" >&2
+              docker logs --tail 50 sunday_app || true
+              exit 1
+            fi
+          DEPLOY
