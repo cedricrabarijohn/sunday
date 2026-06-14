@@ -1,0 +1,26 @@
+# Production override · used on the Wikolabs VM alongside docker-compose.yml.
+# Differences vs the dev compose file:
+#   - Internal services (db, minio, mailpit) are NOT exposed on host ports · they would collide
+#     with other Wikolabs containers (wikolabs_db on 3306, etc.).
+#   - The Sunday app is mapped to host port 3060 (the URL we advertise from the landing-page
+#     OnboardAI offer and the trust marquee).
+#   - The volume that mounts the source tree into /app is preserved · the entrypoint still does
+#     bun install + bun build + bun start at container start.
+
+services:
+  db:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+
+  mailpit:
+    ports: !reset []
+
+  app:
+    environment:
+      - APP_ENV=production
+      - APP_URL=${APP_URL:-http://187.124.167.18:3060}
+      - STORAGE_DRIVER=${STORAGE_DRIVER:-local}
+    ports: !override
+      - "3060:3000"
