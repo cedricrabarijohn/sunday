@@ -301,7 +301,7 @@ CREATE TABLE `workspace_role_capabilities` (
 	`workspace_role_id` int NOT NULL,
 	`workspace_capability_id` int NOT NULL,
 	`deleted_at` datetime,
-	CONSTRAINT `workspace_role_capabilities_workspace_role_id_workspace_capability_id_pk` PRIMARY KEY(`workspace_role_id`,`workspace_capability_id`)
+	CONSTRAINT `workspace_role_capabilities_pk` PRIMARY KEY(`workspace_role_id`,`workspace_capability_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `workspace_roles` (

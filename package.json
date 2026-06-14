@@ -18,7 +18,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts",
+    "db:seed": "echo 'Apply sql/seed.sql to the database (it ships in the 0005 migration too). In Docker: make db-seed'",
     "screenshots": "JWT_SECRET=$(grep ^JWT_SECRET= .env | cut -d= -f2-) node scripts/screenshots.mjs"
   },
   "dependencies": {

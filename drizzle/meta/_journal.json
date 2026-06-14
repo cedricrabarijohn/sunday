@@ -36,6 +36,13 @@
       "when": 1781348714048,
       "tag": "0004_slimy_ben_urich",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1781400000000,
+      "tag": "0005_seed_rbac",
+      "breakpoints": true
     }
   ]
 }

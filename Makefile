@@ -16,6 +16,7 @@ help:
 	@echo " generate-init-sql           Generate sql/init.sql"
 	@echo " db                          Launch db container and access the database $(DB_NAME)"
 	@echo " db-init                     Init the database from sql/init.sql file"
+	@echo " db-seed                     Seed RBAC reference data (roles/capabilities) from sql/seed.sql"
 	@echo " db-dump                     Dump the current database in sql/dump.sql"
 	@echo " db-restore                  Restore the database from sql/dump.sql"
 	@echo " db-drop                     Wipe out the database and create a fresh one"
@@ -41,6 +42,9 @@ db:
 
 db-init:
 	@docker compose --env-file .env -f docker/docker-compose.yml exec -T db mariadb -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} < ./sql/init.sql
+
+db-seed:
+	@docker compose --env-file .env -f docker/docker-compose.yml exec -T db mariadb -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} < ./sql/seed.sql
 
 db-dump:
 	@docker compose --env-file .env -f docker/docker-compose.yml exec db mariadb-dump -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} > ./sql/dump.sql

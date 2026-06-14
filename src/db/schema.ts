@@ -91,7 +91,7 @@ export const workspaceCapabilities = mysqlTable("workspace_capabilities", {
 
 export const workspaceRoles = mysqlTable("workspace_roles", {
   id: int("id").autoincrement().primaryKey(),
-  label: varchar("label", { length: 10 }),
+  label: varchar("label", { length: 40 }),
   deletedAt: datetime("deleted_at"),
 });
 

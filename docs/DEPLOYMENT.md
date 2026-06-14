@@ -62,9 +62,17 @@ DB_HOST=<db-host> DB_PORT=3306 DB_USER=<user> DB_PASSWORD=<pass> DB_NAME=<db> \
   bun run db:migrate
 ```
 
-A fresh database applies `drizzle/0000_baseline.sql` (the full schema). For an
-existing database already at this schema, baseline it once by inserting the
-baseline row into `__drizzle_migrations` so `db:migrate` treats it as applied
+A fresh database applies `drizzle/0000_baseline.sql` (the full schema), then the
+later migrations — including `0005_seed_rbac.sql`, which seeds the RBAC
+reference data (roles, capabilities and their mappings). **Without that seed a
+new workspace's admin holds no capabilities and cannot even create a board**, so
+a fresh install must run the migrations through `0005`. The seed is idempotent
+(`ON DUPLICATE KEY UPDATE` / `INSERT IGNORE`); to (re-)apply it on its own —
+e.g. to heal a database seeded before this fix — run `make db-seed` (it pipes
+`sql/seed.sql` into the db container) or apply `sql/seed.sql` directly.
+
+For an existing database already at this schema, baseline it once by inserting
+the baseline row into `__drizzle_migrations` so `db:migrate` treats it as applied
 (the dev DB is already baselined).
 
 ### ⚠️ Index gotcha
