@@ -95,6 +95,21 @@ jobs:
               exit 1
             }
 
+            # Belt-and-suspenders: guarantee the RBAC reference data (roles,
+            # capabilities, mappings) exists. The 0005 migration seeds it, but a
+            # database created outside Drizzle (or with an out-of-sync journal)
+            # may not have run it · without this seed a workspace admin cannot
+            # even create a board. sql/seed.sql is idempotent, so re-running it
+            # every deploy is safe.
+            DB_ROOT_PASSWORD=$(grep -E '^DB_ROOT_PASSWORD=' .env | cut -d= -f2-)
+            DB_NAME=$(grep -E '^DB_NAME=' .env | cut -d= -f2-)
+            docker compose --env-file .env \
+              -f docker/docker-compose.yml \
+              -f docker/docker-compose.production.yml \
+              exec -T db mariadb -u root -p"$DB_ROOT_PASSWORD" "$DB_NAME" < sql/seed.sql \
+              && echo "RBAC seed applied" \
+              || { echo "RBAC seed failed" >&2; exit 1; }
+
             if docker ps --format '{{.Names}}' | grep -q '^sunday_app$'; then
               echo "Sunday deployed at $(date) on http://${HOSTNAME:-187.124.167.18}:3060"
             else
