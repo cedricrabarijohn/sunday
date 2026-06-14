@@ -28,6 +28,12 @@ start:
 start-f:
 	@docker compose --env-file .env -f docker/docker-compose.yml up
 
+start-prod:
+	@docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.production.yml up -d --build
+
+start-prod-f:
+	@docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.production.yml up --build
+
 stop:
 	@docker compose --env-file .env --project-directory docker down
 
