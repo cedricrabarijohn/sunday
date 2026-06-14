@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
@@ -173,17 +174,15 @@ export default function TasksClient({
   }, [boardId]);
 
   // The open card is reflected in the URL (/boards/:id?card=:cardId) so it
-  // survives a refresh and can be shared or deep-linked from a notification.
-  // Read it once on mount to restore the drawer.
+  // survives a refresh, can be shared, and opens from a notification deep link.
+  // React to the `card` param so navigating to ?card=:id opens the drawer even
+  // when we're already on this board (e.g. clicking a notification in place) —
+  // not just on the initial mount.
+  const cardParam = useSearchParams().get("card");
   useEffect(() => {
-    try {
-      const raw = new URLSearchParams(window.location.search).get("card");
-      const id = raw ? Number(raw) : NaN;
-      if (Number.isFinite(id) && id > 0) setOpenCardId(id);
-    } catch {
-      // Bad URL or no History API — nothing to restore.
-    }
-  }, []);
+    const id = cardParam ? Number(cardParam) : NaN;
+    if (Number.isFinite(id) && id > 0) setOpenCardId(id);
+  }, [cardParam]);
 
   // Keep the ?card= param in sync with the open drawer without a full
   // navigation, preserving any other query params.
