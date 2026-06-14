@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, text, datetime, json, uniqueIndex, primaryKey, tinyint } from "drizzle-orm/mysql-core";
+import { mysqlTable, int, varchar, text, datetime, json, index, uniqueIndex, primaryKey, tinyint } from "drizzle-orm/mysql-core";
 
 export const roles = mysqlTable("roles", {
   id: int("id").autoincrement().primaryKey(),
@@ -194,7 +194,9 @@ export const boardTasks = mysqlTable(
     updatedAt: datetime("updated_at"),
     deletedAt: datetime("deleted_at"),
   },
-  (t) => [uniqueIndex("board_tasks_index_0").on(t.boardId, t.position)],
+  // NON-unique: positions are numbered per pile (1..N in each pile), so they
+  // are not unique board-wide. A UNIQUE here would 500 every cross-pile move.
+  (t) => [index("board_tasks_index_0").on(t.boardId, t.position)],
 );
 
 export const boardTaskAssignedUsers = mysqlTable(

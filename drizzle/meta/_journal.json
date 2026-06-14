@@ -43,6 +43,13 @@
       "when": 1781400000000,
       "tag": "0005_seed_rbac",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1781500000000,
+      "tag": "0006_board_tasks_position_nonunique",
+      "breakpoints": true
     }
   ]
 }
