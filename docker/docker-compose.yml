@@ -22,9 +22,14 @@ services:
       networks:
         - sunday-network
 
+  # Object storage for attachments — OPTIONAL. Only needed when STORAGE_DRIVER=s3.
+  # It sits behind the "s3" compose profile, so a default `make start` does not
+  # run it: attachments are written to local disk (public/uploads) instead.
+  # Opt in with: COMPOSE_PROFILES=s3 (or `make start-s3`).
   minio:
     image: minio/minio:latest
     container_name: ${NAMESPACE}_minio
+    profiles: ["s3"]
     restart: always
     command: server /data --console-address ":9001"
     environment:
@@ -50,6 +55,7 @@ services:
   minio-init:
     image: minio/mc:latest
     container_name: ${NAMESPACE}_minio_init
+    profiles: ["s3"]
     depends_on:
       minio:
         condition: service_healthy
@@ -120,8 +126,6 @@ services:
 
     depends_on:
       db:
-        condition: service_healthy
-      minio:
         condition: service_healthy
 
     networks:

@@ -11,7 +11,8 @@ How to ship Sunday safely, and how to scale it later.
      **refuses to boot** in production with the placeholder or a `< 32` char
      value.
    - `DB_PASSWORD`, `DB_ROOT_PASSWORD` — not `password`.
-   - `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` — not `minioadmin`.
+   - `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` — **only if** `STORAGE_DRIVER=s3`
+     (not `minioadmin`). The default `local` driver needs no object store.
    - Keep the real `.env` **out of git** (it's gitignored; only `.env.example`
      is tracked).
 2. **`NODE_ENV=production` at runtime.** Otherwise the session cookie is sent

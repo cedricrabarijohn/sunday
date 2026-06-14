@@ -108,9 +108,13 @@ page load, so live numbers always match a fresh fetch.
 
 `src/lib/storage` is a small driver abstraction (`STORAGE_DRIVER`):
 
-- `s3.ts` — any S3-compatible store (MinIO in dev, real S3 in prod). The dev
-  bucket is created and made public-read by the `minio-init` one-shot container.
-- `local-disk.ts` — local filesystem fallback.
+- `local-disk.ts` — **the default.** Writes to `public/uploads/`, served
+  straight by Next. No extra services; ideal for self-hosted single-instance
+  installs. MinIO sits behind the `s3` Compose profile, so it does not even run
+  unless you opt in.
+- `s3.ts` — optional S3-compatible store (MinIO / S3 / R2 / Spaces), for scale
+  or multi-instance. With MinIO the bucket is created and made public-read by
+  the `minio-init` one-shot container (`make start-s3`).
 
 Uploads go through `api/cards/[id]/attachments`; the public URL is stored on the
 attachment row and embedded directly (including inline images in descriptions).

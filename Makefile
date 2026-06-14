@@ -7,8 +7,9 @@ help:
 	@echo "usage: make COMMAND"
 	@echo ""
 	@echo "Quick-start Commands:"
-	@echo " start                       Create and start containers in detached mode"
+	@echo " start                       Create and start containers in detached mode (local storage)"
 	@echo " start-f                     Create and start containers"
+	@echo " start-s3                    Start with the bundled MinIO (STORAGE_DRIVER=s3)"
 	@echo " stop                        Stop containers"
 	@echo " kill                        Kill containers"
 	@echo ""
@@ -27,6 +28,9 @@ start:
 
 start-f:
 	@docker compose --env-file .env -f docker/docker-compose.yml up
+
+start-s3:
+	@COMPOSE_PROFILES=s3 docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 start-prod:
 	@docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.production.yml up -d --build

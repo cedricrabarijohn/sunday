@@ -82,7 +82,7 @@ comments, real-time sync, and an invite/auth system with email.
 | DB | MariaDB via Drizzle ORM (`mysql2`) |
 | Auth | JWT session cookie (`jose`), bcrypt password hashing |
 | Real-time | Server-Sent Events + in-process pub/sub |
-| Storage | S3-compatible (MinIO in dev) or local disk |
+| Storage | Local disk by default · optional S3-compatible (MinIO / S3 / R2) |
 | Email | SMTP via `nodemailer` (Mailpit in dev) |
 | i18n | `next-intl` |
 | Runtime / dev | Docker Compose, `bun` |
@@ -108,9 +108,13 @@ Then open:
 
 - App: <http://localhost:3000>
 - Mailpit (captured emails in dev): <http://localhost:8025>
-- MinIO console: <http://localhost:9001>
 
 `make` with no target prints all available commands.
+
+> **Storage:** attachments are written to local disk (`public/uploads`) by
+> default — no object store needed. Only if you set `STORAGE_DRIVER=s3` do you
+> need the bundled MinIO: start it with `make start-s3` (console on
+> <http://localhost:9001>).
 
 ## Environment variables
 
@@ -123,7 +127,8 @@ All config lives in `.env` (loaded by Next.js and Docker Compose). See
 | `APP_URL` | Public base URL used to build links in emails. |
 | `DB_*` | MariaDB connection. |
 | `SMTP_*`, `MAIL_FROM` | Outbound email. Dev points at the Mailpit container. |
-| `S3_*`, `STORAGE_DRIVER` | Attachment storage (`s3` or `local`). |
+| `STORAGE_DRIVER` | Attachment storage: `local` (default, on-disk) or `s3`. |
+| `S3_*` | Only needed when `STORAGE_DRIVER=s3` (MinIO / S3 / R2 / Spaces). |
 
 ## Scripts
 

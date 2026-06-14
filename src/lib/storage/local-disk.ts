@@ -3,12 +3,14 @@ import path from "path";
 import { Storage, PutInput, PutResult } from "./types";
 
 /**
- * Local-disk storage for dev. Writes under `public/uploads/` so the
- * Next.js static server picks them up.
+ * Local-disk storage (the default). Writes under `public/uploads/` so the
+ * Next.js server serves them directly — no object store required, which is
+ * what most self-hosted single-instance deployments want.
  *
- * NOT suitable for production: the container filesystem is ephemeral
- * and writes after `next build` are not part of the immutable image.
- * Use the S3 driver against MinIO / S3 / R2 / Spaces in prod.
+ * Persistence: keep `public/uploads/` on a persistent volume (the Compose
+ * setup bind-mounts the project dir, so uploads survive restarts). Switch to
+ * the S3 driver (MinIO / S3 / R2 / Spaces) only when you run multiple app
+ * instances or want storage off the app host.
  */
 export class LocalDiskStorage implements Storage {
   readonly driver = "local-disk";
