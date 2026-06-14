@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import styles from "./Integrations.module.scss";
 
-type Gitea = {
+type Provider = "gitea" | "github";
+
+type ProviderState = {
+  provider: Provider;
   connected: boolean;
   baseUrl: string;
   enabled: boolean;
@@ -13,22 +16,75 @@ type Gitea = {
   webhookUrl: string;
 };
 
+const META: Record<
+  Provider,
+  { name: string; baseLabel: string; basePlaceholder: string; help: ReactNode }
+> = {
+  gitea: {
+    name: "Gitea",
+    baseLabel: "Gitea base URL",
+    basePlaceholder: "https://gitea.yourdomain.com",
+    help: (
+      <>
+        In Gitea: your repo → <strong>Settings → Webhooks → Add Webhook → Gitea</strong>. Paste the
+        URL and secret above, set content type to <code>application/json</code>, and tick the
+        <strong> Push</strong> and <strong> Pull Request</strong> events.
+      </>
+    ),
+  },
+  github: {
+    name: "GitHub",
+    baseLabel: "GitHub base URL (optional)",
+    basePlaceholder: "https://github.com",
+    help: (
+      <>
+        In GitHub: your repo → <strong>Settings → Webhooks → Add webhook</strong>. Set the{" "}
+        <strong>Payload URL</strong> and <strong>Secret</strong> above, content type to{" "}
+        <code>application/json</code>, choose <strong>Let me select individual events</strong>, and
+        tick <strong>Pushes</strong> and <strong>Pull requests</strong>.
+      </>
+    ),
+  },
+};
+
 export default function IntegrationsClient({
   workspaceId,
   workspaceTitle,
-  gitea: initial,
+  providers,
 }: {
   workspaceId: number;
   workspaceTitle: string | null;
-  gitea: Gitea;
+  providers: ProviderState[];
+}) {
+  return (
+    <div className={styles.wrap}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Integrations</h1>
+        <p className={styles.subtitle}>{workspaceTitle} · connect external tools to this workspace.</p>
+      </header>
+
+      {providers.map((p) => (
+        <ProviderCard key={p.provider} workspaceId={workspaceId} initial={p} />
+      ))}
+    </div>
+  );
+}
+
+function ProviderCard({
+  workspaceId,
+  initial,
+}: {
+  workspaceId: number;
+  initial: ProviderState;
 }) {
   const toast = useToast();
-  const [gitea, setGitea] = useState<Gitea>(initial);
+  const meta = META[initial.provider];
+  const [state, setState] = useState<ProviderState>(initial);
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
   const [donePileName, setDonePileName] = useState(initial.donePileName);
   const [saving, setSaving] = useState(false);
 
-  const endpoint = `/api/workspaces/${workspaceId}/integrations/gitea`;
+  const endpoint = `/api/workspaces/${workspaceId}/integrations/${initial.provider}`;
 
   async function save(body: Record<string, unknown>, msg?: string) {
     setSaving(true);
@@ -43,7 +99,8 @@ export default function IntegrationsClient({
         toast.error(data.error || "Could not save");
         return;
       }
-      setGitea({
+      setState({
+        provider: initial.provider,
         connected: true,
         baseUrl: data.baseUrl ?? "",
         enabled: data.enabled,
@@ -67,10 +124,18 @@ export default function IntegrationsClient({
         toast.error("Could not disconnect");
         return;
       }
-      setGitea({ connected: false, baseUrl: "", enabled: true, secret: "", donePileName: "", webhookUrl: "" });
+      setState({
+        provider: initial.provider,
+        connected: false,
+        baseUrl: "",
+        enabled: true,
+        secret: "",
+        donePileName: "",
+        webhookUrl: "",
+      });
       setBaseUrl("");
       setDonePileName("");
-      toast.success("Gitea disconnected");
+      toast.success(`${meta.name} disconnected`);
     } catch {
       toast.error("Network error.");
     } finally {
@@ -86,111 +151,106 @@ export default function IntegrationsClient({
   };
 
   return (
-    <div className={styles.wrap}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Integrations</h1>
-        <p className={styles.subtitle}>{workspaceTitle} · connect external tools to this workspace.</p>
-      </header>
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <div>
+          <h2 className={styles.cardTitle}>{meta.name}</h2>
+          <p className={styles.cardDesc}>
+            Link commits and pull requests to cards. Reference a card with
+            <code> #cardId</code> in a commit message or PR.
+          </p>
+        </div>
+        <span className={`${styles.badge} ${state.connected && state.enabled ? styles.badgeOn : ""}`}>
+          {state.connected ? (state.enabled ? "Connected" : "Paused") : "Not connected"}
+        </span>
+      </div>
 
-      <section className={styles.card}>
-        <div className={styles.cardHead}>
-          <div>
-            <h2 className={styles.cardTitle}>Gitea</h2>
-            <p className={styles.cardDesc}>
-              Link commits and pull requests to cards. Reference a card with
-              <code> #cardId</code> in a commit message or PR.
-            </p>
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor={`baseUrl-${initial.provider}`}>
+          {meta.baseLabel}
+        </label>
+        <input
+          id={`baseUrl-${initial.provider}`}
+          className={styles.input}
+          placeholder={meta.basePlaceholder}
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+        />
+      </div>
+
+      {!state.connected ? (
+        <div className={styles.actions}>
+          <button
+            className={styles.primary}
+            disabled={saving}
+            onClick={() => save({ baseUrl }, `${meta.name} connected`)}
+          >
+            {saving ? "Connecting…" : "Connect"}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className={styles.field}>
+            <label className={styles.label}>Webhook URL</label>
+            <div className={styles.copyRow}>
+              <code className={styles.code}>{state.webhookUrl}</code>
+              <button className={styles.copyBtn} onClick={() => copy(state.webhookUrl)}>Copy</button>
+            </div>
           </div>
-          <span className={`${styles.badge} ${gitea.connected && gitea.enabled ? styles.badgeOn : ""}`}>
-            {gitea.connected ? (gitea.enabled ? "Connected" : "Paused") : "Not connected"}
-          </span>
-        </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Webhook secret</label>
+            <div className={styles.copyRow}>
+              <code className={styles.code}>{state.secret}</code>
+              <button className={styles.copyBtn} onClick={() => copy(state.secret)}>Copy</button>
+            </div>
+          </div>
 
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="baseUrl">Gitea base URL</label>
-          <input
-            id="baseUrl"
-            className={styles.input}
-            placeholder="https://gitea.yourdomain.com"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-          />
-        </div>
+          <div className={styles.help}>{meta.help}</div>
 
-        {!gitea.connected ? (
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor={`donePile-${initial.provider}`}>
+              Move card on merge (optional)
+            </label>
+            <input
+              id={`donePile-${initial.provider}`}
+              className={styles.input}
+              placeholder="e.g. Done"
+              value={donePileName}
+              onChange={(e) => setDonePileName(e.target.value)}
+              maxLength={60}
+            />
+            <span className={styles.hint}>
+              When a merged PR references <code>#cardId</code>, that card moves to the pile with this
+              exact name in its own board. Leave empty to disable.
+            </span>
+          </div>
+
           <div className={styles.actions}>
+            <button className={styles.ghost} disabled={saving} onClick={() => save({ baseUrl, donePileName }, "Saved")}>
+              Save changes
+            </button>
             <button
-              className={styles.primary}
-              disabled={saving || !baseUrl.trim()}
-              onClick={() => save({ baseUrl }, "Gitea connected")}
+              className={styles.ghost}
+              disabled={saving}
+              onClick={() =>
+                save({ baseUrl, donePileName, enabled: !state.enabled }, state.enabled ? "Paused" : "Resumed")
+              }
             >
-              {saving ? "Connecting…" : "Connect"}
+              {state.enabled ? "Pause" : "Resume"}
+            </button>
+            <button
+              className={styles.ghost}
+              disabled={saving}
+              onClick={() => save({ baseUrl, donePileName, regenerateSecret: true }, "Secret regenerated")}
+            >
+              Regenerate secret
+            </button>
+            <button className={styles.danger} disabled={saving} onClick={disconnect}>
+              Disconnect
             </button>
           </div>
-        ) : (
-          <>
-            <div className={styles.field}>
-              <label className={styles.label}>Webhook URL</label>
-              <div className={styles.copyRow}>
-                <code className={styles.code}>{gitea.webhookUrl}</code>
-                <button className={styles.copyBtn} onClick={() => copy(gitea.webhookUrl)}>Copy</button>
-              </div>
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Webhook secret</label>
-              <div className={styles.copyRow}>
-                <code className={styles.code}>{gitea.secret}</code>
-                <button className={styles.copyBtn} onClick={() => copy(gitea.secret)}>Copy</button>
-              </div>
-            </div>
-
-            <div className={styles.help}>
-              In Gitea: your repo → <strong>Settings → Webhooks → Add Webhook → Gitea</strong>. Paste
-              the URL and secret above, set content type to <code>application/json</code>, and tick the
-              <strong> Push</strong> and <strong> Pull Request</strong> events.
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="donePile">Move card on merge (optional)</label>
-              <input
-                id="donePile"
-                className={styles.input}
-                placeholder="e.g. Done"
-                value={donePileName}
-                onChange={(e) => setDonePileName(e.target.value)}
-                maxLength={60}
-              />
-              <span className={styles.hint}>
-                When a merged PR references <code>#cardId</code>, that card moves to the pile with this
-                exact name in its own board. Leave empty to disable.
-              </span>
-            </div>
-
-            <div className={styles.actions}>
-              <button className={styles.ghost} disabled={saving} onClick={() => save({ baseUrl, donePileName }, "Saved")}>
-                Save changes
-              </button>
-              <button
-                className={styles.ghost}
-                disabled={saving}
-                onClick={() => save({ baseUrl, donePileName, enabled: !gitea.enabled }, gitea.enabled ? "Paused" : "Resumed")}
-              >
-                {gitea.enabled ? "Pause" : "Resume"}
-              </button>
-              <button
-                className={styles.ghost}
-                disabled={saving}
-                onClick={() => save({ baseUrl, donePileName, regenerateSecret: true }, "Secret regenerated")}
-              >
-                Regenerate secret
-              </button>
-              <button className={styles.danger} disabled={saving} onClick={disconnect}>
-                Disconnect
-              </button>
-            </div>
-          </>
-        )}
-      </section>
-    </div>
+        </>
+      )}
+    </section>
   );
 }

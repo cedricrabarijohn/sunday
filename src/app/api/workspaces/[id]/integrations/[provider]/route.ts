@@ -6,45 +6,54 @@ import { requireAuth } from "@/lib/require-auth";
 import { requireWorkspaceCap } from "@/lib/workspace-access";
 import { appUrl } from "@/lib/mail";
 import { randomToken } from "@/lib/scm";
+import type { ScmProvider } from "@/lib/scm-webhook";
 
-const PROVIDER = "gitea";
+const PROVIDERS: ScmProvider[] = ["gitea", "github"];
+const isProvider = (v: string): v is ScmProvider => (PROVIDERS as string[]).includes(v);
 
-async function load(workspaceId: number) {
+async function load(workspaceId: number, provider: ScmProvider) {
   const [row] = await db
     .select()
     .from(scmConnections)
-    .where(and(eq(scmConnections.workspaceId, workspaceId), eq(scmConnections.provider, PROVIDER)))
+    .where(and(eq(scmConnections.workspaceId, workspaceId), eq(scmConnections.provider, provider)))
     .limit(1);
   return row;
 }
 
-function present(row: NonNullable<Awaited<ReturnType<typeof load>>>) {
+function present(provider: ScmProvider, row: NonNullable<Awaited<ReturnType<typeof load>>>) {
   return {
     connected: true,
-    provider: PROVIDER,
+    provider,
     baseUrl: row.baseUrl,
     enabled: row.enabled === 1,
     secret: row.secret,
     donePileName: row.donePileName ?? "",
-    webhookUrl: `${appUrl()}/api/webhooks/gitea/${row.webhookToken}`,
+    webhookUrl: `${appUrl()}/api/webhooks/${provider}/${row.webhookToken}`,
   };
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+async function resolve(params: Promise<{ id: string; provider: string }>) {
+  const { id, provider } = await params;
+  return { workspaceId: Number(id), provider };
+}
+
+export async function GET(_: Request, { params }: { params: Promise<{ id: string; provider: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
-  const workspaceId = Number((await params).id);
+  const { workspaceId, provider } = await resolve(params);
+  if (!isProvider(provider)) return NextResponse.json({ error: "Unknown provider" }, { status: 404 });
   const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_members");
   if (!guard.ok) return guard.response;
 
-  const row = await load(workspaceId);
-  return NextResponse.json(row ? present(row) : { connected: false, provider: PROVIDER });
+  const row = await load(workspaceId, provider);
+  return NextResponse.json(row ? present(provider, row) : { connected: false, provider });
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string; provider: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
-  const workspaceId = Number((await params).id);
+  const { workspaceId, provider } = await resolve(params);
+  if (!isProvider(provider)) return NextResponse.json({ error: "Unknown provider" }, { status: 404 });
   const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_members");
   if (!guard.ok) return guard.response;
 
@@ -58,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     typeof body?.donePileName === "string" ? body.donePileName.trim().slice(0, 60) || null : undefined;
   const now = new Date();
 
-  const existing = await load(workspaceId);
+  const existing = await load(workspaceId, provider);
   if (existing) {
     const set: Record<string, unknown> = { baseUrl, enabled, updatedAt: now };
     if (donePileName !== undefined) set.donePileName = donePileName;
@@ -67,7 +76,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } else {
     await db.insert(scmConnections).values({
       workspaceId,
-      provider: PROVIDER,
+      provider,
       baseUrl,
       webhookToken: randomToken(24),
       secret: randomToken(18),
@@ -78,19 +87,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
   }
 
-  const row = await load(workspaceId);
-  return NextResponse.json(present(row!));
+  const row = await load(workspaceId, provider);
+  return NextResponse.json(present(provider, row!));
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string; provider: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
-  const workspaceId = Number((await params).id);
+  const { workspaceId, provider } = await resolve(params);
+  if (!isProvider(provider)) return NextResponse.json({ error: "Unknown provider" }, { status: 404 });
   const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_members");
   if (!guard.ok) return guard.response;
 
   await db
     .delete(scmConnections)
-    .where(and(eq(scmConnections.workspaceId, workspaceId), eq(scmConnections.provider, PROVIDER)));
+    .where(and(eq(scmConnections.workspaceId, workspaceId), eq(scmConnections.provider, provider)));
   return NextResponse.json({ ok: true });
 }

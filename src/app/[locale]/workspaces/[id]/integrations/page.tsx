@@ -65,22 +65,34 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
           ),
         );
 
-  const [conn] = await db
+  const conns = await db
     .select()
     .from(scmConnections)
-    .where(and(eq(scmConnections.workspaceId, workspaceId), eq(scmConnections.provider, "gitea")))
-    .limit(1);
+    .where(eq(scmConnections.workspaceId, workspaceId));
 
-  const gitea = conn
-    ? {
-        connected: true,
-        baseUrl: conn.baseUrl ?? "",
-        enabled: conn.enabled === 1,
-        secret: conn.secret ?? "",
-        donePileName: conn.donePileName ?? "",
-        webhookUrl: `${appUrl()}/api/webhooks/gitea/${conn.webhookToken}`,
-      }
-    : { connected: false, baseUrl: "", enabled: true, secret: "", donePileName: "", webhookUrl: "" };
+  const SUPPORTED = ["gitea", "github"] as const;
+  const providers = SUPPORTED.map((provider) => {
+    const conn = conns.find((c) => c.provider === provider);
+    return conn
+      ? {
+          provider,
+          connected: true,
+          baseUrl: conn.baseUrl ?? "",
+          enabled: conn.enabled === 1,
+          secret: conn.secret ?? "",
+          donePileName: conn.donePileName ?? "",
+          webhookUrl: `${appUrl()}/api/webhooks/${provider}/${conn.webhookToken}`,
+        }
+      : {
+          provider,
+          connected: false,
+          baseUrl: "",
+          enabled: true,
+          secret: "",
+          donePileName: "",
+          webhookUrl: "",
+        };
+  });
 
   return (
     <AppShell
@@ -92,7 +104,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
       <IntegrationsClient
         workspaceId={workspaceId}
         workspaceTitle={workspace.title}
-        gitea={gitea}
+        providers={providers}
       />
     </AppShell>
   );
