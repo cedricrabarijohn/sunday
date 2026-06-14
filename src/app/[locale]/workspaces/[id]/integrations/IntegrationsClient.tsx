@@ -4,7 +4,7 @@ import { ReactNode, useState } from "react";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import styles from "./Integrations.module.scss";
 
-type Provider = "gitea" | "github" | "gitlab" | "bitbucket";
+type Provider = "gitea" | "forgejo" | "github" | "gitlab" | "bitbucket";
 
 type ProviderState = {
   provider: Provider;
@@ -28,6 +28,18 @@ const META: Record<
       <>
         In Gitea: your repo → <strong>Settings → Webhooks → Add Webhook → Gitea</strong>. Paste the
         URL and secret above, set content type to <code>application/json</code>, and tick the
+        <strong> Push</strong> and <strong> Pull Request</strong> events.
+      </>
+    ),
+  },
+  forgejo: {
+    name: "Forgejo",
+    baseLabel: "Forgejo base URL",
+    basePlaceholder: "https://forgejo.yourdomain.com",
+    help: (
+      <>
+        In Forgejo: your repo → <strong>Settings → Webhooks → Add Webhook → Forgejo</strong>. Paste
+        the URL and secret above, set content type to <code>application/json</code>, and tick the
         <strong> Push</strong> and <strong> Pull Request</strong> events.
       </>
     ),

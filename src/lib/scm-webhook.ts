@@ -11,8 +11,8 @@ import {
 import { moveCardToPileByName } from "@/lib/card-move";
 import { publishCardCounts } from "@/lib/card-counts";
 
-export type ScmProvider = "gitea" | "github" | "gitlab" | "bitbucket";
-export const SCM_PROVIDERS: ScmProvider[] = ["gitea", "github", "gitlab", "bitbucket"];
+export type ScmProvider = "gitea" | "forgejo" | "github" | "gitlab" | "bitbucket";
+export const SCM_PROVIDERS: ScmProvider[] = ["gitea", "forgejo", "github", "gitlab", "bitbucket"];
 export const isScmProvider = (v: string): v is ScmProvider =>
   (SCM_PROVIDERS as string[]).includes(v);
 
@@ -78,24 +78,27 @@ type Adapter = {
   parse(headers: Headers, payload: Rec): Normalized;
 };
 
+/** Gitea, Forgejo and GitHub all use the same push / pull_request shapes. */
+function parseGiteaFamily(event: string | null, p: Rec): Normalized {
+  if (event === "push") return pushFromCommits(p.commits);
+  if (event === "pull_request") return prFromPullRequest(p.pull_request);
+  return { kind: "ignore" };
+}
+
 const ADAPTERS: Record<ScmProvider, Adapter> = {
   gitea: {
     verify: (raw, h, s) => verifyGiteaSignature(raw, h.get("x-gitea-signature"), s),
-    parse: (h, p) => {
-      const e = h.get("x-gitea-event");
-      if (e === "push") return pushFromCommits(p.commits);
-      if (e === "pull_request") return prFromPullRequest(p.pull_request);
-      return { kind: "ignore" };
-    },
+    parse: (h, p) => parseGiteaFamily(h.get("x-gitea-event"), p),
+  },
+  forgejo: {
+    // Forgejo is Gitea-compatible; accept either header set (HMAC-SHA256).
+    verify: (raw, h, s) =>
+      verifyGiteaSignature(raw, h.get("x-forgejo-signature") ?? h.get("x-gitea-signature"), s),
+    parse: (h, p) => parseGiteaFamily(h.get("x-forgejo-event") ?? h.get("x-gitea-event"), p),
   },
   github: {
     verify: (raw, h, s) => verifyGithubSignature(raw, h.get("x-hub-signature-256"), s),
-    parse: (h, p) => {
-      const e = h.get("x-github-event");
-      if (e === "push") return pushFromCommits(p.commits);
-      if (e === "pull_request") return prFromPullRequest(p.pull_request);
-      return { kind: "ignore" };
-    },
+    parse: (h, p) => parseGiteaFamily(h.get("x-github-event"), p),
   },
   gitlab: {
     verify: (_raw, h, s) => verifyGitlabToken(h.get("x-gitlab-token"), s),
