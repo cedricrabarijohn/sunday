@@ -24,13 +24,13 @@ help:
 	@echo " db-logs                     Follow database container logs"
 
 start:
-	@docker compose --env-file .env -f docker/docker-compose.yml up -d
+	@docker compose --env-file .env -f docker/docker-compose.yml up -d --build
 
 start-f:
-	@docker compose --env-file .env -f docker/docker-compose.yml up
+	@docker compose --env-file .env -f docker/docker-compose.yml up --build
 
 start-s3:
-	@COMPOSE_PROFILES=s3 docker compose --env-file .env -f docker/docker-compose.yml up -d
+	@COMPOSE_PROFILES=s3 docker compose --env-file .env -f docker/docker-compose.yml up -d --build
 
 start-prod:
 	@docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.production.yml up -d --build

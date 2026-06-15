@@ -86,8 +86,8 @@ services:
 
   app:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: ${NAMESPACE}_app
     working_dir: /app
     restart: always
@@ -103,20 +103,19 @@ services:
       - S3_PUBLIC_BASE_URL=${S3_PUBLIC_BASE_URL:-http://localhost:9000}
     volumes:
       - ../:/app
+      # Keep the image's node_modules instead of letting the bind mount above
+      # shadow it with the (gitignored, possibly empty) host directory.
+      - /app/node_modules
     command: >
       /bin/bash -c "
         if [[ \${APP_ENV} == 'production' || \${APP_ENV} == 'staging' ]]; then
           echo 'Using APP_ENV=${APP_ENV}';
-          echo 'Installing project dependencies ...';
-          bun install;
           echo 'Building production ready environment ...';
           bun run build;
           echo 'Starting the server ...';
           bun run start;
         else
           echo 'Using APP_ENV=development';
-          echo 'Installing project dependencies ...';
-          bun install;
           echo 'Running dev environment ...';
           bun run dev;
         fi
