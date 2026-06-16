@@ -2,8 +2,10 @@
 
 import { CSSProperties, FormEvent, MouseEvent, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { colorForId } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
+import { useToast } from "@/components/organisms/toast/ToastProvider";
 import styles from "../AppShell.module.scss";
 
 type Board = { id: number; title: string | null; createdAt: Date | string | null };
@@ -30,6 +32,8 @@ export default function BoardsClient({
 
   const wsColor = colorForId(workspaceId);
   const { confirm } = useConfirm();
+  const toast = useToast();
+  const router = useRouter();
 
   function cancelCreate() {
     setCreating(false);
@@ -61,6 +65,28 @@ export default function BoardsClient({
     } catch {
       setBoards(snapshot);
       setError("Network error. Please try again.");
+    }
+  }
+
+  async function onDeleteWorkspace() {
+    const ok = await confirm({
+      title: `Delete workspace "${workspaceTitle || "Untitled"}"?`,
+      message:
+        "This will permanently delete the workspace and all its boards, cards, and content. This cannot be undone.",
+      confirmLabel: "Delete workspace",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Could not delete workspace");
+        return;
+      }
+      router.push("/");
+    } catch {
+      toast.error("Network error. Please try again.");
     }
   }
 
@@ -129,6 +155,11 @@ export default function BoardsClient({
             <Link href={`/workspaces/${workspaceId}/integrations`} className={styles.ghostBtn}>
               Integrations
             </Link>
+          )}
+          {can("delete_workspace") && (
+            <button type="button" className={styles.dangerBtn} onClick={onDeleteWorkspace}>
+              Delete workspace
+            </button>
           )}
           <span className={styles.pageMeta}>
             {boards.length.toString().padStart(2, "0")}{" "}

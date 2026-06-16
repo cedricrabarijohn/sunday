@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { workspaces, workspaceUsers } from "@/db/schema";
+import { boards, workspaces, workspaceUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
+import { requireWorkspaceCap } from "@/lib/workspace-access";
 
 async function userInWorkspace(userId: number, workspaceId: number) {
   const [row] = await db
@@ -39,4 +40,27 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ workspace, role: membership.role });
+}
+
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { id } = await params;
+  const workspaceId = Number(id);
+  if (!Number.isFinite(workspaceId)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "delete_workspace");
+  if (!guard.ok) return guard.response;
+
+  const now = new Date();
+  // Soft-delete all boards inside, then the workspace itself.
+  await db
+    .update(boards)
+    .set({ deletedAt: now })
+    .where(and(eq(boards.workspaceId, workspaceId), isNull(boards.deletedAt)));
+  await db.update(workspaces).set({ deletedAt: now }).where(eq(workspaces.id, workspaceId));
+
+  return NextResponse.json({ ok: true });
 }
