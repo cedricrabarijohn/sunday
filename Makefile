@@ -67,3 +67,6 @@ db-drop:
 
 db-logs:
 	@docker compose --env-file .env -f docker/docker-compose.yml logs -f db
+
+db-migrate:
+	@bash scripts/db-migrate.sh
