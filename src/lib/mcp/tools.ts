@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, like, max } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  boardColumns,
   boardPiles,
   boards,
   boardTaskAssignees,
@@ -8,6 +9,7 @@ import {
   boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
+  boardTaskColumns,
   boardTasks,
   boardUsers,
   labels,
@@ -16,6 +18,14 @@ import {
   workspaces,
   workspaceUsers,
 } from "@/db/schema";
+import {
+  FIELD_TYPES,
+  coerceValue,
+  isFieldType,
+  normalizeConfig,
+  parseConfig,
+  parseValue,
+} from "@/lib/fields";
 import {
   BOARD_ADMIN_ROLE_ID,
   loadBoardCapabilities,
@@ -218,6 +228,25 @@ async function labelContext(labelId: number, userId: number) {
   if (!label || label.workspaceId == null) throw new ToolError(`Label ${labelId} not found`);
   const wsCaps = await loadCapabilities(label.workspaceId, userId);
   return { label, caps: wsCaps };
+}
+
+async function columnContext(fieldId: number, userId: number) {
+  if (!Number.isFinite(fieldId)) throw new ToolError("field_id must be a number");
+  const [col] = await db
+    .select({
+      id: boardColumns.id,
+      boardId: boardColumns.boardId,
+      label: boardColumns.label,
+      type: boardColumns.type,
+      config: boardColumns.config,
+      position: boardColumns.position,
+    })
+    .from(boardColumns)
+    .where(and(eq(boardColumns.id, fieldId), isNull(boardColumns.deletedAt)))
+    .limit(1);
+  if (!col || col.boardId == null) throw new ToolError(`Custom field ${fieldId} not found`);
+  const { board, caps } = await boardContext(col.boardId, userId);
+  return { col, board, caps };
 }
 
 // --- tools ----------------------------------------------------------------
@@ -738,6 +767,22 @@ export const TOOLS: McpTool[] = [
         .select({ id: boardTaskComments.id })
         .from(boardTaskComments)
         .where(and(eq(boardTaskComments.boardTaskId, card.id), isNull(boardTaskComments.deletedAt)));
+      const fieldValues = await db
+        .select({
+          fieldId: boardTaskColumns.boardColumnId,
+          value: boardTaskColumns.value,
+          label: boardColumns.label,
+          type: boardColumns.type,
+        })
+        .from(boardTaskColumns)
+        .innerJoin(boardColumns, eq(boardColumns.id, boardTaskColumns.boardColumnId))
+        .where(
+          and(
+            eq(boardTaskColumns.boardTaskId, card.id),
+            isNull(boardTaskColumns.deletedAt),
+            isNull(boardColumns.deletedAt),
+          ),
+        );
       return {
         card: {
           id: card.id,
@@ -750,6 +795,12 @@ export const TOOLS: McpTool[] = [
           labels: cardLabels,
           subtasks: items.map((i) => ({ id: i.id, title: i.title, done: i.done === 1 })),
           commentCount: comments.length,
+          fields: fieldValues.map((f) => ({
+            fieldId: f.fieldId,
+            label: f.label,
+            type: f.type,
+            value: parseValue(f.value),
+          })),
         },
       };
     },
@@ -1341,6 +1392,175 @@ export const TOOLS: McpTool[] = [
         await tx.delete(boards).where(eq(boards.id, board.id));
       });
       return { deleted: board.id };
+    },
+  },
+
+  // ── Custom fields ─────────────────────────────────────────────────────────
+
+  {
+    name: "list_custom_fields",
+    description:
+      "List the custom field definitions on a board (id, label, type, config, position). " +
+      "Use this before calling set_card_field to resolve field ids and valid options. " +
+      `Types: ${FIELD_TYPES.join(", ")}.`,
+    inputSchema: {
+      type: "object",
+      properties: { board_id: { type: "number" } },
+      required: ["board_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { board } = await boardContext(Number(args.board_id), userId);
+      const rows = await db
+        .select({
+          id: boardColumns.id,
+          label: boardColumns.label,
+          type: boardColumns.type,
+          config: boardColumns.config,
+          position: boardColumns.position,
+        })
+        .from(boardColumns)
+        .where(and(eq(boardColumns.boardId, board.id), isNull(boardColumns.deletedAt)))
+        .orderBy(asc(boardColumns.position), asc(boardColumns.id));
+      return {
+        fields: rows.map((r) => ({ ...r, config: parseConfig(r.config) })),
+      };
+    },
+  },
+  {
+    name: "create_custom_field",
+    description:
+      "Create a new custom field definition on a board. Requires the edit_board capability. " +
+      `Types: ${FIELD_TYPES.join(", ")}. ` +
+      "For select/multi_select, pass config as { options: [{ label, color? }] }.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        board_id: { type: "number" },
+        label: { type: "string", description: "Field name (max 60 chars)." },
+        type: {
+          type: "string",
+          description: `Field type. One of: ${FIELD_TYPES.join(", ")}.`,
+        },
+        config: {
+          type: "object",
+          description: "For select/multi_select only: { options: [{ label, color? }] }.",
+        },
+      },
+      required: ["board_id", "label", "type"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { board, caps } = await boardContext(Number(args.board_id), userId);
+      requireCap(caps, "edit_board");
+      const label = String(args.label ?? "").trim();
+      if (!label) throw new ToolError("label is required");
+      if (label.length > 60) throw new ToolError("label too long (max 60)");
+      if (!isFieldType(args.type)) {
+        throw new ToolError(`Unknown type "${args.type}". Valid: ${FIELD_TYPES.join(", ")}`);
+      }
+      const config = normalizeConfig(args.type, args.config ?? null);
+      const [maxRow] = await db
+        .select({ value: max(boardColumns.position) })
+        .from(boardColumns)
+        .where(eq(boardColumns.boardId, board.id));
+      const position = (maxRow?.value ?? 0) + 1;
+      const [res] = await db.insert(boardColumns).values({
+        boardId: board.id,
+        label,
+        type: args.type,
+        config: JSON.stringify(config),
+        position,
+      });
+      const id = Number((res as { insertId: number }).insertId);
+      return { field: { id, label, type: args.type, config, position, boardId: board.id } };
+    },
+  },
+  {
+    name: "delete_custom_field",
+    description:
+      "Delete a custom field definition from a board. All card values for this field will also be removed. " +
+      "Requires the edit_board capability.",
+    inputSchema: {
+      type: "object",
+      properties: { field_id: { type: "number" } },
+      required: ["field_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { col, caps } = await columnContext(Number(args.field_id), userId);
+      requireCap(caps, "edit_board");
+      await db
+        .update(boardColumns)
+        .set({ deletedAt: new Date() })
+        .where(eq(boardColumns.id, col.id));
+      return { deleted: col.id };
+    },
+  },
+  {
+    name: "set_card_field",
+    description:
+      "Set or clear a custom field value on a card. Requires the edit_card capability. " +
+      "Pass null to clear the value. " +
+      "For select, value must be an option id string (use list_custom_fields to see options). " +
+      "For multi_select, value must be an array of option id strings. " +
+      "For date, value must be an ISO 8601 string. " +
+      "For checkbox, value must be a boolean.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        card_id: { type: "number" },
+        field_id: { type: "number", description: "Custom field id (from list_custom_fields)." },
+        value: { description: "The value to set, or null to clear." },
+      },
+      required: ["card_id", "field_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card, caps } = await cardContext(Number(args.card_id), userId);
+      requireCap(caps, "edit_card");
+      const fieldId = Number(args.field_id);
+      if (!Number.isFinite(fieldId)) throw new ToolError("field_id must be a number");
+
+      const [col] = await db
+        .select({
+          id: boardColumns.id,
+          boardId: boardColumns.boardId,
+          type: boardColumns.type,
+          config: boardColumns.config,
+        })
+        .from(boardColumns)
+        .where(and(eq(boardColumns.id, fieldId), isNull(boardColumns.deletedAt)))
+        .limit(1);
+      if (!col || col.boardId !== card.boardId) {
+        throw new ToolError("Custom field not found on this board");
+      }
+
+      const result = coerceValue(
+        col.type as Parameters<typeof coerceValue>[0],
+        "value" in args ? args.value : null,
+        parseConfig(col.config),
+      );
+      if (!result.ok) throw new ToolError(result.error);
+
+      if (result.value === null) {
+        await db
+          .delete(boardTaskColumns)
+          .where(
+            and(
+              eq(boardTaskColumns.boardColumnId, fieldId),
+              eq(boardTaskColumns.boardTaskId, card.id),
+            ),
+          );
+        return { card: { id: card.id }, field: { id: fieldId, value: null } };
+      }
+
+      await db
+        .insert(boardTaskColumns)
+        .values({ boardColumnId: fieldId, boardTaskId: card.id, value: result.value })
+        .onDuplicateKeyUpdate({ set: { value: result.value } });
+
+      return { card: { id: card.id }, field: { id: fieldId, value: result.value } };
     },
   },
 
