@@ -1,12 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
-import { colorForId } from "@/lib/palette";
-import appStyles from "../../AppShell.module.scss";
+import WorkspacePageHeader from "../../WorkspacePageHeader";
 import styles from "./WorkspaceSettings.module.scss";
 
 export default function WorkspaceSettingsClient({
@@ -27,8 +25,6 @@ export default function WorkspaceSettingsClient({
   const [title, setTitle] = useState(workspaceTitle ?? "");
   const [saving, setSaving] = useState(false);
   const dirty = title.trim() !== (workspaceTitle ?? "").trim() && title.trim().length > 0;
-
-  const wsColor = colorForId(workspaceId);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
@@ -79,33 +75,12 @@ export default function WorkspaceSettingsClient({
 
   return (
     <>
-      <div className={appStyles.pageHeader}>
-        <div className={appStyles.pageHeaderText}>
-          <span
-            className={appStyles.pageBadge}
-            style={{ background: wsColor.soft, color: wsColor.hue }}
-          >
-            {(workspaceTitle?.[0] || "W").toUpperCase()}
-          </span>
-          <div>
-            <h1 className={appStyles.pageTitle}>{workspaceTitle || "Untitled"}</h1>
-            <div className={appStyles.pageSubtitle}>Settings</div>
-          </div>
-        </div>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
-          <Link href={`/workspaces/${workspaceId}`} className={appStyles.ghostBtn}>
-            Boards
-          </Link>
-          <Link href={`/workspaces/${workspaceId}/members`} className={appStyles.ghostBtn}>
-            Members
-          </Link>
-          {can("manage_members") && (
-            <Link href={`/workspaces/${workspaceId}/integrations`} className={appStyles.ghostBtn}>
-              Integrations
-            </Link>
-          )}
-        </div>
-      </div>
+      <WorkspacePageHeader
+        workspaceId={workspaceId}
+        workspaceTitle={workspaceTitle}
+        capabilities={capabilities}
+        currentPage="settings"
+      />
 
       <div className={styles.wrap}>
         {can("edit_workspace") && (

@@ -4,6 +4,7 @@ import { CSSProperties, FormEvent, MouseEvent, useState, useTransition } from "r
 import Link from "next/link";
 import { colorForId } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
+import WorkspacePageHeader from "../WorkspacePageHeader";
 import styles from "../AppShell.module.scss";
 
 type Board = { id: number; title: string | null; createdAt: Date | string | null };
@@ -28,7 +29,6 @@ export default function BoardsClient({
   const [pending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
-  const wsColor = colorForId(workspaceId);
   const { confirm } = useConfirm();
 
   function cancelCreate() {
@@ -108,40 +108,19 @@ export default function BoardsClient({
 
   return (
     <>
-      <div className={styles.pageHeader}>
-        <div className={styles.pageHeaderText}>
-          <span
-            className={styles.pageBadge}
-            style={{ background: wsColor.soft, color: wsColor.hue }}
-          >
-            {(workspaceTitle?.[0] || "W").toUpperCase()}
-          </span>
-          <div>
-            <h1 className={styles.pageTitle}>{workspaceTitle || "Untitled"}</h1>
-            <div className={styles.pageSubtitle}>Boards in this workspace</div>
-          </div>
-        </div>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
-          <Link href={`/workspaces/${workspaceId}/members`} className={styles.ghostBtn}>
-            Members
-          </Link>
-          {can("manage_members") && (
-            <Link href={`/workspaces/${workspaceId}/integrations`} className={styles.ghostBtn}>
-              Integrations
-            </Link>
-          )}
-          {can("edit_workspace") && (
-            <Link href={`/workspaces/${workspaceId}/settings`} className={styles.ghostBtn}>
-              Settings
-            </Link>
-          )}
+      <WorkspacePageHeader
+        workspaceId={workspaceId}
+        workspaceTitle={workspaceTitle}
+        capabilities={capabilities}
+        currentPage="boards"
+        right={
           <span className={styles.pageMeta}>
             {boards.length.toString().padStart(2, "0")}{" "}
             {boards.length === 1 ? "board" : "boards"}
             {(pending || saving) && <span className={styles.savingDot} />}
           </span>
-        </div>
-      </div>
+        }
+      />
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 

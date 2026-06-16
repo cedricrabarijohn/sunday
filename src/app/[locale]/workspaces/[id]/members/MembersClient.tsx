@@ -1,9 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { colorForId } from "@/lib/palette";
+import WorkspacePageHeader from "../../WorkspacePageHeader";
 import styles from "../../AppShell.module.scss";
 import mStyles from "./Members.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
@@ -193,7 +192,6 @@ export default function MembersClient({
     }
   };
 
-  const wsColor = colorForId(workspaceId);
   const justCreatedUrl =
     justCreated && typeof window !== "undefined"
       ? `${window.location.origin}/invites/${justCreated.token}`
@@ -201,38 +199,17 @@ export default function MembersClient({
 
   return (
     <>
-      <div className={styles.pageHeader}>
-        <div className={styles.pageHeaderText}>
-          <span
-            className={styles.pageBadge}
-            style={{ background: wsColor.soft, color: wsColor.hue }}
-          >
-            {(workspaceTitle?.[0] || "W").toUpperCase()}
-          </span>
-          <div>
-            <h1 className={styles.pageTitle}>{workspaceTitle || "Untitled"}</h1>
-            <div className={styles.pageSubtitle}>Members</div>
-          </div>
-        </div>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
-          <Link href={`/workspaces/${workspaceId}`} className={styles.ghostBtn}>
-            Boards
-          </Link>
-          {canManageMembers && (
-            <Link href={`/workspaces/${workspaceId}/integrations`} className={styles.ghostBtn}>
-              Integrations
-            </Link>
-          )}
-          {canManageMembers && (
-            <Link href={`/workspaces/${workspaceId}/settings`} className={styles.ghostBtn}>
-              Settings
-            </Link>
-          )}
+      <WorkspacePageHeader
+        workspaceId={workspaceId}
+        workspaceTitle={workspaceTitle}
+        capabilities={capabilities}
+        currentPage="members"
+        right={
           <span className={styles.pageMeta}>
             {members.length} {members.length === 1 ? "member" : "members"}
           </span>
-        </div>
-      </div>
+        }
+      />
 
       {canManageMembers && (
         <section className={mStyles.section}>
