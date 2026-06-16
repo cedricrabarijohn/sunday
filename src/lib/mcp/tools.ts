@@ -4,23 +4,27 @@ import {
   boardPiles,
   boards,
   boardTaskAssignees,
+  boardTaskAttachments,
   boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
   boardTasks,
   boardUsers,
   labels,
+  notifications,
   users,
   workspaces,
   workspaceUsers,
 } from "@/db/schema";
 import {
+  BOARD_ADMIN_ROLE_ID,
   loadBoardCapabilities,
   type LoadedBoardForAccess,
 } from "@/lib/board-access";
 import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities } from "@/lib/workspace-access";
 import { ALLOWED_COLORS } from "@/lib/label-access";
 import { publishBoard, type BoardAssignee } from "@/lib/board-bus";
+import { publishCard } from "@/lib/card-bus";
 import { publishCardCounts } from "@/lib/card-counts";
 import { emitNotifications } from "@/lib/notify";
 
@@ -162,6 +166,58 @@ function resolveIdSet(
   for (const id of numArray(args.add)) next.add(id);
   for (const id of numArray(args.remove)) next.delete(id);
   return Array.from(next);
+}
+
+async function commentContext(commentId: number, userId: number) {
+  if (!Number.isFinite(commentId)) throw new ToolError("comment_id must be a number");
+  const [comment] = await db
+    .select({
+      id: boardTaskComments.id,
+      boardTaskId: boardTaskComments.boardTaskId,
+      userId: boardTaskComments.userId,
+      body: boardTaskComments.body,
+    })
+    .from(boardTaskComments)
+    .where(and(eq(boardTaskComments.id, commentId), isNull(boardTaskComments.deletedAt)))
+    .limit(1);
+  if (!comment || comment.boardTaskId == null) throw new ToolError(`Comment ${commentId} not found`);
+  const { card, board, caps } = await cardContext(comment.boardTaskId, userId);
+  return { comment, card, board, caps };
+}
+
+async function pileContext(pileId: number, userId: number) {
+  if (!Number.isFinite(pileId)) throw new ToolError("pile_id must be a number");
+  const [pile] = await db
+    .select({
+      id: boardPiles.id,
+      boardId: boardPiles.boardId,
+      title: boardPiles.title,
+      color: boardPiles.color,
+      position: boardPiles.position,
+    })
+    .from(boardPiles)
+    .where(and(eq(boardPiles.id, pileId), isNull(boardPiles.deletedAt)))
+    .limit(1);
+  if (!pile || pile.boardId == null) throw new ToolError(`Pile ${pileId} not found`);
+  const { board, caps } = await boardContext(pile.boardId, userId);
+  return { pile, board, caps };
+}
+
+async function labelContext(labelId: number, userId: number) {
+  if (!Number.isFinite(labelId)) throw new ToolError("label_id must be a number");
+  const [label] = await db
+    .select({
+      id: labels.id,
+      workspaceId: labels.workspaceId,
+      title: labels.title,
+      color: labels.color,
+    })
+    .from(labels)
+    .where(and(eq(labels.id, labelId), isNull(labels.deletedAt)))
+    .limit(1);
+  if (!label || label.workspaceId == null) throw new ToolError(`Label ${labelId} not found`);
+  const wsCaps = await loadCapabilities(label.workspaceId, userId);
+  return { label, caps: wsCaps };
 }
 
 // --- tools ----------------------------------------------------------------
@@ -943,7 +999,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "delete_card",
-    description: "Delete a card. Requires the delete_card capability.",
+    description: "Delete a card. Requires the delete_card board capability.",
     inputSchema: {
       type: "object",
       properties: { card_id: { type: "number" } },
@@ -959,6 +1015,400 @@ export const TOOLS: McpTool[] = [
         .where(eq(boardTasks.id, card.id));
       publishBoard(board.id, { type: "card_deleted", cardId: card.id });
       return { deleted: card.id };
+    },
+  },
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+
+  {
+    name: "list_comments",
+    description:
+      "List all comments on a card, ordered oldest-first. " +
+      "Returns id, body, author (userId, firstname, lastname, email), createdAt, updatedAt. " +
+      "Available to anyone with view_board access.",
+    inputSchema: {
+      type: "object",
+      properties: { card_id: { type: "number" } },
+      required: ["card_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card } = await cardContext(Number(args.card_id), userId);
+      const rows = await db
+        .select({
+          id: boardTaskComments.id,
+          body: boardTaskComments.body,
+          createdAt: boardTaskComments.createdAt,
+          updatedAt: boardTaskComments.updatedAt,
+          authorId: users.id,
+          firstname: users.firstname,
+          lastname: users.lastname,
+          email: users.email,
+        })
+        .from(boardTaskComments)
+        .innerJoin(users, eq(users.id, boardTaskComments.userId))
+        .where(and(eq(boardTaskComments.boardTaskId, card.id), isNull(boardTaskComments.deletedAt)))
+        .orderBy(asc(boardTaskComments.createdAt), asc(boardTaskComments.id));
+      return { comments: rows };
+    },
+  },
+  {
+    name: "edit_comment",
+    description:
+      "Edit the body of a comment. You may only edit your own comments unless you have the " +
+      "manage_board_members capability (board/workspace admin). Body max 5000 chars.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        comment_id: { type: "number" },
+        body: { type: "string", description: "New comment text (max 5000 chars)." },
+      },
+      required: ["comment_id", "body"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { comment, caps } = await commentContext(Number(args.comment_id), userId);
+      const isOwn = comment.userId === userId;
+      const isAdmin = caps.has("manage_board_members");
+      if (!isOwn && !isAdmin) throw new ToolError("You can only edit your own comments");
+      const body = String(args.body ?? "").trim();
+      if (!body) throw new ToolError("body is required");
+      if (body.length > 5000) throw new ToolError("comment too long (max 5000)");
+      const now = new Date();
+      await db
+        .update(boardTaskComments)
+        .set({ body, updatedAt: now })
+        .where(eq(boardTaskComments.id, comment.id));
+      publishCard(comment.boardTaskId, {
+        type: "comment_updated",
+        commentId: comment.id,
+        body,
+        updatedAt: now.toISOString(),
+      });
+      return { comment: { id: comment.id, body } };
+    },
+  },
+  {
+    name: "delete_comment",
+    description:
+      "Delete a comment. You may only delete your own comments unless you have the " +
+      "manage_board_members capability (board/workspace admin).",
+    inputSchema: {
+      type: "object",
+      properties: { comment_id: { type: "number" } },
+      required: ["comment_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { comment, board, caps } = await commentContext(Number(args.comment_id), userId);
+      const isOwn = comment.userId === userId;
+      const isAdmin = caps.has("manage_board_members");
+      if (!isOwn && !isAdmin) throw new ToolError("You can only delete your own comments");
+      await db
+        .update(boardTaskComments)
+        .set({ deletedAt: new Date() })
+        .where(eq(boardTaskComments.id, comment.id));
+      publishCard(comment.boardTaskId, { type: "comment_deleted", commentId: comment.id });
+      await publishCardCounts(board.id, comment.boardTaskId);
+      return { deleted: comment.id };
+    },
+  },
+
+  // ── Piles ─────────────────────────────────────────────────────────────────
+
+  {
+    name: "create_pile",
+    description:
+      "Create a new pile (column) on a board. Requires the manage_piles board capability. " +
+      "Title max 60 chars; optional color from the palette " +
+      `(${Array.from(ALLOWED_COLORS).join(", ")}).`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        board_id: { type: "number" },
+        title: { type: "string", description: "Pile title (max 60 chars)." },
+        color: {
+          type: "string",
+          description: `Optional pile color. One of: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
+        },
+      },
+      required: ["board_id", "title"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { board, caps } = await boardContext(Number(args.board_id), userId);
+      requireCap(caps, "manage_piles");
+      const title = String(args.title ?? "").trim();
+      if (!title) throw new ToolError("title is required");
+      if (title.length > 60) throw new ToolError("title too long (max 60)");
+      let color: string | null = null;
+      if (typeof args.color === "string" && args.color.trim()) {
+        if (!(ALLOWED_COLORS as ReadonlySet<string>).has(args.color)) {
+          throw new ToolError(`Unknown color "${args.color}". Valid: ${Array.from(ALLOWED_COLORS).join(", ")}`);
+        }
+        color = args.color;
+      }
+      const [maxRow] = await db
+        .select({ value: max(boardPiles.position) })
+        .from(boardPiles)
+        .where(eq(boardPiles.boardId, board.id));
+      const position = (maxRow?.value ?? 0) + 1;
+      const now = new Date();
+      const [res] = await db.insert(boardPiles).values({
+        boardId: board.id, title, color, position, createdAt: now, updatedAt: now,
+      });
+      const pileId = Number((res as { insertId: number }).insertId);
+      publishBoard(board.id, { type: "pile_created", pile: { id: pileId, title, color, position } });
+      return { pile: { id: pileId, title, color, position, boardId: board.id } };
+    },
+  },
+  {
+    name: "update_pile",
+    description:
+      "Rename a pile and/or change its color. Requires the manage_piles board capability. " +
+      `Valid colors: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        pile_id: { type: "number" },
+        title: { type: "string", description: "New title (max 60 chars)." },
+        color: {
+          type: ["string", "null"],
+          description: `Palette color name, or null to clear. Valid: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
+        },
+      },
+      required: ["pile_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { pile, board, caps } = await pileContext(Number(args.pile_id), userId);
+      requireCap(caps, "manage_piles");
+      const updates: { title?: string; color?: string | null } = {};
+      if (typeof args.title === "string") {
+        const t = args.title.trim();
+        if (!t) throw new ToolError("title cannot be empty");
+        if (t.length > 60) throw new ToolError("title too long (max 60)");
+        updates.title = t;
+      }
+      if ("color" in args) {
+        if (args.color === null || args.color === "") {
+          updates.color = null;
+        } else if (typeof args.color === "string") {
+          if (!(ALLOWED_COLORS as ReadonlySet<string>).has(args.color)) {
+            throw new ToolError(`Unknown color "${args.color}". Valid: ${Array.from(ALLOWED_COLORS).join(", ")}`);
+          }
+          updates.color = args.color;
+        }
+      }
+      if (Object.keys(updates).length === 0) {
+        throw new ToolError("Nothing to update: pass title and/or color");
+      }
+      await db
+        .update(boardPiles)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(boardPiles.id, pile.id));
+      if (updates.title !== undefined) {
+        publishBoard(board.id, { type: "pile_updated", pileId: pile.id, title: updates.title });
+      }
+      return { pile: { id: pile.id, ...updates } };
+    },
+  },
+  {
+    name: "delete_pile",
+    description:
+      "Delete a pile (column) from a board. The pile must be empty — use move_card first if it has cards. " +
+      "Requires the manage_piles board capability.",
+    inputSchema: {
+      type: "object",
+      properties: { pile_id: { type: "number" } },
+      required: ["pile_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { pile, board, caps } = await pileContext(Number(args.pile_id), userId);
+      requireCap(caps, "manage_piles");
+      const [nonEmpty] = await db
+        .select({ id: boardTasks.id })
+        .from(boardTasks)
+        .where(and(eq(boardTasks.pileId, pile.id), isNull(boardTasks.deletedAt)))
+        .limit(1);
+      if (nonEmpty) throw new ToolError("Pile is not empty. Move its cards first.");
+      await db
+        .update(boardPiles)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(boardPiles.id, pile.id));
+      publishBoard(board.id, { type: "pile_deleted", pileId: pile.id });
+      return { deleted: pile.id };
+    },
+  },
+
+  // ── Boards ────────────────────────────────────────────────────────────────
+
+  {
+    name: "create_board",
+    description:
+      "Create a new board in a workspace. Requires the create_board workspace capability. " +
+      "The caller is automatically added as board_admin. " +
+      "The board is created with three default piles: To do, In progress, Done.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: { type: "number" },
+        title: { type: "string", description: "Board title (max 100 chars)." },
+      },
+      required: ["workspace_id", "title"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const wsId = Number(args.workspace_id);
+      if (!Number.isFinite(wsId)) throw new ToolError("workspace_id must be a number");
+      const caps = await loadCapabilities(wsId, userId);
+      requireCap(caps, "create_board");
+      const title = String(args.title ?? "").trim();
+      if (!title) throw new ToolError("title is required");
+      if (title.length > 100) throw new ToolError("title too long (max 100)");
+      const now = new Date();
+      const [res] = await db.insert(boards).values({ workspaceId: wsId, title, createdAt: now });
+      const boardId = Number((res as { insertId: number }).insertId);
+      const defaultPiles = [
+        { title: "To do", color: "slate" },
+        { title: "In progress", color: "amber" },
+        { title: "Done", color: "lime" },
+      ];
+      await db.insert(boardPiles).values(
+        defaultPiles.map((p, idx) => ({
+          boardId, title: p.title, color: p.color, position: idx + 1, createdAt: now, updatedAt: now,
+        })),
+      );
+      await db.insert(boardUsers).values({
+        boardId, userId, boardRoleId: BOARD_ADMIN_ROLE_ID, createdAt: now,
+      });
+      return { board: { id: boardId, title, workspaceId: wsId } };
+    },
+  },
+  {
+    name: "update_board",
+    description: "Rename a board. Requires the edit_board board capability. Title max 100 chars.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        board_id: { type: "number" },
+        title: { type: "string", description: "New board title (max 100 chars)." },
+      },
+      required: ["board_id", "title"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { board, caps } = await boardContext(Number(args.board_id), userId);
+      requireCap(caps, "edit_board");
+      const title = String(args.title ?? "").trim();
+      if (!title) throw new ToolError("title cannot be empty");
+      if (title.length > 100) throw new ToolError("title too long (max 100)");
+      await db.update(boards).set({ title }).where(eq(boards.id, board.id));
+      return { board: { id: board.id, title } };
+    },
+  },
+  {
+    name: "delete_board",
+    description:
+      "Permanently delete a board and all its content (piles, cards, comments, sub-tasks, labels). " +
+      "This is irreversible. Requires the delete_board board capability (board_admin or workspace_admin).",
+    inputSchema: {
+      type: "object",
+      properties: { board_id: { type: "number" } },
+      required: ["board_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { board, caps } = await boardContext(Number(args.board_id), userId);
+      requireCap(caps, "delete_board");
+      const taskRows = await db
+        .select({ id: boardTasks.id })
+        .from(boardTasks)
+        .where(eq(boardTasks.boardId, board.id));
+      const taskIds = taskRows.map((t) => t.id);
+      await db.transaction(async (tx) => {
+        if (taskIds.length) {
+          await tx.delete(boardTaskAttachments).where(inArray(boardTaskAttachments.boardTaskId, taskIds));
+          await tx.delete(boardTaskItems).where(inArray(boardTaskItems.boardTaskId, taskIds));
+          await tx.delete(boardTaskLabels).where(inArray(boardTaskLabels.boardTaskId, taskIds));
+          await tx.delete(boardTaskAssignees).where(inArray(boardTaskAssignees.boardTaskId, taskIds));
+          await tx.delete(boardTaskComments).where(inArray(boardTaskComments.boardTaskId, taskIds));
+        }
+        await tx.delete(boardTasks).where(eq(boardTasks.boardId, board.id));
+        await tx.delete(boardPiles).where(eq(boardPiles.boardId, board.id));
+        await tx.delete(notifications).where(eq(notifications.boardId, board.id));
+        await tx.delete(boards).where(eq(boards.id, board.id));
+      });
+      return { deleted: board.id };
+    },
+  },
+
+  // ── Labels ────────────────────────────────────────────────────────────────
+
+  {
+    name: "update_label",
+    description:
+      "Rename a label and/or change its color. Requires the manage_labels workspace capability. " +
+      `Valid colors: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        label_id: { type: "number" },
+        title: { type: "string", description: "New label title (max 50 chars)." },
+        color: {
+          type: "string",
+          description: `Palette color name. Valid: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
+        },
+      },
+      required: ["label_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { label, caps } = await labelContext(Number(args.label_id), userId);
+      requireCap(caps, "manage_labels");
+      const updates: { title?: string; color?: string } = {};
+      if (typeof args.title === "string") {
+        const t = args.title.trim();
+        if (!t) throw new ToolError("title cannot be empty");
+        if (t.length > 50) throw new ToolError("title too long (max 50)");
+        updates.title = t;
+      }
+      if (typeof args.color === "string") {
+        if (!(ALLOWED_COLORS as ReadonlySet<string>).has(args.color)) {
+          throw new ToolError(`Unknown color "${args.color}". Valid: ${Array.from(ALLOWED_COLORS).join(", ")}`);
+        }
+        updates.color = args.color;
+      }
+      if (Object.keys(updates).length === 0) {
+        throw new ToolError("Nothing to update: pass title and/or color");
+      }
+      await db
+        .update(labels)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(labels.id, label.id));
+      return { label: { id: label.id, ...updates } };
+    },
+  },
+  {
+    name: "delete_label",
+    description:
+      "Delete a label from a workspace. It will be removed from all cards that use it. " +
+      "Requires the manage_labels workspace capability.",
+    inputSchema: {
+      type: "object",
+      properties: { label_id: { type: "number" } },
+      required: ["label_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { label, caps } = await labelContext(Number(args.label_id), userId);
+      requireCap(caps, "manage_labels");
+      await db
+        .update(labels)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(labels.id, label.id));
+      return { deleted: label.id };
     },
   },
 ];
