@@ -1687,13 +1687,6 @@
   background: var(--surface-2);
 }
 
-.emojiPickerWrap {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  z-index: 50;
-}
-
 /* ── Reaction bar ─────────────────────────────────────────────── */
 .reactionBar {
   display: flex;
@@ -1740,24 +1733,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 30px;
   height: 24px;
-  font-size: 14px;
-  font-weight: 600;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 999px;
   cursor: pointer;
-  color: var(--text-2);
-  transition: background 100ms ease;
+  color: var(--text-3);
+  transition: background 100ms ease, color 100ms ease;
 }
 .reactionAddBtn:hover {
   background: var(--surface-hover);
   color: var(--text-1);
-}
-.reactionPickerWrap {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  z-index: 50;
 }

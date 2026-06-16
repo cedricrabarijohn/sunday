@@ -1038,6 +1038,8 @@ export default function CardDrawer({
   const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
   const [editEmojiOpen, setEditEmojiOpen] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerEmojiBtnRef = useRef<HTMLButtonElement>(null);
+  const editEmojiBtnRef = useRef<HTMLButtonElement>(null);
 
   // Mentions: when the user picks a board member from the @-popover we
   // insert their display name into the textarea and remember the
@@ -1933,8 +1935,9 @@ export default function CardDrawer({
                                 autoFocus
                               />
                               <div className={styles.commentActions}>
-                                <div style={{ position: "relative", marginRight: "auto" }}>
+                                <div style={{ marginRight: "auto" }}>
                                   <button
+                                    ref={editEmojiBtnRef}
                                     type="button"
                                     className={styles.emojiTrigger}
                                     title="Add emoji"
@@ -1943,15 +1946,14 @@ export default function CardDrawer({
                                     😊
                                   </button>
                                   {editEmojiOpen && (
-                                    <div className={styles.emojiPickerWrap}>
-                                      <EmojiPicker
-                                        onSelect={(emoji) => {
-                                          insertEmojiInTextarea(editTextareaRef.current, editCommentBody, setEditCommentBody, emoji);
-                                          setEditEmojiOpen(false);
-                                        }}
-                                        onClose={() => setEditEmojiOpen(false)}
-                                      />
-                                    </div>
+                                    <EmojiPicker
+                                      anchor={editEmojiBtnRef.current}
+                                      onSelect={(emoji) => {
+                                        insertEmojiInTextarea(editTextareaRef.current, editCommentBody, setEditCommentBody, emoji);
+                                        setEditEmojiOpen(false);
+                                      }}
+                                      onClose={() => setEditEmojiOpen(false)}
+                                    />
                                   )}
                                 </div>
                                 <button type="button" className={styles.commentBtnGhost} onClick={cancelEditComment}>
@@ -2089,8 +2091,9 @@ export default function CardDrawer({
                   </div>
                 )}
                 <div className={styles.commentActions}>
-                  <div style={{ position: "relative", marginRight: "auto" }}>
+                  <div style={{ marginRight: "auto" }}>
                     <button
+                      ref={composerEmojiBtnRef}
                       type="button"
                       className={styles.emojiTrigger}
                       title="Add emoji"
@@ -2099,15 +2102,14 @@ export default function CardDrawer({
                       😊
                     </button>
                     {composerEmojiOpen && (
-                      <div className={styles.emojiPickerWrap}>
-                        <EmojiPicker
-                          onSelect={(emoji) => {
-                            insertEmojiInTextarea(composerRef.current, newComment, setNewComment, emoji);
-                            setComposerEmojiOpen(false);
-                          }}
-                          onClose={() => setComposerEmojiOpen(false)}
-                        />
-                      </div>
+                      <EmojiPicker
+                        anchor={composerEmojiBtnRef.current}
+                        onSelect={(emoji) => {
+                          insertEmojiInTextarea(composerRef.current, newComment, setNewComment, emoji);
+                          setComposerEmojiOpen(false);
+                        }}
+                        onClose={() => setComposerEmojiOpen(false)}
+                      />
                     )}
                   </div>
                   <span className={styles.commentHint}>Enter to post · Shift+↵ for new line</span>
@@ -3073,6 +3075,7 @@ function ReactionBar({
   onToggle: (emoji: string) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
   if (reactions.length === 0 && !currentUserId) return null;
   return (
     <div className={styles.reactionBar}>
@@ -3094,24 +3097,55 @@ function ReactionBar({
       {currentUserId != null && (
         <div className={styles.reactionAddWrap}>
           <button
+            ref={addBtnRef}
             type="button"
             className={styles.reactionAddBtn}
             onClick={() => setPickerOpen((v) => !v)}
             title="Add reaction"
+            aria-label="Add reaction"
           >
-            +
+            <SmileyPlusIcon />
           </button>
           {pickerOpen && (
-            <div className={styles.reactionPickerWrap}>
-              <EmojiPicker
-                onSelect={(emoji) => { onToggle(emoji); setPickerOpen(false); }}
-                onClose={() => setPickerOpen(false)}
-              />
-            </div>
+            <EmojiPicker
+              anchor={addBtnRef.current}
+              onSelect={(emoji) => { onToggle(emoji); setPickerOpen(false); }}
+              onClose={() => setPickerOpen(false)}
+            />
           )}
         </div>
       )}
     </div>
+  );
+}
+
+/** A smiley face with a small plus — the "add reaction" affordance. */
+function SmileyPlusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 4.5 1.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <circle cx="9" cy="10" r="1.2" fill="currentColor" />
+      <circle cx="15" cy="10" r="1.2" fill="currentColor" />
+      <path
+        d="M8.5 14.5a4 4 0 0 0 6 1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M19 3.5v4M17 5.5h4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -3131,6 +3165,7 @@ function DescToolbar({
   saving: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const emojiBtnRef = useRef<HTMLButtonElement>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
 
   const wrapCode = () => {
@@ -3202,8 +3237,9 @@ function DescToolbar({
       >
         <ImageIcon size={15} />
       </button>
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative", display: "inline-flex" }}>
         <button
+          ref={emojiBtnRef}
           type="button"
           className={styles.toolbarBtn}
           title="Insert emoji"
@@ -3215,12 +3251,11 @@ function DescToolbar({
           😊
         </button>
         {emojiOpen && (
-          <div className={styles.emojiPickerWrap}>
-            <EmojiPicker
-              onSelect={(emoji) => { onInsertEmoji(emoji); setEmojiOpen(false); }}
-              onClose={() => setEmojiOpen(false)}
-            />
-          </div>
+          <EmojiPicker
+            anchor={emojiBtnRef.current}
+            onSelect={(emoji) => { onInsertEmoji(emoji); setEmojiOpen(false); }}
+            onClose={() => setEmojiOpen(false)}
+          />
         )}
       </div>
       <input
