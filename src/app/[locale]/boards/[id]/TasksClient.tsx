@@ -1054,17 +1054,21 @@ export default function TasksClient({
             {(title?.[0] || "B").toUpperCase()}
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <input
-              className={styles.pageTitleInput}
-              value={title}
-              onChange={(e) => onRenameBoard(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-              placeholder="Untitled board"
-              maxLength={100}
-              aria-label="Board name"
-            />
+            {can("edit_board") ? (
+              <input
+                className={styles.pageTitleInput}
+                value={title}
+                onChange={(e) => onRenameBoard(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                placeholder="Untitled board"
+                maxLength={100}
+                aria-label="Board name"
+              />
+            ) : (
+              <h1 className={styles.pageTitleStatic}>{title || "Untitled board"}</h1>
+            )}
             <div className={styles.pageSubtitle}>
               in{" "}
               <Link
@@ -1309,6 +1313,8 @@ export default function TasksClient({
           boardColumns={columns}
           fields={tasks.find((t) => t.id === openCardId)?.fields ?? {}}
           editFields={can("edit_card")}
+          canEdit={can("edit_card")}
+          canDelete={can("delete_card")}
           onFieldChange={(columnId, value) =>
             openCardId != null && onSetFieldValue(openCardId, columnId, value)
           }

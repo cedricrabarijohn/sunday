@@ -104,6 +104,11 @@ type Props = {
   boardColumns?: BoardColumn[];
   fields?: Record<number, FieldValue>;
   editFields?: boolean;
+  /** Gates every card mutation (title, description, due, labels, assignees,
+   *  checklist, attachments). Maps to the board's `edit_card` capability. */
+  canEdit?: boolean;
+  /** Gates the delete button. Maps to the board's `delete_card` capability. */
+  canDelete?: boolean;
   onFieldChange?: (columnId: number, value: FieldValue) => void;
 };
 
@@ -129,6 +134,8 @@ export default function CardDrawer({
   boardColumns,
   fields,
   editFields,
+  canEdit = false,
+  canDelete = false,
   onFieldChange,
 }: Props) {
   const toast = useToast();
@@ -1266,23 +1273,31 @@ export default function CardDrawer({
           <div style={{ flex: 1, minWidth: 0 }}>
             <span className={styles.headMeta}>Card · #{cardId.toString().padStart(3, "0")}</span>
             {data ? (
-              <input
-                className={styles.headTitle}
-                defaultValue={data.card.title || ""}
-                onChange={(e) => onCardTitleChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                }}
-                placeholder="Untitled"
-              />
+              canEdit ? (
+                <input
+                  className={styles.headTitle}
+                  defaultValue={data.card.title || ""}
+                  onChange={(e) => onCardTitleChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  }}
+                  placeholder="Untitled"
+                />
+              ) : (
+                <h2 className={styles.headTitle} style={{ margin: 0 }}>
+                  {data.card.title || "Untitled"}
+                </h2>
+              )
             ) : (
               <div className={styles.loadBlock} style={{ width: "70%" }} />
             )}
             {data && (
               <div className={styles.headControls}>
+                {(canEdit || data.assignees.length > 0) && (
                 <MetaPopover
                   open={assigneePickerOpen}
                   setOpen={setAssigneePickerOpen}
+                  disabled={!canEdit}
                   label="Assignees"
                   triggerClassName={styles.metaTrigger}
                   trigger={
@@ -1318,10 +1333,13 @@ export default function CardDrawer({
                     onToggle={onToggleAssignee}
                   />
                 </MetaPopover>
+                )}
 
+                {(canEdit || data.labels.length > 0) && (
                 <MetaPopover
                   open={pickerOpen}
                   setOpen={setPickerOpen}
+                  disabled={!canEdit}
                   label="Labels"
                   triggerClassName={styles.metaTrigger}
                   trigger={
@@ -1363,6 +1381,7 @@ export default function CardDrawer({
                     onDelete={onDeleteLabel}
                   />
                 </MetaPopover>
+                )}
               </div>
             )}
           </div>
@@ -1444,7 +1463,7 @@ export default function CardDrawer({
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Description</span>
-                {!descEditing && (
+                {!descEditing && canEdit && (
                   <DescMenu
                     hasContent={Boolean(data.card.description?.trim())}
                     onEdit={enterEdit}
@@ -1533,14 +1552,18 @@ export default function CardDrawer({
                   </div>
                 </div>
               ) : (
-                <DescriptionView text={data.card.description ?? ""} onEdit={enterEdit} />
+                <DescriptionView
+                  text={data.card.description ?? ""}
+                  onEdit={enterEdit}
+                  canEdit={canEdit}
+                />
               )}
             </section>
 
             <section className={styles.section}>
               <div className={styles.sectionHead}>
                 <span className={styles.sectionLabel}>Due date</span>
-                {data.card.dueAt && (
+                {canEdit && data.card.dueAt && (
                   <button
                     type="button"
                     className={styles.linkBtn}
@@ -1550,19 +1573,27 @@ export default function CardDrawer({
                   </button>
                 )}
               </div>
-              <input
-                type="datetime-local"
-                className={styles.dueInput}
-                value={toLocalDatetimeValue(data.card.dueAt)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) {
-                    onChangeDueAt(null);
-                    return;
-                  }
-                  onChangeDueAt(new Date(v).toISOString());
-                }}
-              />
+              {canEdit ? (
+                <input
+                  type="datetime-local"
+                  className={styles.dueInput}
+                  value={toLocalDatetimeValue(data.card.dueAt)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) {
+                      onChangeDueAt(null);
+                      return;
+                    }
+                    onChangeDueAt(new Date(v).toISOString());
+                  }}
+                />
+              ) : (
+                <div className={styles.dueInput} style={{ pointerEvents: "none" }}>
+                  {data.card.dueAt
+                    ? new Date(data.card.dueAt).toLocaleString()
+                    : "No due date"}
+                </div>
+              )}
             </section>
 
             <section className={styles.section}>
@@ -1583,47 +1614,60 @@ export default function CardDrawer({
                       <button
                         type="button"
                         className={`${styles.itemCheck} ${it.done ? styles.itemCheckDone : ""}`}
-                        onClick={() => onToggleItem(it.id, it.done)}
+                        onClick={() => canEdit && onToggleItem(it.id, it.done)}
+                        disabled={!canEdit}
                         aria-label="Toggle item"
                       />
-                      <input
-                        className={`${styles.itemTitle} ${it.done ? styles.itemTitleDone : ""}`}
-                        defaultValue={it.title || ""}
-                        onChange={(e) => onRenameItem(it.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className={styles.itemDel}
-                        onClick={() => onDeleteItem(it.id)}
-                        aria-label="Delete item"
-                      >
-                        Delete
-                      </button>
+                      {canEdit ? (
+                        <input
+                          className={`${styles.itemTitle} ${it.done ? styles.itemTitleDone : ""}`}
+                          defaultValue={it.title || ""}
+                          onChange={(e) => onRenameItem(it.id, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className={`${styles.itemTitle} ${it.done ? styles.itemTitleDone : ""}`}
+                        >
+                          {it.title || ""}
+                        </span>
+                      )}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          className={styles.itemDel}
+                          onClick={() => onDeleteItem(it.id)}
+                          aria-label="Delete item"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              <form className={styles.composer} onSubmit={onAddItem}>
-                <input
-                  className={styles.composerInput}
-                  value={newItem}
-                  onChange={(e) => setNewItem(e.target.value)}
-                  onPaste={onItemPaste}
-                  placeholder="Add a sub-task and press enter (paste a list to add many)"
-                  maxLength={255}
-                />
-                <button
-                  type="submit"
-                  className={styles.composerBtn}
-                  disabled={adding || !newItem.trim()}
-                >
-                  {adding ? "Adding" : "Add"}
-                </button>
-              </form>
+              {canEdit && (
+                <form className={styles.composer} onSubmit={onAddItem}>
+                  <input
+                    className={styles.composerInput}
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    onPaste={onItemPaste}
+                    placeholder="Add a sub-task and press enter (paste a list to add many)"
+                    maxLength={255}
+                  />
+                  <button
+                    type="submit"
+                    className={styles.composerBtn}
+                    disabled={adding || !newItem.trim()}
+                  >
+                    {adding ? "Adding" : "Add"}
+                  </button>
+                </form>
+              )}
             </section>
 
             <section className={styles.section}>
@@ -1647,50 +1691,58 @@ export default function CardDrawer({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={a.url} alt={a.filename ?? "attachment"} loading="lazy" />
                       ) : null}
-                      <button
-                        type="button"
-                        className={styles.thumbDel}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onDeleteAttachment(a.id);
-                        }}
-                        aria-label="Delete image"
-                      >
-                        Remove
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          className={styles.thumbDel}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onDeleteAttachment(a.id);
+                          }}
+                          aria-label="Delete image"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </a>
                   ))}
                 </div>
               )}
 
-              <label
-                className={`${styles.drop} ${dragActive ? styles.dropActive : ""}`}
-                onDragEnter={() => setDragActive(true)}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={onDrop}
-              >
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className={styles.fileInput}
-                  onChange={(e) => onPickFiles(e.target.files)}
-                />
-                <span className={styles.dropMark}>＋</span>
-                <div>
-                  {uploading
-                    ? "Uploading…"
-                    : dragActive
-                    ? "Drop to upload"
-                    : "Click or drop images here"}
-                </div>
-                <span className={styles.dropHint}>PNG, JPG, GIF, WebP up to 5 MB</span>
-              </label>
+              {canEdit && (
+                <label
+                  className={`${styles.drop} ${dragActive ? styles.dropActive : ""}`}
+                  onDragEnter={() => setDragActive(true)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={onDrop}
+                >
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className={styles.fileInput}
+                    onChange={(e) => onPickFiles(e.target.files)}
+                  />
+                  <span className={styles.dropMark}>＋</span>
+                  <div>
+                    {uploading
+                      ? "Uploading…"
+                      : dragActive
+                      ? "Drop to upload"
+                      : "Click or drop images here"}
+                  </div>
+                  <span className={styles.dropHint}>PNG, JPG, GIF, WebP up to 5 MB</span>
+                </label>
+              )}
+
+              {!canEdit && data.attachments.length === 0 && (
+                <div className={styles.descEmpty}>No images.</div>
+              )}
             </section>
 
             <section className={styles.section}>
@@ -1888,9 +1940,11 @@ export default function CardDrawer({
           <span className={styles.footMeta}>
             {data ? `${data.labels.length} labels · ${stats.total} sub-tasks · ${data.attachments.length} images` : ""}
           </span>
-          <button type="button" className={styles.deleteCard} onClick={onDeleteCard}>
-            Delete card
-          </button>
+          {canDelete && (
+            <button type="button" className={styles.deleteCard} onClick={onDeleteCard}>
+              Delete card
+            </button>
+          )}
         </footer>
       </aside>
     </>,
@@ -2027,6 +2081,7 @@ function MetaPopover({
   trigger,
   triggerClassName,
   children,
+  disabled = false,
 }: {
   open: boolean;
   setOpen: (next: boolean) => void;
@@ -2034,11 +2089,12 @@ function MetaPopover({
   trigger: ReactNode;
   triggerClassName?: string;
   children: ReactNode;
+  disabled?: boolean;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (disabled || !open) return;
     const onDown = (e: MouseEvent) => {
       if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -2053,7 +2109,18 @@ function MetaPopover({
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, setOpen]);
+  }, [open, setOpen, disabled]);
+
+  // Read-only viewers still see the assignees/labels, just can't open the picker.
+  if (disabled) {
+    return (
+      <div className={styles.popoverAnchor}>
+        <span className={triggerClassName ?? styles.metaTrigger} aria-label={label} title={label}>
+          {trigger}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.popoverAnchor} ref={anchorRef}>
@@ -2705,8 +2772,19 @@ function DescMenu({
   );
 }
 
-function DescriptionView({ text, onEdit }: { text: string; onEdit: () => void }) {
+function DescriptionView({
+  text,
+  onEdit,
+  canEdit = true,
+}: {
+  text: string;
+  onEdit: () => void;
+  canEdit?: boolean;
+}) {
   if (!text.trim()) {
+    if (!canEdit) {
+      return <div className={styles.descEmpty}>No description.</div>;
+    }
     // Empty state stays clickable so the user can jump straight into the
     // editor without going through the kebab menu.
     return (

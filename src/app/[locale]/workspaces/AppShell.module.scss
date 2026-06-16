@@ -517,6 +517,21 @@
 }
 .pageTitleInput::placeholder { color: var(--text-mute); font-weight: 600; }
 
+/* Read-only board title for members without the edit_board capability:
+   same typography as the editable input, but no edit affordance. */
+.pageTitleStatic {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  color: var(--text-1);
+  line-height: 1.15;
+  margin: 0;
+  padding: 0.05rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .pageSubtitle {
   font-size: 13px;
   color: var(--text-3);
