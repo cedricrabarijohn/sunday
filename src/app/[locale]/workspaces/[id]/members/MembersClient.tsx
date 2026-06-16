@@ -211,19 +211,27 @@ export default function MembersClient({
           </span>
           <div>
             <h1 className={styles.pageTitle}>{workspaceTitle || "Untitled"}</h1>
-            <div className={styles.pageSubtitle}>
-              <Link
-                href={`/workspaces/${workspaceId}`}
-                style={{ color: "var(--text-2)", borderBottom: "1px dotted var(--border-strong)" }}
-              >
-                Back to boards
-              </Link>
-            </div>
+            <div className={styles.pageSubtitle}>Members</div>
           </div>
         </div>
-        <span className={styles.pageMeta}>
-          {members.length} {members.length === 1 ? "member" : "members"}
-        </span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
+          <Link href={`/workspaces/${workspaceId}`} className={styles.ghostBtn}>
+            Boards
+          </Link>
+          {canManageMembers && (
+            <Link href={`/workspaces/${workspaceId}/integrations`} className={styles.ghostBtn}>
+              Integrations
+            </Link>
+          )}
+          {canManageMembers && (
+            <Link href={`/workspaces/${workspaceId}/settings`} className={styles.ghostBtn}>
+              Settings
+            </Link>
+          )}
+          <span className={styles.pageMeta}>
+            {members.length} {members.length === 1 ? "member" : "members"}
+          </span>
+        </div>
       </div>
 
       {canManageMembers && (

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { boards, workspaces, workspaceUsers } from "@/db/schema";
@@ -40,6 +40,32 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ workspace, role: membership.role });
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { id } = await params;
+  const workspaceId = Number(id);
+  if (!Number.isFinite(workspaceId)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "edit_workspace");
+  if (!guard.ok) return guard.response;
+
+  const body = await request.json().catch(() => null);
+  const title = typeof body?.title === "string" ? body.title.trim() : null;
+  if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
+  if (title.length > 80) {
+    return NextResponse.json({ error: "title too long (max 80)" }, { status: 400 });
+  }
+
+  await db.update(workspaces).set({ title }).where(eq(workspaces.id, workspaceId));
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
