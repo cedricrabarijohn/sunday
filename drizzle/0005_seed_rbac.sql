@@ -32,7 +32,7 @@ INSERT IGNORE INTO `workspace_role_capabilities` (`workspace_role_id`, `workspac
   (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12),
   (2, 1), (2, 7), (2, 8), (2, 10), (2, 11), (2, 12);
 --> statement-breakpoint
-INSERT INTO `board_roles` (`id`, `label`) VALUES (1, 'board_admin'), (2, 'board_member')
+INSERT INTO `board_roles` (`id`, `label`) VALUES (1, 'board_admin'), (2, 'board_member'), (3, 'board_viewer')
   ON DUPLICATE KEY UPDATE `label` = VALUES(`label`);
 --> statement-breakpoint
 INSERT INTO `board_capabilities` (`id`, `label`) VALUES
@@ -48,4 +48,5 @@ INSERT INTO `board_capabilities` (`id`, `label`) VALUES
 --> statement-breakpoint
 INSERT IGNORE INTO `board_role_capabilities` (`board_role_id`, `board_capability_id`) VALUES
   (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8),
-  (2, 1), (2, 6), (2, 7), (2, 8);
+  (2, 1), (2, 6), (2, 7), (2, 8),
+  (3, 1);

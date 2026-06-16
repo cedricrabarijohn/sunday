@@ -4,7 +4,11 @@ import { db } from "@/db/client";
 import { boardTaskAssignees, boardTasks, boardUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
-import { BOARD_ADMIN_ROLE_ID, BOARD_MEMBER_ROLE_ID } from "@/lib/board-access";
+import {
+  BOARD_ADMIN_ROLE_ID,
+  BOARD_MEMBER_ROLE_ID,
+  BOARD_VIEWER_ROLE_ID,
+} from "@/lib/board-access";
 
 export async function DELETE(
   _: Request,
@@ -105,7 +109,11 @@ export async function PATCH(
 
   const body = await request.json().catch(() => null);
   const roleId = Number(body?.boardRoleId);
-  if (roleId !== BOARD_ADMIN_ROLE_ID && roleId !== BOARD_MEMBER_ROLE_ID) {
+  if (
+    roleId !== BOARD_ADMIN_ROLE_ID &&
+    roleId !== BOARD_MEMBER_ROLE_ID &&
+    roleId !== BOARD_VIEWER_ROLE_ID
+  ) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 

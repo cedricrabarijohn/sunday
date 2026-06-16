@@ -5,11 +5,19 @@ import { db } from "@/db/client";
 import { boardInvites, users } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
-import { BOARD_ADMIN_ROLE_ID, BOARD_MEMBER_ROLE_ID } from "@/lib/board-access";
+import {
+  BOARD_ADMIN_ROLE_ID,
+  BOARD_MEMBER_ROLE_ID,
+  BOARD_VIEWER_ROLE_ID,
+} from "@/lib/board-access";
 import { appUrl, sendMail } from "@/lib/mail";
 import { inviteEmail } from "@/lib/mail-templates";
 
-const ALLOWED_ROLE_IDS = new Set([BOARD_ADMIN_ROLE_ID, BOARD_MEMBER_ROLE_ID]);
+const ALLOWED_ROLE_IDS = new Set([
+  BOARD_ADMIN_ROLE_ID,
+  BOARD_MEMBER_ROLE_ID,
+  BOARD_VIEWER_ROLE_ID,
+]);
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();

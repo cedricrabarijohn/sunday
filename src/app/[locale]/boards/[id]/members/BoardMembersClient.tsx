@@ -29,6 +29,7 @@ type Invite = {
 const ROLE_LABELS: Record<number, string> = {
   1: "Board admin",
   2: "Member",
+  3: "Viewer",
 };
 
 function fullName(m: { firstname: string | null; lastname: string | null; email: string | null }) {
@@ -279,6 +280,7 @@ export default function BoardMembersClient({
               value={roleId}
               onChange={(e) => setRoleId(Number(e.target.value))}
             >
+              <option value={3}>Viewer</option>
               <option value={2}>Member</option>
               <option value={1}>Board admin</option>
             </select>
@@ -394,6 +396,7 @@ export default function BoardMembersClient({
                         value={m.boardRoleId ?? 2}
                         onChange={(e) => onChangeRole(m, Number(e.target.value))}
                       >
+                        <option value={3}>Viewer</option>
                         <option value={2}>Member</option>
                         <option value={1}>Board admin</option>
                       </select>

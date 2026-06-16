@@ -11,6 +11,7 @@ import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access"
 
 export const BOARD_ADMIN_ROLE_ID = 1;
 export const BOARD_MEMBER_ROLE_ID = 2;
+export const BOARD_VIEWER_ROLE_ID = 3;
 
 export type BoardCapability =
   | "view_board"

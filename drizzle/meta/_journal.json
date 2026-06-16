@@ -50,6 +50,13 @@
       "when": 1781500000000,
       "tag": "0006_board_tasks_position_nonunique",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1781600000000,
+      "tag": "0007_board_viewer_role",
+      "breakpoints": true
     }
   ]
 }
