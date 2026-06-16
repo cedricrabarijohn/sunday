@@ -387,6 +387,19 @@ export const boardTaskAttachments = mysqlTable("board_task_attachments", {
   deletedAt: datetime("deleted_at"),
 });
 
+export const boardTaskReactions = mysqlTable(
+  "board_task_reactions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    kind: varchar("kind", { length: 10 }).notNull(),
+    targetId: int("target_id").notNull(),
+    userId: int("user_id").notNull(),
+    emoji: varchar("emoji", { length: 32 }).notNull(),
+    createdAt: datetime("created_at"),
+  },
+  (t) => [uniqueIndex("board_task_reactions_unique").on(t.kind, t.targetId, t.userId, t.emoji)],
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;

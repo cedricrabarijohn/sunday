@@ -16,6 +16,8 @@ export type CardComment = {
   email: string | null;
 };
 
+export type CardReaction = { emoji: string; userIds: number[] };
+
 export type CardEvent =
   | { type: "comment_created"; comment: CardComment }
   | {
@@ -24,7 +26,13 @@ export type CardEvent =
       body: string;
       updatedAt: string;
     }
-  | { type: "comment_deleted"; commentId: number };
+  | { type: "comment_deleted"; commentId: number }
+  | {
+      type: "reaction_updated";
+      kind: "task" | "comment";
+      targetId: number;
+      reactions: CardReaction[];
+    };
 
 type Handler = (event: CardEvent) => void;
 

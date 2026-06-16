@@ -1078,11 +1078,18 @@
   margin-top: 0.3rem;
   display: flex;
   gap: 0.5rem;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 100ms ease;
 }
-.commentItem:hover .commentTools {
-  opacity: 1;
+/* Only fade the tools out at rest on devices with a real pointer/hover
+   (desktop). On touch screens there is no hover, so keep them visible. */
+@media (hover: hover) and (pointer: fine) {
+  .commentTools {
+    opacity: 0;
+  }
+  .commentItem:hover .commentTools {
+    opacity: 1;
+  }
 }
 
 .commentToolBtn {
@@ -1658,3 +1665,99 @@
   color: var(--text-3);
 }
 .fieldRowValue { min-width: 0; }
+
+/* ── Emoji trigger button ─────────────────────────────────────── */
+.emojiTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 15px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 100ms ease, background 100ms ease;
+  padding: 0;
+}
+.emojiTrigger:hover {
+  opacity: 1;
+  background: var(--surface-2);
+}
+
+.emojiPickerWrap {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+}
+
+/* ── Reaction bar ─────────────────────────────────────────────── */
+.reactionBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.reactionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+  line-height: 1.5;
+}
+.reactionPill:hover {
+  background: var(--surface-hover);
+}
+.reactionPillActive {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.reactionPillActive:hover {
+  background: var(--accent-soft);
+}
+
+.reactionEmoji { font-size: 14px; }
+.reactionCount {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.reactionPillActive .reactionCount { color: var(--accent); }
+
+.reactionAddWrap { position: relative; }
+.reactionAddBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-2);
+  transition: background 100ms ease;
+}
+.reactionAddBtn:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+.reactionPickerWrap {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+}

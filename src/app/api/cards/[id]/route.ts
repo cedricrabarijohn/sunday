@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   boardTaskAssignees,
@@ -7,6 +7,7 @@ import {
   boardTaskComments,
   boardTaskItems,
   boardTaskLabels,
+  boardTaskReactions,
   cardLinks,
   labels,
   users,
@@ -96,6 +97,47 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     )
     .orderBy(asc(boardTaskComments.createdAt), asc(boardTaskComments.id));
 
+  // Reactions on the task description and on its comments
+  const commentIds = comments.map((c) => c.id);
+  const rawReactions = await db
+    .select({
+      kind: boardTaskReactions.kind,
+      targetId: boardTaskReactions.targetId,
+      userId: boardTaskReactions.userId,
+      emoji: boardTaskReactions.emoji,
+    })
+    .from(boardTaskReactions)
+    .where(
+      commentIds.length > 0
+        ? inArray(boardTaskReactions.kind, ["task", "comment"])
+        : eq(boardTaskReactions.kind, "task"),
+    )
+    .then((rows) =>
+      rows.filter(
+        (r) =>
+          (r.kind === "task" && r.targetId === cardId) ||
+          (r.kind === "comment" && commentIds.includes(r.targetId)),
+      ),
+    );
+
+  function groupReactions(rows: typeof rawReactions) {
+    const map = new Map<string, number[]>();
+    for (const r of rows) {
+      if (!map.has(r.emoji)) map.set(r.emoji, []);
+      map.get(r.emoji)!.push(r.userId);
+    }
+    return Array.from(map.entries()).map(([emoji, userIds]) => ({ emoji, userIds }));
+  }
+
+  const taskReactions = groupReactions(rawReactions.filter((r) => r.kind === "task"));
+  const commentReactionsByCommentId = new Map<number, { emoji: string; userIds: number[] }[]>();
+  for (const c of comments) {
+    commentReactionsByCommentId.set(
+      c.id,
+      groupReactions(rawReactions.filter((r) => r.kind === "comment" && r.targetId === c.id)),
+    );
+  }
+
   // Linked commits / PRs (SCM integration). Empty unless the workspace has
   // connected Gitea and a webhook linked something to this card.
   const links = await db
@@ -121,8 +163,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     attachments,
     labels: cardLabels,
     assignees,
-    comments,
+    comments: comments.map((c) => ({
+      ...c,
+      reactions: commentReactionsByCommentId.get(c.id) ?? [],
+    })),
     links,
+    taskReactions,
     capabilities: Array.from(guard.capabilities),
     canManageLabels: wsCaps.has("manage_labels"),
     currentUserId: auth.session.sub,

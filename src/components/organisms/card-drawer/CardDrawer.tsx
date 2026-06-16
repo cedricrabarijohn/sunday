@@ -19,6 +19,7 @@ import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import { FieldCell } from "@/app/[locale]/boards/[id]/TableFields";
 import type { BoardColumn, FieldValue } from "@/app/[locale]/boards/[id]/TasksClient";
+import EmojiPicker from "@/components/organisms/emoji-picker/EmojiPicker";
 
 type Item = { id: number; title: string | null; done: number; position: number | null };
 type Attachment = {
@@ -43,6 +44,8 @@ type Assignee = {
   email: string | null;
 };
 
+type Reaction = { emoji: string; userIds: number[] };
+
 type Comment = {
   id: number;
   body: string | null;
@@ -52,6 +55,7 @@ type Comment = {
   firstname: string | null;
   lastname: string | null;
   email: string | null;
+  reactions?: Reaction[];
 };
 
 type CardDetail = {
@@ -68,6 +72,7 @@ type CardDetail = {
   assignees: Assignee[];
   comments: Comment[];
   links?: CardLink[];
+  taskReactions?: Reaction[];
   capabilities?: string[];
   canManageLabels?: boolean;
   currentUserId?: number;
@@ -252,6 +257,9 @@ export default function CardDrawer({
         commentId?: number;
         body?: string;
         updatedAt?: string;
+        kind?: "task" | "comment";
+        targetId?: number;
+        reactions?: Reaction[];
       };
       if (ev.type === "comment_created" && ev.comment) {
         const incoming = ev.comment;
@@ -285,6 +293,23 @@ export default function CardDrawer({
             ? { ...prev, comments: prev.comments.filter((c) => c.id !== id) }
             : prev,
         );
+      } else if (ev.type === "reaction_updated" && ev.kind && ev.targetId != null && ev.reactions) {
+        const { kind, targetId, reactions } = ev;
+        setData((prev) => {
+          if (!prev) return prev;
+          if (kind === "task" && targetId === cardId) {
+            return { ...prev, taskReactions: reactions };
+          }
+          if (kind === "comment") {
+            return {
+              ...prev,
+              comments: prev.comments.map((c) =>
+                c.id === targetId ? { ...c, reactions } : c,
+              ),
+            };
+          }
+          return prev;
+        });
       }
     };
     return () => {
@@ -418,6 +443,14 @@ export default function CardDrawer({
       // Not all engines expose this; the serializer also handles styled spans.
     }
     document.execCommand(command, false, value);
+  };
+
+  // Insert an emoji at the caret of the description editor. Uses the same
+  // execCommand path as paste (line ~547) so the caret lands correctly and
+  // undo/redo keeps working — no fragile manual Range juggling.
+  const insertEmojiIntoDescription = (emoji: string) => {
+    descRef.current?.focus();
+    document.execCommand("insertText", false, emoji);
   };
 
   // Upload a single image and push the new attachment to local state so
@@ -1002,6 +1035,9 @@ export default function CardDrawer({
   const [postingComment, setPostingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentBody, setEditCommentBody] = useState("");
+  const [composerEmojiOpen, setComposerEmojiOpen] = useState(false);
+  const [editEmojiOpen, setEditEmojiOpen] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Mentions: when the user picks a board member from the @-popover we
   // insert their display name into the textarea and remember the
@@ -1105,6 +1141,93 @@ export default function CardDrawer({
       ta.setSelectionRange(pos, pos);
     });
   };
+
+  function insertEmojiInTextarea(
+    ta: HTMLTextAreaElement | null,
+    currentValue: string,
+    onChange: (v: string) => void,
+    emoji: string,
+  ) {
+    if (!ta) { onChange(currentValue + emoji); return; }
+    const start = ta.selectionStart ?? currentValue.length;
+    const end = ta.selectionEnd ?? currentValue.length;
+    const next = currentValue.slice(0, start) + emoji + currentValue.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+      ta.selectionStart = start + emoji.length;
+      ta.selectionEnd = start + emoji.length;
+      ta.focus();
+    });
+  }
+
+  async function toggleTaskReaction(emoji: string) {
+    const userId = data?.currentUserId;
+    if (!userId) return;
+    const existing = (data?.taskReactions ?? []).find((r) => r.emoji === emoji);
+    const hasMyReaction = existing?.userIds.includes(userId) ?? false;
+    setData((prev) => {
+      if (!prev) return prev;
+      let next = prev.taskReactions ?? [];
+      if (hasMyReaction) {
+        next = next
+          .map((r) => r.emoji === emoji ? { ...r, userIds: r.userIds.filter((id) => id !== userId) } : r)
+          .filter((r) => r.userIds.length > 0);
+      } else {
+        const hit = next.find((r) => r.emoji === emoji);
+        next = hit
+          ? next.map((r) => r.emoji === emoji ? { ...r, userIds: [...r.userIds, userId] } : r)
+          : [...next, { emoji, userIds: [userId] }];
+      }
+      return { ...prev, taskReactions: next };
+    });
+    try {
+      await fetch(`/api/cards/${cardId}/reactions`, {
+        method: hasMyReaction ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+    } catch {
+      toast.error("Could not update reaction");
+    }
+  }
+
+  async function toggleCommentReaction(commentId: number, emoji: string) {
+    const userId = data?.currentUserId;
+    if (!userId) return;
+    const comment = data?.comments.find((c) => c.id === commentId);
+    const existing = (comment?.reactions ?? []).find((r) => r.emoji === emoji);
+    const hasMyReaction = existing?.userIds.includes(userId) ?? false;
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        comments: prev.comments.map((c) => {
+          if (c.id !== commentId) return c;
+          let reactions = c.reactions ?? [];
+          if (hasMyReaction) {
+            reactions = reactions
+              .map((r) => r.emoji === emoji ? { ...r, userIds: r.userIds.filter((id) => id !== userId) } : r)
+              .filter((r) => r.userIds.length > 0);
+          } else {
+            const hit = reactions.find((r) => r.emoji === emoji);
+            reactions = hit
+              ? reactions.map((r) => r.emoji === emoji ? { ...r, userIds: [...r.userIds, userId] } : r)
+              : [...reactions, { emoji, userIds: [userId] }];
+          }
+          return { ...c, reactions };
+        }),
+      };
+    });
+    try {
+      await fetch(`/api/comments/${commentId}/reactions`, {
+        method: hasMyReaction ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+    } catch {
+      toast.error("Could not update reaction");
+    }
+  }
 
   /**
    * Replace each tracked @Name with its <@id> token in first-match
@@ -1507,6 +1630,7 @@ export default function CardDrawer({
                   <DescToolbar
                     onCmd={applyCommand}
                     onPickImage={pickAndInsertImage}
+                    onInsertEmoji={insertEmojiIntoDescription}
                     onSave={saveEdit}
                     onCancel={cancelEdit}
                     saving={descSaving}
@@ -1552,11 +1676,18 @@ export default function CardDrawer({
                   </div>
                 </div>
               ) : (
-                <DescriptionView
-                  text={data.card.description ?? ""}
-                  onEdit={enterEdit}
-                  canEdit={canEdit}
-                />
+                <>
+                  <DescriptionView
+                    text={data.card.description ?? ""}
+                    onEdit={enterEdit}
+                    canEdit={canEdit}
+                  />
+                  <ReactionBar
+                    reactions={data.taskReactions ?? []}
+                    currentUserId={data.currentUserId}
+                    onToggle={toggleTaskReaction}
+                  />
+                </>
               )}
             </section>
 
@@ -1783,14 +1914,46 @@ export default function CardDrawer({
                           {isEditing ? (
                             <div className={styles.commentEditWrap}>
                               <textarea
+                                ref={editTextareaRef}
                                 className={styles.commentInput}
                                 value={editCommentBody}
                                 onChange={(e) => setEditCommentBody(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    saveEditComment();
+                                  }
+                                  if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    cancelEditComment();
+                                  }
+                                }}
                                 rows={3}
                                 maxLength={5000}
                                 autoFocus
                               />
                               <div className={styles.commentActions}>
+                                <div style={{ position: "relative", marginRight: "auto" }}>
+                                  <button
+                                    type="button"
+                                    className={styles.emojiTrigger}
+                                    title="Add emoji"
+                                    onMouseDown={(e) => { e.preventDefault(); setEditEmojiOpen((v) => !v); }}
+                                  >
+                                    😊
+                                  </button>
+                                  {editEmojiOpen && (
+                                    <div className={styles.emojiPickerWrap}>
+                                      <EmojiPicker
+                                        onSelect={(emoji) => {
+                                          insertEmojiInTextarea(editTextareaRef.current, editCommentBody, setEditCommentBody, emoji);
+                                          setEditEmojiOpen(false);
+                                        }}
+                                        onClose={() => setEditEmojiOpen(false)}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                                 <button type="button" className={styles.commentBtnGhost} onClick={cancelEditComment}>
                                   Cancel
                                 </button>
@@ -1835,6 +1998,11 @@ export default function CardDrawer({
                                   )}
                                 </div>
                               )}
+                              <ReactionBar
+                                reactions={c.reactions ?? []}
+                                currentUserId={data.currentUserId}
+                                onToggle={(emoji) => toggleCommentReaction(c.id, emoji)}
+                              />
                             </>
                           )}
                         </div>
@@ -1891,7 +2059,7 @@ export default function CardDrawer({
                         return;
                       }
                     }
-                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    if (e.key === "Enter" && !e.shiftKey && !mentionOpen) {
                       e.preventDefault();
                       postComment();
                     }
@@ -1921,7 +2089,28 @@ export default function CardDrawer({
                   </div>
                 )}
                 <div className={styles.commentActions}>
-                  <span className={styles.commentHint}>⌘ + Enter to post</span>
+                  <div style={{ position: "relative", marginRight: "auto" }}>
+                    <button
+                      type="button"
+                      className={styles.emojiTrigger}
+                      title="Add emoji"
+                      onMouseDown={(e) => { e.preventDefault(); setComposerEmojiOpen((v) => !v); }}
+                    >
+                      😊
+                    </button>
+                    {composerEmojiOpen && (
+                      <div className={styles.emojiPickerWrap}>
+                        <EmojiPicker
+                          onSelect={(emoji) => {
+                            insertEmojiInTextarea(composerRef.current, newComment, setNewComment, emoji);
+                            setComposerEmojiOpen(false);
+                          }}
+                          onClose={() => setComposerEmojiOpen(false)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <span className={styles.commentHint}>Enter to post · Shift+↵ for new line</span>
                   <button
                     type="button"
                     className={styles.commentBtnPrimary}
@@ -2874,20 +3063,76 @@ const TOOLBAR_BUTTONS: ReadonlyArray<{
   { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
 ];
 
+function ReactionBar({
+  reactions,
+  currentUserId,
+  onToggle,
+}: {
+  reactions: Reaction[];
+  currentUserId: number | undefined;
+  onToggle: (emoji: string) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  if (reactions.length === 0 && !currentUserId) return null;
+  return (
+    <div className={styles.reactionBar}>
+      {reactions.map((r) => {
+        const active = currentUserId != null && r.userIds.includes(currentUserId);
+        return (
+          <button
+            key={r.emoji}
+            type="button"
+            className={`${styles.reactionPill} ${active ? styles.reactionPillActive : ""}`}
+            onClick={() => onToggle(r.emoji)}
+            title={`${r.userIds.length} reaction${r.userIds.length !== 1 ? "s" : ""}`}
+          >
+            <span className={styles.reactionEmoji}>{r.emoji}</span>
+            <span className={styles.reactionCount}>{r.userIds.length}</span>
+          </button>
+        );
+      })}
+      {currentUserId != null && (
+        <div className={styles.reactionAddWrap}>
+          <button
+            type="button"
+            className={styles.reactionAddBtn}
+            onClick={() => setPickerOpen((v) => !v)}
+            title="Add reaction"
+          >
+            +
+          </button>
+          {pickerOpen && (
+            <div className={styles.reactionPickerWrap}>
+              <EmojiPicker
+                onSelect={(emoji) => { onToggle(emoji); setPickerOpen(false); }}
+                onClose={() => setPickerOpen(false)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DescToolbar({
   onCmd,
   onPickImage,
+  onInsertEmoji,
   onSave,
   onCancel,
   saving,
 }: {
   onCmd: (cmd: string, value?: string) => void;
   onPickImage: (file: File) => void;
+  onInsertEmoji: (emoji: string) => void;
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+
   const wrapCode = () => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -2952,12 +3197,32 @@ function DescToolbar({
         className={styles.toolbarBtn}
         title="Insert image"
         aria-label="Insert image"
-        // Keep the editor's selection so the image lands at the caret.
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => fileRef.current?.click()}
       >
         <ImageIcon size={15} />
       </button>
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          className={styles.toolbarBtn}
+          title="Insert emoji"
+          aria-label="Insert emoji"
+          // Keep the editor's caret so the emoji lands where the user left off.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setEmojiOpen((v) => !v)}
+        >
+          😊
+        </button>
+        {emojiOpen && (
+          <div className={styles.emojiPickerWrap}>
+            <EmojiPicker
+              onSelect={(emoji) => { onInsertEmoji(emoji); setEmojiOpen(false); }}
+              onClose={() => setEmojiOpen(false)}
+            />
+          </div>
+        )}
+      </div>
       <input
         ref={fileRef}
         type="file"
@@ -2966,7 +3231,7 @@ function DescToolbar({
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) onPickImage(file);
-          e.target.value = ""; // allow re-picking the same file
+          e.target.value = "";
         }}
       />
 
