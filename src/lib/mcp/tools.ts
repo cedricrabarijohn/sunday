@@ -5,7 +5,11 @@ import {
   boards,
   boardTaskAssignees,
   boardTaskComments,
+  boardTaskItems,
+  boardTaskLabels,
   boardTasks,
+  boardUsers,
+  labels,
   users,
   workspaces,
   workspaceUsers,
@@ -14,7 +18,10 @@ import {
   loadBoardCapabilities,
   type LoadedBoardForAccess,
 } from "@/lib/board-access";
-import { publishBoard } from "@/lib/board-bus";
+import { WORKSPACE_ADMIN_ROLE_ID } from "@/lib/workspace-access";
+import { publishBoard, type BoardAssignee } from "@/lib/board-bus";
+import { publishCardCounts } from "@/lib/card-counts";
+import { emitNotifications } from "@/lib/notify";
 
 /**
  * MCP tool definitions for Sunday. Every handler runs as a specific user
@@ -65,6 +72,7 @@ async function cardContext(cardId: number, userId: number) {
       boardId: boardTasks.boardId,
       pileId: boardTasks.pileId,
       title: boardTasks.title,
+      description: boardTasks.description,
       dueAt: boardTasks.dueAt,
     })
     .from(boardTasks)
@@ -112,6 +120,29 @@ async function pileOrder(pileId: number): Promise<number[]> {
     .where(and(eq(boardTasks.pileId, pileId), isNull(boardTasks.deletedAt)))
     .orderBy(asc(boardTasks.position), asc(boardTasks.id));
   return rows.map((r) => r.id);
+}
+
+function numArray(v: unknown): number[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((n) => Number(n)).filter((n) => Number.isFinite(n));
+}
+
+/**
+ * Compute a target id set from add/remove/set arguments. `set` replaces the
+ * whole list; otherwise we start from `current`, add `add`, drop `remove`.
+ * AI-friendly: callers don't need to know the current roster to tweak it.
+ */
+function resolveIdSet(
+  current: number[],
+  args: Record<string, unknown>,
+): number[] {
+  if ("set" in args && Array.isArray(args.set)) {
+    return Array.from(new Set(numArray(args.set)));
+  }
+  const next = new Set(current);
+  for (const id of numArray(args.add)) next.add(id);
+  for (const id of numArray(args.remove)) next.delete(id);
+  return Array.from(next);
 }
 
 // --- tools ----------------------------------------------------------------
@@ -448,6 +479,335 @@ export const TOOLS: McpTool[] = [
         updatedAt: now,
       });
       return { comment: { id: Number((res as { insertId: number }).insertId), cardId: card.id } };
+    },
+  },
+  {
+    name: "list_board_members",
+    description:
+      "List the members of a board (with user id, name and email) so you can resolve who to assign to a card.",
+    inputSchema: {
+      type: "object",
+      properties: { board_id: { type: "number" } },
+      required: ["board_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { board } = await boardContext(Number(args.board_id), userId);
+      const rows = await db
+        .select({
+          userId: boardUsers.userId,
+          firstname: users.firstname,
+          lastname: users.lastname,
+          email: users.email,
+          boardRoleId: boardUsers.boardRoleId,
+        })
+        .from(boardUsers)
+        .innerJoin(users, eq(users.id, boardUsers.userId))
+        .where(
+          and(
+            eq(boardUsers.boardId, board.id),
+            isNull(boardUsers.deletedAt),
+            isNull(users.deletedAt),
+          ),
+        );
+      return { members: rows };
+    },
+  },
+  {
+    name: "list_labels",
+    description:
+      "List the labels available for a board's workspace (id, title, color) so you can resolve which to add to a card.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        board_id: { type: "number", description: "Resolve labels from this board's workspace." },
+        workspace_id: { type: "number" },
+      },
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      let workspaceId: number;
+      if (typeof args.board_id === "number") {
+        const { board } = await boardContext(args.board_id, userId);
+        workspaceId = board.workspaceId as number;
+      } else if (typeof args.workspace_id === "number") {
+        const [member] = await db
+          .select({ id: workspaceUsers.userId })
+          .from(workspaceUsers)
+          .where(
+            and(
+              eq(workspaceUsers.workspaceId, args.workspace_id),
+              eq(workspaceUsers.userId, userId),
+              isNull(workspaceUsers.deletedAt),
+            ),
+          )
+          .limit(1);
+        if (!member) throw new ToolError("No access to that workspace");
+        workspaceId = args.workspace_id;
+      } else {
+        throw new ToolError("Provide board_id or workspace_id");
+      }
+      const rows = await db
+        .select({ id: labels.id, title: labels.title, color: labels.color })
+        .from(labels)
+        .where(and(eq(labels.workspaceId, workspaceId), isNull(labels.deletedAt)))
+        .orderBy(asc(labels.position), asc(labels.id));
+      return { labels: rows };
+    },
+  },
+  {
+    name: "get_card",
+    description:
+      "Get a single card in full: title, description, pile, due date, assignees, labels, sub-tasks and comment count.",
+    inputSchema: {
+      type: "object",
+      properties: { card_id: { type: "number" } },
+      required: ["card_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card } = await cardContext(Number(args.card_id), userId);
+      const assignees = await db
+        .select({
+          userId: users.id,
+          firstname: users.firstname,
+          lastname: users.lastname,
+          email: users.email,
+        })
+        .from(boardTaskAssignees)
+        .innerJoin(users, eq(users.id, boardTaskAssignees.userId))
+        .where(eq(boardTaskAssignees.boardTaskId, card.id));
+      const cardLabels = await db
+        .select({ id: labels.id, title: labels.title, color: labels.color })
+        .from(boardTaskLabels)
+        .innerJoin(labels, eq(labels.id, boardTaskLabels.labelId))
+        .where(eq(boardTaskLabels.boardTaskId, card.id));
+      const items = await db
+        .select({ id: boardTaskItems.id, title: boardTaskItems.title, done: boardTaskItems.done })
+        .from(boardTaskItems)
+        .where(and(eq(boardTaskItems.boardTaskId, card.id), isNull(boardTaskItems.deletedAt)))
+        .orderBy(asc(boardTaskItems.position), asc(boardTaskItems.id));
+      const comments = await db
+        .select({ id: boardTaskComments.id })
+        .from(boardTaskComments)
+        .where(and(eq(boardTaskComments.boardTaskId, card.id), isNull(boardTaskComments.deletedAt)));
+      return {
+        card: {
+          id: card.id,
+          title: card.title,
+          description: card.description,
+          boardId: card.boardId,
+          pileId: card.pileId,
+          dueAt: card.dueAt,
+          assignees,
+          labels: cardLabels,
+          subtasks: items.map((i) => ({ id: i.id, title: i.title, done: i.done === 1 })),
+          commentCount: comments.length,
+        },
+      };
+    },
+  },
+  {
+    name: "assign_card",
+    description:
+      "Add and/or remove assignees on a card by user id. Pass `add` and/or `remove` arrays, or `set` to replace the whole list. Only board members can be assigned.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        card_id: { type: "number" },
+        add: { type: "array", items: { type: "number" }, description: "User ids to assign." },
+        remove: { type: "array", items: { type: "number" }, description: "User ids to unassign." },
+        set: { type: "array", items: { type: "number" }, description: "Replace assignees with exactly these user ids." },
+      },
+      required: ["card_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card, board, caps } = await cardContext(Number(args.card_id), userId);
+      requireCap(caps, "edit_card");
+      const current = (
+        await db
+          .select({ userId: boardTaskAssignees.userId })
+          .from(boardTaskAssignees)
+          .where(eq(boardTaskAssignees.boardTaskId, card.id))
+      ).map((r) => r.userId);
+      const target = resolveIdSet(current, args);
+
+      if (target.length > 0) {
+        // Eligible = explicit board members + workspace admins.
+        const members = await db
+          .select({ userId: boardUsers.userId })
+          .from(boardUsers)
+          .where(
+            and(
+              eq(boardUsers.boardId, board.id),
+              inArray(boardUsers.userId, target),
+              isNull(boardUsers.deletedAt),
+            ),
+          );
+        const admins = await db
+          .select({ userId: workspaceUsers.userId })
+          .from(workspaceUsers)
+          .where(
+            and(
+              eq(workspaceUsers.workspaceId, board.workspaceId as number),
+              eq(workspaceUsers.workspaceRoleId, WORKSPACE_ADMIN_ROLE_ID),
+              inArray(workspaceUsers.userId, target),
+              isNull(workspaceUsers.deletedAt),
+            ),
+          );
+        const eligible = new Set([...members, ...admins].map((r) => r.userId));
+        const bad = target.filter((u) => !eligible.has(u));
+        if (bad.length > 0) {
+          throw new ToolError(`Not board members, can't assign: ${bad.join(", ")}`);
+        }
+      }
+
+      const added = target.filter((u) => !current.includes(u));
+      await db.delete(boardTaskAssignees).where(eq(boardTaskAssignees.boardTaskId, card.id));
+      if (target.length > 0) {
+        const now = new Date();
+        await db
+          .insert(boardTaskAssignees)
+          .values(target.map((u) => ({ boardTaskId: card.id, userId: u, createdAt: now })));
+      }
+      let roster: BoardAssignee[] = [];
+      if (target.length > 0) {
+        roster = await db
+          .select({
+            userId: users.id,
+            firstname: users.firstname,
+            lastname: users.lastname,
+            email: users.email,
+          })
+          .from(users)
+          .where(inArray(users.id, target));
+      }
+      publishBoard(board.id, { type: "card_assignees", cardId: card.id, assignees: roster });
+      if (added.length > 0) {
+        await emitNotifications(
+          added.map((u) => ({
+            userId: u,
+            type: "card_assigned",
+            actorUserId: userId,
+            cardId: card.id,
+            boardId: board.id,
+            workspaceId: board.workspaceId as number,
+          })),
+        );
+      }
+      return { card: { id: card.id, assignees: target } };
+    },
+  },
+  {
+    name: "set_card_labels",
+    description:
+      "Add and/or remove labels on a card by label id. Pass `add` and/or `remove` arrays, or `set` to replace the whole list. Use list_labels to find ids.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        card_id: { type: "number" },
+        add: { type: "array", items: { type: "number" } },
+        remove: { type: "array", items: { type: "number" } },
+        set: { type: "array", items: { type: "number" } },
+      },
+      required: ["card_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card, board, caps } = await cardContext(Number(args.card_id), userId);
+      requireCap(caps, "edit_card");
+      const current = (
+        await db
+          .select({ labelId: boardTaskLabels.labelId })
+          .from(boardTaskLabels)
+          .where(eq(boardTaskLabels.boardTaskId, card.id))
+      ).map((r) => r.labelId);
+      const target = resolveIdSet(current, args);
+
+      if (target.length > 0) {
+        const valid = await db
+          .select({ id: labels.id })
+          .from(labels)
+          .where(
+            and(
+              eq(labels.workspaceId, board.workspaceId as number),
+              inArray(labels.id, target),
+              isNull(labels.deletedAt),
+            ),
+          );
+        const validIds = new Set(valid.map((l) => l.id));
+        const bad = target.filter((id) => !validIds.has(id));
+        if (bad.length > 0) {
+          throw new ToolError(`Labels not in this workspace: ${bad.join(", ")}`);
+        }
+      }
+
+      await db.delete(boardTaskLabels).where(eq(boardTaskLabels.boardTaskId, card.id));
+      if (target.length > 0) {
+        const now = new Date();
+        await db
+          .insert(boardTaskLabels)
+          .values(target.map((labelId) => ({ boardTaskId: card.id, labelId, createdAt: now })));
+      }
+      publishBoard(board.id, { type: "card_labels", cardId: card.id, labelIds: target });
+      return { card: { id: card.id, labelIds: target } };
+    },
+  },
+  {
+    name: "add_subtask",
+    description: "Add a sub-task (checklist item) to a card.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        card_id: { type: "number" },
+        title: { type: "string" },
+      },
+      required: ["card_id", "title"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card, board, caps } = await cardContext(Number(args.card_id), userId);
+      requireCap(caps, "edit_card");
+      const title = String(args.title ?? "").trim();
+      if (!title) throw new ToolError("title is required");
+      if (title.length > 255) throw new ToolError("title too long (max 255)");
+      const [maxRow] = await db
+        .select({ value: max(boardTaskItems.position) })
+        .from(boardTaskItems)
+        .where(eq(boardTaskItems.boardTaskId, card.id));
+      const position = (maxRow?.value ?? 0) + 1;
+      const now = new Date();
+      const [res] = await db.insert(boardTaskItems).values({
+        boardTaskId: card.id,
+        title,
+        done: 0,
+        position,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await publishCardCounts(board.id, card.id);
+      return { subtask: { id: Number((res as { insertId: number }).insertId), title, done: false } };
+    },
+  },
+  {
+    name: "delete_card",
+    description: "Delete a card. Requires the delete_card capability.",
+    inputSchema: {
+      type: "object",
+      properties: { card_id: { type: "number" } },
+      required: ["card_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { card, board, caps } = await cardContext(Number(args.card_id), userId);
+      requireCap(caps, "delete_card");
+      await db
+        .update(boardTasks)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(boardTasks.id, card.id));
+      publishBoard(board.id, { type: "card_deleted", cardId: card.id });
+      return { deleted: card.id };
     },
   },
 ];
