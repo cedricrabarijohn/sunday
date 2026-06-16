@@ -163,6 +163,18 @@
 }
 .card:active { cursor: grabbing; }
 
+/* Render-virtualization for tall piles: cards past the visible fold skip
+   layout + paint until they scroll near the viewport. They stay in the DOM,
+   so the native HTML5 drag-and-drop still sees every drop target (a true
+   unmount-based virtualizer would break dropping onto an off-screen card).
+   `auto` lets the browser cache each card's real size after first measure,
+   keeping the scrollbar accurate; the fallback height avoids a flash on load. */
+.pileBody > .card:nth-child(n + 16) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 78px;
+  animation: none; /* don't replay the entrance rise each time a card scrolls in */
+}
+
 /* Buttons inside the card keep their own cursor so the card-level
    pointer doesn't override them. */
 .iconBtn { cursor: pointer; }
