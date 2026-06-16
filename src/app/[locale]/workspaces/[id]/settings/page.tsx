@@ -79,62 +79,6 @@ export default async function WorkspaceSettingsPage({
       currentWorkspaceId={workspaceId}
       workspaceBoards={workspaceBoards}
     >
-      <div
-        style={{
-          borderBottom: "1px solid var(--border)",
-          padding: "1.1rem 1.5rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "1rem",
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: "15px",
-            fontWeight: 600,
-            color: "var(--text-1)",
-          }}
-        >
-          {workspace.title} — Settings
-        </h1>
-        <nav style={{ display: "inline-flex", gap: "0.5rem" }}>
-          <a
-            href={`/workspaces/${workspaceId}`}
-            style={{ fontSize: "13px", color: "var(--text-3)", textDecoration: "none", padding: "0.3rem 0.6rem" }}
-          >
-            Boards
-          </a>
-          <a
-            href={`/workspaces/${workspaceId}/members`}
-            style={{ fontSize: "13px", color: "var(--text-3)", textDecoration: "none", padding: "0.3rem 0.6rem" }}
-          >
-            Members
-          </a>
-          {caps.has("manage_members") && (
-            <a
-              href={`/workspaces/${workspaceId}/integrations`}
-              style={{ fontSize: "13px", color: "var(--text-3)", textDecoration: "none", padding: "0.3rem 0.6rem" }}
-            >
-              Integrations
-            </a>
-          )}
-          <a
-            href={`/workspaces/${workspaceId}/settings`}
-            style={{
-              fontSize: "13px",
-              color: "var(--text-1)",
-              textDecoration: "none",
-              padding: "0.3rem 0.6rem",
-              fontWeight: 600,
-              borderBottom: "2px solid var(--accent)",
-            }}
-          >
-            Settings
-          </a>
-        </nav>
-      </div>
       <WorkspaceSettingsClient
         workspaceId={workspaceId}
         workspaceTitle={workspace.title}

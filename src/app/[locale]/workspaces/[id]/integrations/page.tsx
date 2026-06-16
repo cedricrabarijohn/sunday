@@ -104,6 +104,7 @@ export default async function IntegrationsPage({ params }: { params: Promise<{ i
       <IntegrationsClient
         workspaceId={workspaceId}
         workspaceTitle={workspace.title}
+        capabilities={Array.from(caps)}
         providers={providers}
       />
     </AppShell>

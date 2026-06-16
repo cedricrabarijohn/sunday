@@ -1,7 +1,10 @@
 "use client";
 
 import { ReactNode, useState } from "react";
+import Link from "next/link";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
+import { colorForId } from "@/lib/palette";
+import appStyles from "../../AppShell.module.scss";
 import styles from "./Integrations.module.scss";
 
 type Provider = "gitea" | "forgejo" | "github" | "gitlab" | "bitbucket";
@@ -87,23 +90,53 @@ const META: Record<
 export default function IntegrationsClient({
   workspaceId,
   workspaceTitle,
+  capabilities,
   providers,
 }: {
   workspaceId: number;
   workspaceTitle: string | null;
+  capabilities: string[];
   providers: ProviderState[];
 }) {
-  return (
-    <div className={styles.wrap}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Integrations</h1>
-        <p className={styles.subtitle}>{workspaceTitle} · connect external tools to this workspace.</p>
-      </header>
+  const can = (c: string) => capabilities.includes(c);
+  const wsColor = colorForId(workspaceId);
 
-      {providers.map((p) => (
-        <ProviderCard key={p.provider} workspaceId={workspaceId} initial={p} />
-      ))}
-    </div>
+  return (
+    <>
+      <div className={appStyles.pageHeader}>
+        <div className={appStyles.pageHeaderText}>
+          <span
+            className={appStyles.pageBadge}
+            style={{ background: wsColor.soft, color: wsColor.hue }}
+          >
+            {(workspaceTitle?.[0] || "W").toUpperCase()}
+          </span>
+          <div>
+            <h1 className={appStyles.pageTitle}>{workspaceTitle || "Untitled"}</h1>
+            <div className={appStyles.pageSubtitle}>Integrations</div>
+          </div>
+        </div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
+          <Link href={`/workspaces/${workspaceId}`} className={appStyles.ghostBtn}>
+            Boards
+          </Link>
+          <Link href={`/workspaces/${workspaceId}/members`} className={appStyles.ghostBtn}>
+            Members
+          </Link>
+          {can("edit_workspace") && (
+            <Link href={`/workspaces/${workspaceId}/settings`} className={appStyles.ghostBtn}>
+              Settings
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div className={styles.wrap}>
+        {providers.map((p) => (
+          <ProviderCard key={p.provider} workspaceId={workspaceId} initial={p} />
+        ))}
+      </div>
+    </>
   );
 }
 
