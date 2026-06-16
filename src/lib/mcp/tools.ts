@@ -88,6 +88,24 @@ function requireCap(caps: ReadonlySet<string>, cap: string): void {
   if (!caps.has(cap)) throw new ToolError(`Missing capability: ${cap}`);
 }
 
+/** Resolve a sub-task (checklist item) to its card + the caller's caps, or throw. */
+async function itemContext(itemId: number, userId: number) {
+  if (!Number.isFinite(itemId)) throw new ToolError("subtask_id must be a number");
+  const [item] = await db
+    .select({
+      id: boardTaskItems.id,
+      boardTaskId: boardTaskItems.boardTaskId,
+      title: boardTaskItems.title,
+      done: boardTaskItems.done,
+    })
+    .from(boardTaskItems)
+    .where(and(eq(boardTaskItems.id, itemId), isNull(boardTaskItems.deletedAt)))
+    .limit(1);
+  if (!item || item.boardTaskId == null) throw new ToolError(`Sub-task ${itemId} not found`);
+  const { card, board, caps } = await cardContext(item.boardTaskId, userId);
+  return { item, card, board, caps };
+}
+
 /** Resolve a `pile` argument (numeric id or case-insensitive name) within a board. */
 async function resolvePile(boardId: number, pile: unknown): Promise<number> {
   const rows = await db
@@ -408,12 +426,14 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "update_card",
-    description: "Update a card's title and/or due date. Pass due_at as an ISO 8601 string, or null to clear it.",
+    description:
+      "Update a card's title, description and/or due date. Pass due_at as an ISO 8601 string (or null to clear); pass description as plain text (or null to clear).",
     inputSchema: {
       type: "object",
       properties: {
         card_id: { type: "number" },
         title: { type: "string" },
+        description: { type: ["string", "null"], description: "Plain text, or null to clear." },
         due_at: { type: ["string", "null"], description: "ISO 8601 datetime, or null to clear." },
       },
       required: ["card_id"],
@@ -422,7 +442,9 @@ export const TOOLS: McpTool[] = [
     async handler(userId, args) {
       const { card, board, caps } = await cardContext(Number(args.card_id), userId);
       requireCap(caps, "edit_card");
-      const patch: { title?: string; dueAt?: Date | null; updatedAt: Date } = { updatedAt: new Date() };
+      const patch: { title?: string; description?: string | null; dueAt?: Date | null; updatedAt: Date } = {
+        updatedAt: new Date(),
+      };
       const event: { type: "card_updated"; cardId: number; title?: string; dueAt?: string | null } = {
         type: "card_updated",
         cardId: card.id,
@@ -433,6 +455,16 @@ export const TOOLS: McpTool[] = [
         if (t.length > 255) throw new ToolError("title too long (max 255)");
         patch.title = t;
         event.title = t;
+      }
+      if ("description" in args) {
+        if (args.description === null || args.description === "") {
+          patch.description = null;
+        } else if (typeof args.description === "string") {
+          if (args.description.length > 20000) throw new ToolError("description too long (max 20000)");
+          patch.description = args.description;
+        } else {
+          throw new ToolError("description must be a string or null");
+        }
       }
       if ("due_at" in args) {
         if (args.due_at === null) {
@@ -445,8 +477,8 @@ export const TOOLS: McpTool[] = [
           event.dueAt = d.toISOString();
         }
       }
-      if (patch.title === undefined && patch.dueAt === undefined) {
-        throw new ToolError("Nothing to update: pass title and/or due_at");
+      if (patch.title === undefined && patch.description === undefined && patch.dueAt === undefined) {
+        throw new ToolError("Nothing to update: pass title, description and/or due_at");
       }
       await db.update(boardTasks).set(patch).where(eq(boardTasks.id, card.id));
       publishBoard(board.id, event);
@@ -847,6 +879,66 @@ export const TOOLS: McpTool[] = [
       });
       await publishCardCounts(board.id, card.id);
       return { subtask: { id: Number((res as { insertId: number }).insertId), title, done: false } };
+    },
+  },
+  {
+    name: "update_subtask",
+    description:
+      "Rename a sub-task and/or mark it done/undone. Pass title and/or done. Use the sub-task id from get_card.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        subtask_id: { type: "number" },
+        title: { type: "string" },
+        done: { type: "boolean" },
+      },
+      required: ["subtask_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { item, board, card, caps } = await itemContext(Number(args.subtask_id), userId);
+      requireCap(caps, "edit_card");
+      const patch: { title?: string; done?: number; updatedAt: Date } = { updatedAt: new Date() };
+      if (typeof args.title === "string") {
+        const t = args.title.trim();
+        if (!t) throw new ToolError("title cannot be empty");
+        if (t.length > 255) throw new ToolError("title too long (max 255)");
+        patch.title = t;
+      }
+      if (typeof args.done === "boolean") patch.done = args.done ? 1 : 0;
+      if (patch.title === undefined && patch.done === undefined) {
+        throw new ToolError("Nothing to update: pass title and/or done");
+      }
+      await db.update(boardTaskItems).set(patch).where(eq(boardTaskItems.id, item.id));
+      // Only the done state moves the card's progress badge.
+      if (patch.done !== undefined) await publishCardCounts(board.id, card.id);
+      return {
+        subtask: {
+          id: item.id,
+          title: patch.title ?? item.title,
+          done: patch.done !== undefined ? patch.done === 1 : item.done === 1,
+        },
+      };
+    },
+  },
+  {
+    name: "delete_subtask",
+    description: "Delete a sub-task (checklist item) from its card.",
+    inputSchema: {
+      type: "object",
+      properties: { subtask_id: { type: "number" } },
+      required: ["subtask_id"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      const { item, board, card, caps } = await itemContext(Number(args.subtask_id), userId);
+      requireCap(caps, "edit_card");
+      await db
+        .update(boardTaskItems)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(boardTaskItems.id, item.id));
+      await publishCardCounts(board.id, card.id);
+      return { deleted: item.id };
     },
   },
   {
