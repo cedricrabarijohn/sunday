@@ -18,7 +18,8 @@ import {
   loadBoardCapabilities,
   type LoadedBoardForAccess,
 } from "@/lib/board-access";
-import { WORKSPACE_ADMIN_ROLE_ID } from "@/lib/workspace-access";
+import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities } from "@/lib/workspace-access";
+import { ALLOWED_COLORS } from "@/lib/label-access";
 import { publishBoard, type BoardAssignee } from "@/lib/board-bus";
 import { publishCardCounts } from "@/lib/card-counts";
 import { emitNotifications } from "@/lib/notify";
@@ -553,6 +554,64 @@ export const TOOLS: McpTool[] = [
         .where(and(eq(labels.workspaceId, workspaceId), isNull(labels.deletedAt)))
         .orderBy(asc(labels.position), asc(labels.id));
       return { labels: rows };
+    },
+  },
+  {
+    name: "create_label",
+    description:
+      "Create a new label in a workspace (so it can then be added to cards). Requires the manage_labels capability. " +
+      `Valid colors: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        board_id: { type: "number", description: "Create the label in this board's workspace." },
+        workspace_id: { type: "number" },
+        title: { type: "string" },
+        color: { type: "string", description: "One of the valid palette colors. Defaults to slate." },
+      },
+      required: ["title"],
+      additionalProperties: false,
+    },
+    async handler(userId, args) {
+      // Resolve the target workspace from board_id or workspace_id.
+      let workspaceId: number;
+      if (typeof args.board_id === "number") {
+        const { board } = await boardContext(args.board_id, userId);
+        workspaceId = board.workspaceId as number;
+      } else if (typeof args.workspace_id === "number") {
+        workspaceId = args.workspace_id;
+      } else {
+        throw new ToolError("Provide board_id or workspace_id");
+      }
+      const caps = await loadCapabilities(workspaceId, userId);
+      requireCap(caps, "manage_labels");
+
+      const title = String(args.title ?? "").trim();
+      if (!title) throw new ToolError("title is required");
+      if (title.length > 50) throw new ToolError("title too long (max 50)");
+      const color = args.color == null || args.color === "" ? "slate" : String(args.color);
+      if (!(ALLOWED_COLORS as ReadonlySet<string>).has(color)) {
+        throw new ToolError(`Unknown color "${color}". Valid: ${Array.from(ALLOWED_COLORS).join(", ")}`);
+      }
+
+      const [maxRow] = await db
+        .select({ value: max(labels.position) })
+        .from(labels)
+        .where(eq(labels.workspaceId, workspaceId));
+      const position = (maxRow?.value ?? 0) + 1;
+      const now = new Date();
+      const [res] = await db.insert(labels).values({
+        workspaceId,
+        title,
+        color,
+        position,
+        isDefault: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return {
+        label: { id: Number((res as { insertId: number }).insertId), title, color, workspaceId },
+      };
     },
   },
   {
