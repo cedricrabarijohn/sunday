@@ -1081,16 +1081,6 @@
   opacity: 1;
   transition: opacity 100ms ease;
 }
-/* Only fade the tools out at rest on devices with a real pointer/hover
-   (desktop). On touch screens there is no hover, so keep them visible. */
-@media (hover: hover) and (pointer: fine) {
-  .commentTools {
-    opacity: 0;
-  }
-  .commentItem:hover .commentTools {
-    opacity: 1;
-  }
-}
 
 .commentToolBtn {
   background: none;
