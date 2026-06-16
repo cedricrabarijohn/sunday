@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import styles from "./Settings.module.scss";
@@ -12,7 +12,13 @@ type Initial = {
   emailVerified: boolean;
 };
 
-export default function AccountSettingsClient({ initial }: { initial: Initial }) {
+export default function AccountSettingsClient({
+  initial,
+  children,
+}: {
+  initial: Initial;
+  children?: ReactNode;
+}) {
   const router = useRouter();
   const toast = useToast();
 
@@ -228,6 +234,8 @@ export default function AccountSettingsClient({ initial }: { initial: Initial })
           </button>
         </div>
       </form>
+
+      {children}
     </div>
   );
 }

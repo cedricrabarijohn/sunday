@@ -77,6 +77,27 @@ export const authTokens = mysqlTable("auth_tokens", {
   usedAt: datetime("used_at"),
 });
 
+// Long-lived, reusable personal access tokens (e.g. for the MCP server).
+// Only the SHA-256 hash is stored; the plaintext is shown once at creation.
+export const apiTokens = mysqlTable(
+  "api_tokens",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("user_id").notNull(),
+    name: varchar("name", { length: 60 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    tokenPrefix: varchar("token_prefix", { length: 16 }).notNull(),
+    createdAt: datetime("created_at"),
+    lastUsedAt: datetime("last_used_at"),
+    expiresAt: datetime("expires_at"),
+    revokedAt: datetime("revoked_at"),
+  },
+  (t) => ({
+    hashIdx: index("api_tokens_hash_idx").on(t.tokenHash),
+    userIdx: index("api_tokens_user_idx").on(t.userId),
+  }),
+);
+
 export const workspaces = mysqlTable("workspaces", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 50 }),

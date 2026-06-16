@@ -3,8 +3,11 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
+import { listApiTokens } from "@/lib/api-tokens";
+import { appUrl } from "@/lib/mail";
 import AppShell from "../../workspaces/AppShell";
 import AccountSettingsClient from "./AccountSettingsClient";
+import ApiTokensClient from "./ApiTokensClient";
 
 export default async function AccountSettingsPage() {
   const session = await getSessionFromCookie();
@@ -34,6 +37,9 @@ export default async function AccountSettingsPage() {
       ),
     );
 
+  const tokens = await listApiTokens(session.sub);
+  const mcpUrl = `${appUrl()}/api/mcp`;
+
   return (
     <AppShell user={user} workspaces={allWorkspaces}>
       <AccountSettingsClient
@@ -43,7 +49,19 @@ export default async function AccountSettingsPage() {
           email: user.email ?? "",
           emailVerified: user.emailVerifiedAt != null,
         }}
-      />
+      >
+        <ApiTokensClient
+          mcpUrl={mcpUrl}
+          initialTokens={tokens.map((t) => ({
+            id: t.id,
+            name: t.name,
+            prefix: t.prefix,
+            createdAt: t.createdAt ? t.createdAt.toISOString() : null,
+            lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString() : null,
+            expiresAt: t.expiresAt ? t.expiresAt.toISOString() : null,
+          }))}
+        />
+      </AccountSettingsClient>
     </AppShell>
   );
 }
