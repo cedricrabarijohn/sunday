@@ -1469,7 +1469,7 @@ export const TOOLS: McpTool[] = [
         boardId: board.id,
         label,
         type: args.type,
-        config: JSON.stringify(config),
+        config,
         position,
       });
       const id = Number((res as { insertId: number }).insertId);
