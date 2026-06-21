@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import styles from "../styles/CardDrawer.module.scss";
-import { descriptionToHtml } from "../lib/markdown-to-html";
+import styles from "@/components/organisms/card-drawer/styles/CardDrawer.module.scss";
+import { descriptionToHtml } from "@/components/organisms/card-drawer/lib/markdown-to-html";
 
 export function DescriptionView({
   text,

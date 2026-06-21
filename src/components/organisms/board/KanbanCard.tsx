@@ -13,8 +13,8 @@ import kStyles from "./Kanban.module.scss";
 import MovePileMenu from "./MovePileMenu";
 import AssignMenu, { AssignMember } from "./AssignMenu";
 import type { BoardColumn, CardAssignee, Pile, Task } from "@/lib/board-types";
-import { AvatarStack } from "./avatar-stack";
-import { DueBadge } from "./due-badge";
+import { AvatarStack } from "./AvatarStack";
+import { DueBadge } from "./DueBadge";
 
 function fieldChipsFor(
   card: Task,

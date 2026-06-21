@@ -52,16 +52,16 @@ import {
   initialsForAssignee,
   nameForAssignee,
 } from "../lib/format";
-import { LabelsPicker } from "./label-picker";
-import { MetaPopover } from "./meta-popover";
-import { CommentBody } from "./comment-body";
-import { AssigneePicker } from "./assignee-picker";
-import { DescMenu } from "./desc-menu";
-import { DescriptionView } from "./description-content";
-import { ReactionBar } from "./reaction-bar";
-import { DescToolbar } from "./desc-toolbar";
-import { useCardLabels } from "../hooks/use-card-labels";
-import { useCardAssignees } from "../hooks/use-card-assignees";
+import { LabelsPicker } from "./LabelPicker";
+import { MetaPopover } from "./MetaPopover";
+import { CommentBody } from "./CommentBody";
+import { AssigneePicker } from "./AssigneePicker";
+import { DescMenu } from "./DescMenu";
+import { DescriptionView } from "./DescriptionContent";
+import { ReactionBar } from "./ReactionBar";
+import { DescToolbar } from "./DescToolbar";
+import { useCardLabels } from "@/components/organisms/card-drawer/hooks/useCardLabels";
+import { useCardAssignees } from "@/components/organisms/card-drawer/hooks/useCardAssignees";
 
 type Props = {
   cardId: number;

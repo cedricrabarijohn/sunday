@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import styles from "../styles/CardDrawer.module.scss";
+import styles from "@/components/organisms/card-drawer/styles/CardDrawer.module.scss";
 
 export function DescMenu({
   hasContent,

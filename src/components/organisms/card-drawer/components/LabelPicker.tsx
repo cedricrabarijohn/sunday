@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { PALETTE, colorForName } from "@/lib/palette";
-import styles from "../styles/CardDrawer.module.scss";
-import type { WorkspaceLabel } from "../lib/types";
+import styles from "@/components/organisms/card-drawer/styles/CardDrawer.module.scss";
+import type { WorkspaceLabel } from "@/components/organisms/card-drawer/lib/types";
 
 export function LabelsPicker({
   workspaceLabels,

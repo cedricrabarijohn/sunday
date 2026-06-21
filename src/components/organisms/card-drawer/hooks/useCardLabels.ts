@@ -3,7 +3,7 @@
 import { Dispatch, SetStateAction } from "react";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
-import type { CardDetail, CardLabel, WorkspaceLabel } from "../lib/types";
+import type { CardDetail, CardLabel, WorkspaceLabel } from "@/components/organisms/card-drawer/lib/types";
 
 type Options = {
   cardId: number;

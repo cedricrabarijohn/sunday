@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction } from "react";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
-import type { Assignee, CardDetail } from "../lib/types";
+import type { Assignee, CardDetail } from "@/components/organisms/card-drawer/lib/types";
 
 type Options = {
   cardId: number;
