@@ -33,6 +33,7 @@ type ToastApi = {
 
 const ToastContext = createContext<ToastApi | null>(null);
 const DEFAULT_TTL = 3500;
+const MAX_TOASTS = 4;
 
 export function useToast(): ToastApi {
   const ctx = useContext(ToastContext);
@@ -61,7 +62,11 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
     (kind: ToastKind, message: string, opts?: ToastOptions) => {
       counter.current += 1;
       const id = counter.current;
-      setToasts((prev) => [...prev, { id, kind, message, action: opts?.action }]);
+      // Keep only the most recent few so the overlapping stack never runs
+      // off the screen.
+      setToasts((prev) =>
+        [...prev, { id, kind, message, action: opts?.action }].slice(-MAX_TOASTS),
+      );
       window.setTimeout(() => dismiss(id), opts?.ttl ?? DEFAULT_TTL);
     },
     [dismiss],
