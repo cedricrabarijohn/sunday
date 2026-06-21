@@ -44,7 +44,7 @@ type Props = {
   onCreateField: (input: { label: string; type: FieldType; config?: { options: SelectOption[] } }) => void;
   onRenameField: (columnId: number, label: string) => void;
   onDeleteField: (columnId: number) => void;
-  onAddCard: (pileId: number, title: string) => Promise<void>;
+  onAddCard: (pileId: number, title: string) => Promise<boolean>;
   onDeleteCard: (id: number) => void;
   onOpenCard: (id: number) => void;
   onRenameCard: (id: number, title: string) => void;
@@ -477,14 +477,17 @@ function AddRow({
   onAddCard,
 }: {
   pileId: number;
-  onAddCard: (pileId: number, title: string) => Promise<void>;
+  onAddCard: (pileId: number, title: string) => Promise<boolean>;
 }) {
   const [title, setTitle] = useState("");
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    await onAddCard(pileId, title);
+    const next = title.trim();
+    if (!next) return;
+    // Clear immediately; restore the text only if the server rejected it.
     setTitle("");
+    const ok = await onAddCard(pileId, next);
+    if (!ok) setTitle(next);
   };
   return (
     <form className={styles.addRow} onSubmit={submit}>

@@ -243,27 +243,48 @@ export default function TasksClient({
       switch (ev.type) {
         case "card_created": {
           const c = ev.card;
-          setTasks((prev) =>
-            prev.some((t) => t.id === c.id)
-              ? prev
-              : [
-                  ...prev,
-                  {
-                    id: c.id,
-                    title: c.title,
-                    pileId: c.pileId,
-                    position: c.position,
-                    itemsTotal: 0,
-                    itemsDone: 0,
-                    attachments: 0,
-                    comments: 0,
-                    links: 0,
-                    labels: [],
-                    assignees: [],
-                    dueAt: null,
-                  },
-                ],
-          );
+          setTasks((prev) => {
+            // Already have the real card — nothing to do.
+            if (prev.some((t) => t.id === c.id)) return prev;
+            // This may be the echo of a card we just created optimistically.
+            // Reconcile it with our pending temp card (negative id, same pile
+            // and title) instead of appending, so it doesn't flash as a
+            // duplicate before the POST response lands.
+            const tempIdx = prev.findIndex(
+              (t) =>
+                t.id < 0 &&
+                t.pileId === c.pileId &&
+                (t.title ?? "") === (c.title ?? ""),
+            );
+            if (tempIdx !== -1) {
+              const next = [...prev];
+              next[tempIdx] = {
+                ...next[tempIdx],
+                id: c.id,
+                title: c.title,
+                pileId: c.pileId,
+                position: c.position,
+              };
+              return next;
+            }
+            return [
+              ...prev,
+              {
+                id: c.id,
+                title: c.title,
+                pileId: c.pileId,
+                position: c.position,
+                itemsTotal: 0,
+                itemsDone: 0,
+                attachments: 0,
+                comments: 0,
+                links: 0,
+                labels: [],
+                assignees: [],
+                dueAt: null,
+              },
+            ];
+          });
           break;
         }
         case "card_moved": {
@@ -482,9 +503,12 @@ export default function TasksClient({
   }, [tasks]);
 
   // --- card add (per pile)
-  const onAddCard = async (pileId: number, title: string) => {
+  // Returns true once the card is accepted by the server, false on failure, so
+  // the composer can clear immediately and only restore the text if the add
+  // didn't go through (handy on a flaky connection).
+  const onAddCard = async (pileId: number, title: string): Promise<boolean> => {
     const trimmed = title.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
 
     const tempId = -Date.now();
     const existing = cardsByPile.get(pileId) ?? [];
@@ -517,7 +541,7 @@ export default function TasksClient({
       if (!res.ok) {
         setTasks((prev) => prev.filter((t) => t.id !== tempId));
         toast.error(data.error || "Could not add card");
-        return;
+        return false;
       }
       setTasks((prev) => {
         const tempCard = prev.find((t) => t.id === tempId);
@@ -537,9 +561,11 @@ export default function TasksClient({
           },
         ];
       });
+      return true;
     } catch {
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
       toast.error("Network error. Please try again.");
+      return false;
     }
   };
 
@@ -1555,7 +1581,7 @@ function PileColumn({
   dragHint: DropHint;
   isDropTarget: boolean;
   draggingCardId: number | null;
-  onAddCard: (pileId: number, title: string) => Promise<void>;
+  onAddCard: (pileId: number, title: string) => Promise<boolean>;
   onDeleteCard: (id: number) => void;
   onOpenCard: (id: number) => void;
   onRenamePile: (id: number, title: string) => void;
@@ -1592,9 +1618,13 @@ function PileColumn({
 
   const onComposerSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!composer.trim()) return;
-    await onAddCard(pile.id, composer);
+    const title = composer.trim();
+    if (!title) return;
+    // Clear right away so the optimistic card isn't shadowed by leftover input
+    // text while the request is in flight; restore it only if the add failed.
     setComposer("");
+    const ok = await onAddCard(pile.id, title);
+    if (!ok) setComposer(title);
   };
 
   return (
