@@ -10,8 +10,8 @@ import {
   ChecklistIcon,
   UsersIcon,
 } from "@/components/Icons";
-import CardActionsMenu from "./CardActionsMenu";
-import AssignMenu, { AssignMember } from "./AssignMenu";
+import CardActionsMenu from "@/components/molecules/board/CardActionsMenu";
+import AssignMenu, { AssignMember } from "@/components/molecules/board/AssignMenu";
 import { FieldCell, FieldHeaderCell, AddFieldCell } from "./TableFields";
 import type {
   Task,

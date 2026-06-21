@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { colorForId } from "@/lib/palette";
-import NotificationsBell from "./NotificationsBell";
+import NotificationsBell from "@/components/molecules/workspaces/NotificationsBell";
 import ThemeSwatches from "@/components/atoms/theme-swatches/ThemeSwatches";
 import styles from "./AppShell.module.scss";
 

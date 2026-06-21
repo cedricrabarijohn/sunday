@@ -10,8 +10,8 @@ import {
 } from "@/components/Icons";
 import { colorForName } from "@/lib/palette";
 import kStyles from "./Kanban.module.scss";
-import MovePileMenu from "./MovePileMenu";
-import AssignMenu, { AssignMember } from "./AssignMenu";
+import MovePileMenu from "@/components/molecules/board/MovePileMenu";
+import AssignMenu, { AssignMember } from "@/components/molecules/board/AssignMenu";
 import type { BoardColumn, CardAssignee, Pile, Task } from "@/lib/board-types";
 import { AvatarStack } from "./AvatarStack";
 import { DueBadge } from "./DueBadge";

@@ -15,7 +15,7 @@ import { useSearchParams } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer";
-import { type AssignMember } from "./AssignMenu";
+import { type AssignMember } from "@/components/molecules/board/AssignMenu";
 import { rememberLastBoard } from "@/lib/last-board";
 import { BoardIcon, ChecklistIcon, TableIcon } from "@/components/Icons";
 import styles from "@/components/organisms/workspaces/AppShell.module.scss";
@@ -31,7 +31,7 @@ import { usePileReorder } from "@/hooks/usePileReorder";
 import { useBoardFields } from "@/hooks/useBoardFields";
 import { nameFor } from "@/lib/card-format";
 
-import NotificationsBell from "@/components/organisms/workspaces/NotificationsBell";
+import NotificationsBell from "@/components/molecules/workspaces/NotificationsBell";
 import {
   fieldFilterCount,
   type FieldValue,

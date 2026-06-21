@@ -4,7 +4,7 @@ import { DragEvent, FormEvent, Fragment, useState } from "react";
 import { colorForName } from "@/lib/palette";
 import kStyles from "./Kanban.module.scss";
 import { KanbanCard } from "./KanbanCard";
-import type { AssignMember } from "./AssignMenu";
+import type { AssignMember } from "@/components/molecules/board/AssignMenu";
 import type {
   BoardColumn,
   CardAssignee,
