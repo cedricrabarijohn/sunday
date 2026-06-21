@@ -96,6 +96,50 @@
   transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
 }
 .pileMenu:hover { background: var(--surface); color: var(--text-1); border-color: var(--border); }
+.pileMenu:disabled { opacity: 0.3; cursor: default; }
+.pileMenu:disabled:hover { background: transparent; color: var(--text-3); border-color: transparent; }
+
+/* Drag handle for reordering piles. */
+.pileGrip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-mute);
+  font-size: 13px;
+  line-height: 1;
+  cursor: grab;
+  padding: 0 0.1rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 100ms ease, background 100ms ease;
+}
+.pileGrip:hover { color: var(--text-1); background: var(--surface); }
+.pileGrip:active { cursor: grabbing; }
+
+.pileReorderBtns {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+/* The pile being dragged dims; the whole board hints reordering is active. */
+.pileGhost { opacity: 0.5; }
+.pileReorderActive { user-select: none; }
+
+/* Insertion indicator shown on the edge of the pile a drop would land before/after. */
+.pileDropBar {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  z-index: 4;
+  pointer-events: none;
+}
+.pileDropBarBefore { left: -7px; }
+.pileDropBarAfter { right: -7px; }
 
 .pileBody {
   flex: 1;
@@ -206,13 +250,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border-radius: 999px;
+  border-radius: 5px;
   padding: 0.05rem 0.5rem;
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
-  max-width: 120px;
-  white-space: nowrap;
+  white-space: auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -475,6 +518,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 100ms ease, border-color 100ms ease;
+  white-space: nowrap;
 }
 .filterBtn:hover {
   background: var(--surface-2);
@@ -671,6 +715,37 @@
 }
 .avatarPip:first-child { margin-left: 0; }
 .avatarPipMore { background: var(--surface-2); color: var(--text-2); }
+
+/* The avatar stack (or an empty slot) doubles as the assign trigger: click it
+   to open the member picker — no separate icon. */
+.assignTrigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  margin: -2px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.assignTrigger:hover { background: var(--surface-2); }
+
+.assignEmpty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1.5px dashed var(--border-strong);
+  color: var(--text-mute);
+  transition: border-color 100ms ease, color 100ms ease;
+}
+.assignTrigger:hover .assignEmpty {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 .cardActions {
   display: inline-flex;

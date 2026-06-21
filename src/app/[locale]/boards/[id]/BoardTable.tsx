@@ -8,8 +8,10 @@ import {
   LinkIcon,
   PaperclipIcon,
   ChecklistIcon,
+  UsersIcon,
 } from "@/components/Icons";
 import CardActionsMenu from "./CardActionsMenu";
+import AssignMenu, { AssignMember } from "./AssignMenu";
 import { FieldCell, FieldHeaderCell, AddFieldCell } from "./TableFields";
 import type {
   Task,
@@ -57,6 +59,10 @@ type Props = {
   onPileDragLeave: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onPileDrop: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onMoveCardToPile: (cardId: number, pileId: number) => void;
+  boardMembers: AssignMember[] | null;
+  boardMembersLoading: boolean;
+  onLoadMembers: () => void;
+  onSetAssignees: (cardId: number, assignees: CardAssignee[]) => void;
 };
 
 export default function BoardTable(props: Props) {
@@ -163,6 +169,10 @@ export default function BoardTable(props: Props) {
                         onCardDragOver={props.onCardDragOver}
                         onMoveCardToPile={props.onMoveCardToPile}
                         onSetFieldValue={props.onSetFieldValue}
+                        boardMembers={props.boardMembers}
+                        boardMembersLoading={props.boardMembersLoading}
+                        onLoadMembers={props.onLoadMembers}
+                        onSetAssignees={props.onSetAssignees}
                       />
                     </Fragment>
                   ))}
@@ -211,6 +221,10 @@ function Row({
   onCardDragOver,
   onMoveCardToPile,
   onSetFieldValue,
+  boardMembers,
+  boardMembersLoading,
+  onLoadMembers,
+  onSetAssignees,
 }: {
   card: Task;
   pile: Pile;
@@ -227,6 +241,10 @@ function Row({
   onCardDragOver: (e: DragEvent<HTMLElement>, pile: Pile, card: Task) => void;
   onMoveCardToPile: (cardId: number, pileId: number) => void;
   onSetFieldValue: (cardId: number, columnId: number, value: FieldValue) => void;
+  boardMembers: AssignMember[] | null;
+  boardMembersLoading: boolean;
+  onLoadMembers: () => void;
+  onSetAssignees: (cardId: number, assignees: CardAssignee[]) => void;
 }) {
   const open = () => card.id > 0 && onOpenCard(card.id);
   const itemPct =
@@ -298,13 +316,41 @@ function Row({
       </td>
 
       <td className={styles.colPeople}>
-        <button type="button" className={styles.cellBtn} onClick={open}>
-          {card.assignees.length > 0 ? (
-            <AvatarStack assignees={card.assignees} />
-          ) : (
-            <span className={styles.mute}>—</span>
-          )}
-        </button>
+        {caps.editCard && card.id > 0 ? (
+          <AssignMenu
+            members={boardMembers}
+            loading={boardMembersLoading}
+            assignedIds={new Set(card.assignees.map((a) => a.userId))}
+            onOpen={onLoadMembers}
+            onToggle={(m) => {
+              const has = card.assignees.some((a) => a.userId === m.userId);
+              const next = has
+                ? card.assignees.filter((a) => a.userId !== m.userId)
+                : [...card.assignees, m];
+              onSetAssignees(card.id, next);
+            }}
+            triggerClassName={styles.peopleTrigger}
+            triggerLabel={
+              card.assignees.length > 0 ? "Edit assignees" : "Assign people"
+            }
+          >
+            {card.assignees.length > 0 ? (
+              <AvatarStack assignees={card.assignees} />
+            ) : (
+              <span className={styles.assignEmpty} aria-hidden>
+                <UsersIcon size={12} />
+              </span>
+            )}
+          </AssignMenu>
+        ) : (
+          <button type="button" className={styles.cellBtn} onClick={open}>
+            {card.assignees.length > 0 ? (
+              <AvatarStack assignees={card.assignees} />
+            ) : (
+              <span className={styles.mute}>—</span>
+            )}
+          </button>
+        )}
       </td>
 
       <td className={styles.colDue}>

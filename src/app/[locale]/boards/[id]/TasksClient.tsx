@@ -16,6 +16,7 @@ import { useSearchParams } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
+import AssignMenu, { AssignMember } from "./AssignMenu";
 import type { BoardEvent } from "@/lib/board-bus";
 import { rememberLastBoard } from "@/lib/last-board";
 import {
@@ -359,6 +360,15 @@ export default function TasksClient({
         case "pile_deleted":
           setPiles((prev) => prev.filter((p) => p.id !== ev.pileId));
           break;
+        case "piles_reordered": {
+          const rank = new Map(ev.pileIds.map((pid, i) => [pid, i]));
+          setPiles((prev) =>
+            [...prev]
+              .map((p) => ({ ...p, position: (rank.get(p.id) ?? 0) + 1 }))
+              .sort((a, b) => a.position - b.position),
+          );
+          break;
+        }
       }
     };
     return () => es.close();
@@ -787,6 +797,153 @@ export default function TasksClient({
     moveCard(cardId, pileId, null);
   };
 
+  // --- Board-view assignees ---
+  // The full member list is loaded lazily the first time someone opens an
+  // assign menu on a card, so we don't pay for it on every board load.
+  const [boardMembers, setBoardMembers] = useState<AssignMember[] | null>(null);
+  const [boardMembersLoading, setBoardMembersLoading] = useState(false);
+
+  const loadBoardMembers = () => {
+    if (boardMembers !== null || boardMembersLoading) return;
+    setBoardMembersLoading(true);
+    fetch(`/api/boards/${boardId}/members`)
+      .then((r) => r.json())
+      .then((json) => {
+        const ms = ((json.members ?? []) as AssignMember[]).map((m) => ({
+          userId: m.userId,
+          firstname: m.firstname,
+          lastname: m.lastname,
+          email: m.email,
+        }));
+        setBoardMembers(ms);
+      })
+      .catch(() => toast.error("Could not load board members."))
+      .finally(() => setBoardMembersLoading(false));
+  };
+
+  // Assign/unassign from the board, mirroring the card drawer: optimistic
+  // update, PUT the full set, roll back on failure. The SSE `card_assignees`
+  // event reconciles other clients (and this one).
+  const onSetAssignees = async (cardId: number, assignees: CardAssignee[]) => {
+    const snapshot = tasks.find((t) => t.id === cardId)?.assignees ?? [];
+    setTasks((prev) => prev.map((t) => (t.id === cardId ? { ...t, assignees } : t)));
+    try {
+      const res = await fetch(`/api/cards/${cardId}/assignees`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: assignees.map((a) => a.userId) }),
+      });
+      if (!res.ok) {
+        setTasks((prev) => prev.map((t) => (t.id === cardId ? { ...t, assignees: snapshot } : t)));
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Could not update assignees");
+      }
+    } catch {
+      setTasks((prev) => prev.map((t) => (t.id === cardId ? { ...t, assignees: snapshot } : t)));
+      toast.error("Network error.");
+    }
+  };
+
+  // --- Pile reordering (drag & drop + move buttons) ---
+  const [pileDragId, setPileDragId] = useState<number | null>(null);
+  // beforeId === null means "drop at the end"; the whole hint null means none.
+  const [pileDropHint, setPileDropHint] = useState<{ beforeId: number | null } | null>(null);
+
+  const persistPileOrder = async (orderedIds: number[]) => {
+    try {
+      const res = await fetch(`/api/boards/${boardId}/piles/reorder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pileIds: orderedIds }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Could not reorder piles");
+        return false;
+      }
+      return true;
+    } catch {
+      toast.error("Network error.");
+      return false;
+    }
+  };
+
+  const applyPileOrder = (renum: Pile[]) => {
+    const current = [...piles].sort((a, b) => a.position - b.position);
+    if (renum.every((p, i) => p.id === current[i]?.id)) return; // no change
+    const snapshot = piles;
+    setPiles(renum);
+    persistPileOrder(renum.map((p) => p.id)).then((ok) => {
+      if (!ok) setPiles(snapshot);
+    });
+  };
+
+  // Move `dragId` so it sits just before `beforeId` (or at the end when null).
+  const reorderPiles = (dragId: number, beforeId: number | null) => {
+    const current = [...piles].sort((a, b) => a.position - b.position);
+    const dragged = current.find((p) => p.id === dragId);
+    if (!dragged) return;
+    const without = current.filter((p) => p.id !== dragId);
+    const idx = beforeId == null ? without.length : without.findIndex((p) => p.id === beforeId);
+    const insertAt = idx < 0 ? without.length : idx;
+    without.splice(insertAt, 0, dragged);
+    applyPileOrder(without.map((p, i) => ({ ...p, position: i + 1 })));
+  };
+
+  // Nudge a pile one slot left/right — accessible/touch-friendly alternative
+  // to dragging.
+  const movePile = (pileId: number, dir: -1 | 1) => {
+    const current = [...piles].sort((a, b) => a.position - b.position);
+    const i = current.findIndex((p) => p.id === pileId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= current.length) return;
+    [current[i], current[j]] = [current[j], current[i]];
+    applyPileOrder(current.map((p, k) => ({ ...p, position: k + 1 })));
+  };
+
+  const onPileReorderStart = (e: DragEvent<HTMLElement>, pileId: number) => {
+    setPileDragId(pileId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/x-pile", String(pileId));
+  };
+
+  const onPileReorderOver = (e: DragEvent<HTMLElement>, overPile: Pile) => {
+    if (pileDragId == null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (overPile.id === pileDragId) {
+      setPileDropHint(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const after = e.clientX > rect.left + rect.width / 2;
+    const current = [...piles].sort((a, b) => a.position - b.position);
+    const i = current.findIndex((p) => p.id === overPile.id);
+    const beforeId = after ? current[i + 1]?.id ?? null : overPile.id;
+    // Dropping right next to where it already is is a no-op — hide the hint.
+    if (beforeId === pileDragId) {
+      setPileDropHint(null);
+      return;
+    }
+    setPileDropHint({ beforeId });
+  };
+
+  const onPileReorderDrop = (e: DragEvent<HTMLElement>) => {
+    if (pileDragId == null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const dragId = pileDragId;
+    const hint = pileDropHint;
+    setPileDragId(null);
+    setPileDropHint(null);
+    if (hint) reorderPiles(dragId, hint.beforeId);
+  };
+
+  const onPileReorderEnd = () => {
+    setPileDragId(null);
+    setPileDropHint(null);
+  };
+
   // --- custom fields ---
   const onSetFieldValue = async (cardId: number, columnId: number, value: FieldValue) => {
     const snapshot = tasks;
@@ -1208,11 +1365,17 @@ export default function TasksClient({
             onCreateField={onCreateField}
             onRenameField={onRenameField}
             onDeleteField={onDeleteField}
+            boardMembers={boardMembers}
+            boardMembersLoading={boardMembersLoading}
+            onLoadMembers={loadBoardMembers}
+            onSetAssignees={onSetAssignees}
           />
         ) : (
           <div className={kStyles.scroller}>
             {view === "board" &&
-              piles.map((pile) => (
+              [...piles]
+                .sort((a, b) => a.position - b.position)
+                .map((pile, idx, arr) => (
                 <PileColumn
                   key={pile.id}
                   pile={pile}
@@ -1234,6 +1397,25 @@ export default function TasksClient({
                   onPileDragLeave={onPileDragLeave}
                   onPileDrop={onPileDrop}
                   onMoveToPile={onMoveToPile}
+                  boardMembers={boardMembers}
+                  boardMembersLoading={boardMembersLoading}
+                  onLoadMembers={loadBoardMembers}
+                  onSetAssignees={onSetAssignees}
+                  pileReordering={pileDragId !== null}
+                  isPileDragging={pileDragId === pile.id}
+                  showPileDropBefore={pileDropHint?.beforeId === pile.id}
+                  showPileDropAfter={
+                    pileDropHint != null &&
+                    pileDropHint.beforeId === null &&
+                    idx === arr.length - 1
+                  }
+                  isFirstPile={idx === 0}
+                  isLastPile={idx === arr.length - 1}
+                  onPileReorderStart={onPileReorderStart}
+                  onPileReorderOver={onPileReorderOver}
+                  onPileReorderDrop={onPileReorderDrop}
+                  onPileReorderEnd={onPileReorderEnd}
+                  onMovePile={movePile}
                   canManagePiles={can("manage_piles")}
                   canCreateCard={can("create_card")}
                   canDeleteCard={can("delete_card")}
@@ -1346,6 +1528,21 @@ function PileColumn({
   onPileDragLeave,
   onPileDrop,
   onMoveToPile,
+  boardMembers,
+  boardMembersLoading,
+  onLoadMembers,
+  onSetAssignees,
+  pileReordering,
+  isPileDragging,
+  showPileDropBefore,
+  showPileDropAfter,
+  isFirstPile,
+  isLastPile,
+  onPileReorderStart,
+  onPileReorderOver,
+  onPileReorderDrop,
+  onPileReorderEnd,
+  onMovePile,
   canManagePiles,
   canCreateCard,
   canDeleteCard,
@@ -1370,6 +1567,21 @@ function PileColumn({
   onPileDragLeave: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onPileDrop: (e: DragEvent<HTMLElement>, pile: Pile) => void;
   onMoveToPile: (cardId: number, pileId: number) => void;
+  boardMembers: AssignMember[] | null;
+  boardMembersLoading: boolean;
+  onLoadMembers: () => void;
+  onSetAssignees: (cardId: number, assignees: CardAssignee[]) => void;
+  pileReordering: boolean;
+  isPileDragging: boolean;
+  showPileDropBefore: boolean;
+  showPileDropAfter: boolean;
+  isFirstPile: boolean;
+  isLastPile: boolean;
+  onPileReorderStart: (e: DragEvent<HTMLElement>, pileId: number) => void;
+  onPileReorderOver: (e: DragEvent<HTMLElement>, pile: Pile) => void;
+  onPileReorderDrop: (e: DragEvent<HTMLElement>) => void;
+  onPileReorderEnd: () => void;
+  onMovePile: (pileId: number, dir: -1 | 1) => void;
   canManagePiles: boolean;
   canCreateCard: boolean;
   canDeleteCard: boolean;
@@ -1387,12 +1599,37 @@ function PileColumn({
 
   return (
     <div
-      className={`${kStyles.pile} ${isDropTarget ? kStyles.pileDragOver : ""}`}
+      className={`${kStyles.pile} ${isDropTarget ? kStyles.pileDragOver : ""} ${isPileDragging ? kStyles.pileGhost : ""} ${pileReordering ? kStyles.pileReorderActive : ""}`}
       onDragOver={(e) => onPileDragOver(e, pile)}
       onDragLeave={(e) => onPileDragLeave(e, pile)}
       onDrop={(e) => onPileDrop(e, pile)}
     >
-      <div className={kStyles.pileHead}>
+      {showPileDropBefore && (
+        <span className={`${kStyles.pileDropBar} ${kStyles.pileDropBarBefore}`} aria-hidden />
+      )}
+      {showPileDropAfter && (
+        <span className={`${kStyles.pileDropBar} ${kStyles.pileDropBarAfter}`} aria-hidden />
+      )}
+      <div
+        className={kStyles.pileHead}
+        onDragOver={canManagePiles ? (e) => onPileReorderOver(e, pile) : undefined}
+        onDrop={canManagePiles ? onPileReorderDrop : undefined}
+      >
+        {canManagePiles && (
+          <span
+            className={kStyles.pileGrip}
+            draggable
+            data-handle
+            role="button"
+            tabIndex={-1}
+            title="Drag to reorder pile"
+            aria-label="Drag to reorder pile"
+            onDragStart={(e) => onPileReorderStart(e, pile.id)}
+            onDragEnd={onPileReorderEnd}
+          >
+            ⠿
+          </span>
+        )}
         <span className={kStyles.pileDot} style={{ background: pileColor.hue }} />
         {canManagePiles ? (
           <input
@@ -1411,6 +1648,30 @@ function PileColumn({
           </span>
         )}
         <span className={kStyles.pileCount}>{cards.length}</span>
+        {canManagePiles && (
+          <span className={kStyles.pileReorderBtns}>
+            <button
+              type="button"
+              className={kStyles.pileMenu}
+              aria-label="Move pile left"
+              title="Move left"
+              disabled={isFirstPile}
+              onClick={() => onMovePile(pile.id, -1)}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className={kStyles.pileMenu}
+              aria-label="Move pile right"
+              title="Move right"
+              disabled={isLastPile}
+              onClick={() => onMovePile(pile.id, 1)}
+            >
+              ›
+            </button>
+          </span>
+        )}
         {canManagePiles && (
           <button
             type="button"
@@ -1444,8 +1705,13 @@ function PileColumn({
               onDelete={onDeleteCard}
               onOpen={onOpenCard}
               onMoveToPile={onMoveToPile}
+              boardMembers={boardMembers}
+              boardMembersLoading={boardMembersLoading}
+              onLoadMembers={onLoadMembers}
+              onSetAssignees={onSetAssignees}
               canDelete={canDeleteCard}
               canMove={canEditCard}
+              canAssign={canEditCard}
             />
           </Fragment>
         ))}
@@ -1512,8 +1778,13 @@ function KanbanCard({
   onDelete,
   onOpen,
   onMoveToPile,
+  boardMembers,
+  boardMembersLoading,
+  onLoadMembers,
+  onSetAssignees,
   canDelete,
   canMove,
+  canAssign,
 }: {
   card: Task;
   piles: Pile[];
@@ -1525,8 +1796,13 @@ function KanbanCard({
   onDelete: (id: number) => void;
   onOpen: (id: number) => void;
   onMoveToPile: (cardId: number, pileId: number) => void;
+  boardMembers: AssignMember[] | null;
+  boardMembersLoading: boolean;
+  onLoadMembers: () => void;
+  onSetAssignees: (cardId: number, assignees: CardAssignee[]) => void;
   canDelete: boolean;
   canMove: boolean;
+  canAssign: boolean;
 }) {
   const itemPct = card.itemsTotal === 0 ? 0 : Math.round((card.itemsDone / card.itemsTotal) * 100);
   const fieldChips = fieldChipsFor(card, columns);
@@ -1638,7 +1914,35 @@ function KanbanCard({
               <span>{card.links}</span>
             </span>
           )}
-          {card.assignees.length > 0 && <AvatarStack assignees={card.assignees} />}
+          {canAssign && card.id > 0 ? (
+            <AssignMenu
+              members={boardMembers}
+              loading={boardMembersLoading}
+              assignedIds={new Set(card.assignees.map((a) => a.userId))}
+              onOpen={onLoadMembers}
+              onToggle={(m) => {
+                const has = card.assignees.some((a) => a.userId === m.userId);
+                const next = has
+                  ? card.assignees.filter((a) => a.userId !== m.userId)
+                  : [...card.assignees, m];
+                onSetAssignees(card.id, next);
+              }}
+              triggerClassName={kStyles.assignTrigger}
+              triggerLabel={
+                card.assignees.length > 0 ? "Edit assignees" : "Assign people"
+              }
+            >
+              {card.assignees.length > 0 ? (
+                <AvatarStack assignees={card.assignees} />
+              ) : (
+                <span className={kStyles.assignEmpty} aria-hidden>
+                  <UsersIcon size={12} />
+                </span>
+              )}
+            </AssignMenu>
+          ) : (
+            card.assignees.length > 0 && <AvatarStack assignees={card.assignees} />
+          )}
         </div>
         <div className={kStyles.cardActions}>
           {canMove && card.id > 0 && (

@@ -52,7 +52,8 @@ export type BoardEvent =
     }
   | { type: "pile_created"; pile: BoardPileSummary }
   | { type: "pile_updated"; pileId: number; title: string }
-  | { type: "pile_deleted"; pileId: number };
+  | { type: "pile_deleted"; pileId: number }
+  | { type: "piles_reordered"; pileIds: number[] };
 
 type Handler = (event: BoardEvent) => void;
 

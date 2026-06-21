@@ -241,6 +241,41 @@
   background: var(--bg);
 }
 
+/* People cell: the avatars (or an empty slot) are the assign trigger. */
+.peopleTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 28px;
+  padding: 0.25rem 0.3rem;
+  margin: -0.25rem -0.3rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.peopleTrigger:hover {
+  background: var(--bg);
+}
+
+.assignEmpty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1.5px dashed var(--border-strong);
+  color: var(--text-mute);
+  transition: border-color 100ms ease, color 100ms ease;
+}
+.peopleTrigger:hover .assignEmpty {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* --- assignees --- */
 .avatarStack {
   display: inline-flex;
