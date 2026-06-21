@@ -1,116 +1,7 @@
-/* ------------------------------------------------------- *
- *   Description markdown <-> HTML.
- *
- *   The description is stored as a small, controlled subset of
- *   markdown. We render it to HTML for display/editing, and
- *   serialize the contenteditable DOM back to markdown so the stored
- *   form stays portable and we never have to trust raw HTML.
- *
- *   Everything here is pure (no React, no DOM globals beyond the Node
- *   types used while serializing a contenteditable element), so it
- *   lives apart from the CardDrawer component.
- * ------------------------------------------------------- */
+/* Contenteditable DOM -> markdown subset, for saving a card description. */
 
-export const IMAGE_LINE = /^!\[([^\]]*)\]\((\S+)\)\s*$/;
+import { IMAGE_LINE } from "./markdown-to-html";
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/** Allow only http(s) and root-relative URLs in <img src>. */
-function safeUrl(url: string): string | null {
-  const t = url.trim();
-  if (!t) return null;
-  if (t.startsWith("/")) return t;
-  if (/^https?:\/\//i.test(t)) return t;
-  return null;
-}
-
-function inlineMd(text: string): string {
-  let t = escapeHtml(text);
-
-  // Extract `code` spans into placeholders so bold/italic/etc. don't
-  // eat markers that happen to live inside code.
-  const codes: string[] = [];
-  t = t.replace(/`([^`]+)`/g, (_m, c: string) => {
-    const i = codes.push(`<code>${c}</code>`) - 1;
-    return ` ${i} `;
-  });
-
-  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  t = t.replace(/__([^_]+)__/g, "<u>$1</u>");
-  t = t.replace(/~~([^~]+)~~/g, "<s>$1</s>");
-  t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-  t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt: string, url: string) => {
-    const safe = safeUrl(url);
-    if (!safe) return "";
-    return `<img src="${escapeHtml(safe)}" alt="${escapeHtml(alt)}" draggable="false" />`;
-  });
-
-  // Restore protected code spans.
-  t = t.replace(/ (\d+) /g, (_m, idx: string) => codes[Number(idx)] ?? "");
-
-  return t;
-}
-
-export function descriptionToHtml(text: string): string {
-  if (!text.trim()) return "";
-  const blocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
-  return blocks
-    .map((block) => {
-      const lines = block.split("\n");
-
-      // A heading is its own single-line block: "# ", "## " or "### ".
-      const heading = lines.length === 1 ? lines[0].match(/^(#{1,3})\s+(.+)$/) : null;
-      if (heading) {
-        const level = heading[1].length;
-        return `<h${level}>${inlineMd(heading[2])}</h${level}>`;
-      }
-
-      const imgMatches = lines.map((l) => l.match(IMAGE_LINE));
-      if (imgMatches.every((m) => m !== null)) {
-        return (
-          "<p>" +
-          imgMatches
-            .map((m) => {
-              if (!m) return "";
-              const safe = safeUrl(m[2]);
-              if (!safe) return "";
-              return `<img src="${escapeHtml(safe)}" alt="${escapeHtml(m[1])}" draggable="false" />`;
-            })
-            .join("") +
-          "</p>"
-        );
-      }
-
-      if (lines.every((l) => /^- /.test(l))) {
-        return (
-          "<ul>" +
-          lines.map((l) => `<li>${inlineMd(l.replace(/^- /, ""))}</li>`).join("") +
-          "</ul>"
-        );
-      }
-
-      if (lines.every((l) => /^\d+\. /.test(l))) {
-        return (
-          "<ol>" +
-          lines.map((l) => `<li>${inlineMd(l.replace(/^\d+\.\s+/, ""))}</li>`).join("") +
-          "</ol>"
-        );
-      }
-
-      return "<p>" + lines.map(inlineMd).join("<br>") + "</p>";
-    })
-    .join("");
-}
-
-// Wrap markdown with markers implied by an element's inline CSS. Browsers
-// often apply Ctrl+B / Ctrl+I as `style="font-weight:bold"` on a <span>
-// rather than a <b> tag, so tag-matching alone loses the formatting.
 function styleMarkers(c: HTMLElement, inner: string): string {
   if (!inner) return inner;
   const fw = c.style.fontWeight;
@@ -127,10 +18,6 @@ function styleMarkers(c: HTMLElement, inner: string): string {
   return s;
 }
 
-// Wrap already-serialized inner markdown with the markers implied by an
-// element's own tag and inline style. Applied both to child elements AND to a
-// top-level inline element (e.g. a bare <b>hey</b> with no paragraph around
-// it), whose own formatting would otherwise be lost.
 function wrapInline(el: HTMLElement, inner: string): string {
   const tag = el.tagName;
   if (tag === "STRONG" || tag === "B") return `**${inner}**`;
@@ -292,7 +179,6 @@ export function serializeDescription(editor: HTMLElement): string {
   return blocks.join("\n\n").trim();
 }
 
-/** Strip every occurrence of an image URL from a description. */
 export function stripImageFromDescription(text: string, url: string): string {
   if (!text || !url) return text ?? "";
   const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

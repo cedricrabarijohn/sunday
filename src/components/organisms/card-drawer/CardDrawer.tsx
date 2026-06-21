@@ -24,11 +24,11 @@ import { useToast } from "@/components/organisms/toast/ToastProvider";
 import { FieldCell } from "@/app/[locale]/boards/[id]/TableFields";
 import type { BoardColumn, FieldValue } from "@/app/[locale]/boards/[id]/TasksClient";
 import EmojiPicker from "@/components/organisms/emoji-picker/EmojiPicker";
+import { descriptionToHtml } from "./markdown-to-html";
 import {
-  descriptionToHtml,
   serializeDescription,
   stripImageFromDescription,
-} from "./description-markdown";
+} from "./dom-to-markdown";
 
 import type {
   Item,
@@ -52,18 +52,14 @@ import {
   initialsForAssignee,
   nameForAssignee,
 } from "./format";
-import {
-  LabelsPicker,
-  MetaPopover,
-  CommentBody,
-  AssigneePicker,
-} from "./pickers";
-import {
-  DescMenu,
-  DescriptionView,
-  ReactionBar,
-  DescToolbar,
-} from "./description-view";
+import { LabelsPicker } from "./label-picker";
+import { MetaPopover } from "./meta-popover";
+import { CommentBody } from "./comment-body";
+import { AssigneePicker } from "./assignee-picker";
+import { DescMenu } from "./desc-menu";
+import { DescriptionView } from "./description-content";
+import { ReactionBar } from "./reaction-bar";
+import { DescToolbar } from "./desc-toolbar";
 
 type Props = {
   cardId: number;

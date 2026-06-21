@@ -2,7 +2,6 @@
 
 import { DragEvent } from "react";
 import {
-  CalendarIcon,
   ChecklistIcon,
   CommentIcon,
   LinkIcon,
@@ -14,7 +13,8 @@ import kStyles from "./Kanban.module.scss";
 import MovePileMenu from "./MovePileMenu";
 import AssignMenu, { AssignMember } from "./AssignMenu";
 import type { BoardColumn, CardAssignee, Pile, Task } from "./board-types";
-import { initialsFor, nameFor } from "./card-format";
+import { AvatarStack } from "./avatar-stack";
+import { DueBadge } from "./due-badge";
 
 function fieldChipsFor(
   card: Task,
@@ -254,58 +254,5 @@ export function KanbanCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function dueState(dueAt: string | Date): "overdue" | "soon" | "later" {
-  const t = typeof dueAt === "string" ? new Date(dueAt).getTime() : dueAt.getTime();
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-  if (t < now) return "overdue";
-  if (t - now < 2 * dayMs) return "soon";
-  return "later";
-}
-
-function formatDueShort(dueAt: string | Date): string {
-  const d = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-}
-
-function DueBadge({ dueAt }: { dueAt: string | Date }) {
-  const state = dueState(dueAt);
-  return (
-    <span
-      className={kStyles.cardBadge}
-      data-due={state}
-      title={
-        typeof dueAt === "string"
-          ? new Date(dueAt).toLocaleString()
-          : dueAt.toLocaleString()
-      }
-    >
-      <CalendarIcon size={11} />
-      <span>{formatDueShort(dueAt)}</span>
-    </span>
-  );
-}
-
-function AvatarStack({ assignees }: { assignees: CardAssignee[] }) {
-  const visible = assignees.slice(0, 3);
-  const extra = assignees.length - visible.length;
-  return (
-    <span className={kStyles.avatarStack} title={assignees.map(nameFor).join(", ")}>
-      {visible.map((a) => (
-        <span key={a.userId} className={kStyles.avatarPip}>
-          {initialsFor(a)}
-        </span>
-      ))}
-      {extra > 0 && <span className={`${kStyles.avatarPip} ${kStyles.avatarPipMore}`}>+{extra}</span>}
-    </span>
   );
 }
