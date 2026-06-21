@@ -60,6 +60,8 @@ import { DescMenu } from "./desc-menu";
 import { DescriptionView } from "./description-content";
 import { ReactionBar } from "./reaction-bar";
 import { DescToolbar } from "./desc-toolbar";
+import { useCardLabels } from "../hooks/use-card-labels";
+import { useCardAssignees } from "../hooks/use-card-assignees";
 
 type Props = {
   cardId: number;
@@ -828,143 +830,23 @@ export default function CardDrawer({
   };
 
   // --- Labels ---
-  const persistCardLabels = async (cardLabels: CardLabel[]) => {
-    try {
-      const res = await fetch(`/api/cards/${cardId}/labels`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ labelIds: cardLabels.map((l) => l.id) }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast.error(json.error || "Could not update labels");
-      }
-    } catch {
-      toast.error("Network error.");
-    }
-  };
-
-  const onToggleLabel = (label: WorkspaceLabel) => {
-    if (!data) return;
-    const has = data.labels.some((l) => l.id === label.id);
-    const nextLabels = has
-      ? data.labels.filter((l) => l.id !== label.id)
-      : [...data.labels, { id: label.id, title: label.title, color: label.color }];
-    const next = { ...data, labels: nextLabels };
-    setData(next);
-    onLabelsChange?.(cardId, nextLabels);
-    persistCardLabels(nextLabels);
-  };
-
-  const onCreateLabel = async (title: string, color: string) => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/labels`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: trimmed, color }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error || "Could not create label");
-        return;
-      }
-      const next: WorkspaceLabel = { ...json.label };
-      onWorkspaceLabelsChange([...workspaceLabels, next]);
-    } catch {
-      toast.error("Network error.");
-    }
-  };
-
-  const onEditLabel = async (label: WorkspaceLabel, patch: Partial<WorkspaceLabel>) => {
-    const optimistic = workspaceLabels.map((l) => (l.id === label.id ? { ...l, ...patch } : l));
-    onWorkspaceLabelsChange(optimistic);
-    if (data) {
-      const inCard = data.labels.some((l) => l.id === label.id);
-      if (inCard) {
-        const nextCardLabels = data.labels.map((l) =>
-          l.id === label.id
-            ? { ...l, title: patch.title ?? l.title, color: patch.color ?? l.color }
-            : l,
-        );
-        setData({ ...data, labels: nextCardLabels });
-        onLabelsChange?.(cardId, nextCardLabels);
-      }
-    }
-    try {
-      const res = await fetch(`/api/labels/${label.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        onWorkspaceLabelsChange(workspaceLabels);
-        toast.error(json.error || "Could not update label");
-      }
-    } catch {
-      onWorkspaceLabelsChange(workspaceLabels);
-      toast.error("Network error.");
-    }
-  };
-
-  const onDeleteLabel = async (label: WorkspaceLabel) => {
-    const ok = await confirm({
-      title: `Delete label "${label.title}"?`,
-      message: "It will be removed from every card in this workspace.",
-      confirmLabel: "Delete label",
-      danger: true,
-    });
-    if (!ok) return;
-    const snapshot = workspaceLabels;
-    onWorkspaceLabelsChange(workspaceLabels.filter((l) => l.id !== label.id));
-    if (data) {
-      const nextLabels = data.labels.filter((l) => l.id !== label.id);
-      if (nextLabels.length !== data.labels.length) {
-        setData({ ...data, labels: nextLabels });
-        onLabelsChange?.(cardId, nextLabels);
-      }
-    }
-    try {
-      const res = await fetch(`/api/labels/${label.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        onWorkspaceLabelsChange(snapshot);
-        toast.error("Could not delete label");
-      }
-    } catch {
-      onWorkspaceLabelsChange(snapshot);
-      toast.error("Network error.");
-    }
-  };
+  const { onToggleLabel, onCreateLabel, onEditLabel, onDeleteLabel } = useCardLabels({
+    cardId,
+    workspaceId,
+    data,
+    setData,
+    workspaceLabels,
+    onWorkspaceLabelsChange,
+    onLabelsChange,
+  });
 
   // --- Assignees ---
-  const persistAssignees = async (next: Assignee[]) => {
-    try {
-      const res = await fetch(`/api/cards/${cardId}/assignees`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userIds: next.map((a) => a.userId) }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast.error(json.error || "Could not update assignees");
-      }
-    } catch {
-      toast.error("Network error.");
-    }
-  };
-
-  const onToggleAssignee = (member: Assignee) => {
-    if (!data) return;
-    const has = data.assignees.some((a) => a.userId === member.userId);
-    const next = has
-      ? data.assignees.filter((a) => a.userId !== member.userId)
-      : [...data.assignees, member];
-    setData({ ...data, assignees: next });
-    onAssigneesChange?.(cardId, next);
-    persistAssignees(next);
-  };
+  const { onToggleAssignee } = useCardAssignees({
+    cardId,
+    data,
+    setData,
+    onAssigneesChange,
+  });
 
   // --- Due date ---
   const onChangeDueAt = async (next: string | null) => {
