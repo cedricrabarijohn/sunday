@@ -126,6 +126,68 @@
 }
 .closeBtn:hover { background: var(--surface-2); color: var(--text-1); border-color: var(--border); }
 
+/* --- Card action bar -------------------------------------------------
+   A consolidated strip of card-level actions/settings, right under the
+   header: due date, copy link, delete. */
+.actionBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.actionBarSpacer { flex: 1 1 auto; }
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.actionBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border-strong);
+}
+
+.actionBtnInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.actionBtnDanger:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.duePopover {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 36px -12px rgba(0, 0, 0, 0.3);
+}
+
 .body {
   flex: 1;
   overflow-y: auto;

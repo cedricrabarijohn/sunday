@@ -14,7 +14,14 @@ import {
 import { createPortal } from "react-dom";
 import { PALETTE, colorForId, colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { UsersIcon, TagIcon, ImageIcon } from "@/components/Icons";
+import {
+  UsersIcon,
+  TagIcon,
+  ImageIcon,
+  CalendarIcon,
+  LinkIcon,
+  TrashIcon,
+} from "@/components/Icons";
 import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import { FieldCell } from "@/app/[locale]/boards/[id]/TableFields";
@@ -154,6 +161,7 @@ export default function CardDrawer({
   const [dragActive, setDragActive] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+  const [dueOpen, setDueOpen] = useState(false);
   const [boardMembers, setBoardMembers] = useState<Assignee[] | null>(null);
   const [boardMembersLoading, setBoardMembersLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -1371,6 +1379,22 @@ export default function CardDrawer({
     }
   };
 
+  // --- Copy a deep link to this card ---
+  // TasksClient keeps the open card in the URL as ?card=:id, so the current
+  // location already points straight at this card.
+  const onCopyLink = async () => {
+    const url =
+      typeof window !== "undefined"
+        ? window.location.href
+        : `/boards/${data?.card.boardId ?? ""}?card=${cardId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
   const color = colorForId(cardId);
   const drawerStyle = {
     "--card-hue": color.hue,
@@ -1514,6 +1538,81 @@ export default function CardDrawer({
             ✕
           </button>
         </header>
+
+        {data && (
+          <div className={styles.actionBar} role="toolbar" aria-label="Card actions">
+            <MetaPopover
+              open={dueOpen}
+              setOpen={setDueOpen}
+              disabled={!canEdit}
+              label="Due date"
+              triggerClassName={styles.actionBtn}
+              trigger={
+                <span className={styles.actionBtnInner}>
+                  <CalendarIcon size={15} />
+                  <span>
+                    {data.card.dueAt
+                      ? new Date(data.card.dueAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "Due date"}
+                  </span>
+                </span>
+              }
+            >
+              <div className={styles.duePopover}>
+                <input
+                  type="datetime-local"
+                  className={styles.dueInput}
+                  value={toLocalDatetimeValue(data.card.dueAt)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onChangeDueAt(v ? new Date(v).toISOString() : null);
+                  }}
+                />
+                {data.card.dueAt && (
+                  <button
+                    type="button"
+                    className={styles.linkBtn}
+                    onClick={() => {
+                      onChangeDueAt(null);
+                      setDueOpen(false);
+                    }}
+                  >
+                    Clear due date
+                  </button>
+                )}
+              </div>
+            </MetaPopover>
+
+            <button
+              type="button"
+              className={styles.actionBtn}
+              onClick={onCopyLink}
+            >
+              <span className={styles.actionBtnInner}>
+                <LinkIcon size={15} />
+                <span>Copy link</span>
+              </span>
+            </button>
+
+            <span className={styles.actionBarSpacer} />
+
+            {canDelete && (
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+                onClick={onDeleteCard}
+              >
+                <span className={styles.actionBtnInner}>
+                  <TrashIcon size={15} />
+                  <span>Delete</span>
+                </span>
+              </button>
+            )}
+          </div>
+        )}
 
         {!data ? (
           <div className={styles.loading}>
@@ -1690,42 +1789,6 @@ export default function CardDrawer({
                     onToggle={toggleTaskReaction}
                   />
                 </>
-              )}
-            </section>
-
-            <section className={styles.section}>
-              <div className={styles.sectionHead}>
-                <span className={styles.sectionLabel}>Due date</span>
-                {canEdit && data.card.dueAt && (
-                  <button
-                    type="button"
-                    className={styles.linkBtn}
-                    onClick={() => onChangeDueAt(null)}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              {canEdit ? (
-                <input
-                  type="datetime-local"
-                  className={styles.dueInput}
-                  value={toLocalDatetimeValue(data.card.dueAt)}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (!v) {
-                      onChangeDueAt(null);
-                      return;
-                    }
-                    onChangeDueAt(new Date(v).toISOString());
-                  }}
-                />
-              ) : (
-                <div className={styles.dueInput} style={{ pointerEvents: "none" }}>
-                  {data.card.dueAt
-                    ? new Date(data.card.dueAt).toLocaleString()
-                    : "No due date"}
-                </div>
               )}
             </section>
 
