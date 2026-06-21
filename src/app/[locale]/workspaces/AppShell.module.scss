@@ -6,6 +6,72 @@
   display: grid;
   grid-template-columns: 240px 1fr;
   grid-template-rows: 100vh;
+  transition: grid-template-columns 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Collapsed: the desktop sidebar folds away to give the board full width.
+   A floating button brings it back. */
+.shellCollapsed {
+  grid-template-columns: 0 1fr;
+}
+@media (max-width: 880px) {
+  /* On mobile the sidebar is an off-canvas drawer, so "collapsed" is a no-op. */
+  .shellCollapsed { grid-template-columns: 1fr; }
+}
+
+/* Collapse toggle that lives in the sidebar header (desktop only). */
+.collapseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  border-radius: 6px;
+  padding: 0.3rem;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.collapseBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border);
+}
+
+/* Floating button to reopen the collapsed sidebar (desktop only). */
+.expandBtn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 160ms ease-out both;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.expandBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-color: var(--border-strong);
+}
+@media (max-width: 880px) {
+  /* The mobile bar already provides the menu button. */
+  .expandBtn { display: none; }
+  .collapseBtn { display: none; }
+}
+
+@media (min-width: 881px) {
+  /* While folded away, the clipped sidebar shouldn't catch clicks. */
+  .sidebarCollapsed { pointer-events: none; }
 }
 
 /* --- Mobile top bar (hidden on desktop) -------------------- */
@@ -140,6 +206,10 @@
 }
 
 .sidebarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 1.1rem 1rem 0.85rem;
 }
 

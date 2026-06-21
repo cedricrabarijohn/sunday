@@ -21,6 +21,26 @@ type Props = {
   children: ReactNode;
 };
 
+/** Panel-with-sidebar glyph used for the collapse/expand toggle. */
+function PanelIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="9" y1="4" x2="9" y2="20" />
+    </svg>
+  );
+}
+
 function initials(user: Props["user"]) {
   const f = user.firstname?.[0] ?? "";
   const l = user.lastname?.[0] ?? "";
@@ -41,7 +61,29 @@ export default function AppShell({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+
+  // Restore the desktop sidebar collapsed state. Read in an effect (not during
+  // render) so SSR and the first client render agree.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (localStorage.getItem("sunday:sidebar-collapsed") === "1") {
+      setCollapsed(true);
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem("sunday:sidebar-collapsed", next ? "1" : "0");
+      } catch {
+        /* storage unavailable (private mode) — collapse is just not persisted */
+      }
+      return next;
+    });
+  };
 
   // Close the mobile drawer on route change. Resetting on navigation is the
   // intended behavior here, not a cascading-render bug.
@@ -90,7 +132,7 @@ export default function AppShell({
     "Account";
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${collapsed ? styles.shellCollapsed : ""}`}>
       <header className={styles.mobileBar}>
         <button
           type="button"
@@ -115,11 +157,21 @@ export default function AppShell({
       />
 
       <aside
-        className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ""}`}
+        className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ""} ${collapsed ? styles.sidebarCollapsed : ""}`}
         aria-hidden={!mobileOpen ? undefined : false}
       >
         <div className={styles.sidebarTop}>
           <Link href="/workspaces" className={styles.brand}>sunday</Link>
+          <button
+            type="button"
+            className={styles.collapseBtn}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-pressed={collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={toggleCollapsed}
+          >
+            <PanelIcon />
+          </button>
           <button
             type="button"
             className={styles.sidebarClose}
@@ -225,6 +277,18 @@ export default function AppShell({
           </button>
         </div>
       </aside>
+
+      {collapsed && (
+        <button
+          type="button"
+          className={styles.expandBtn}
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
+          onClick={toggleCollapsed}
+        >
+          <PanelIcon />
+        </button>
+      )}
 
       <div className={styles.content}>
         <main
