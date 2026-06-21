@@ -2,11 +2,11 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { colorForId } from "@/lib/palette";
-import styles from "../../../workspaces/AppShell.module.scss";
-import mStyles from "../../../workspaces/[id]/members/Members.module.scss";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
+import { useConfirm } from "../../../../../../components/organisms/confirm-dialog/ConfirmDialog";
+import { colorForId } from "../../../../../../lib/palette";
+import styles from "../../../../workspaces/_styles/AppShell.module.scss";
+import mStyles from "../../../../workspaces/[id]/members/_styles/Members.module.scss";
+import { useToast } from "../../../../../../components/organisms/toast/ToastProvider";
 
 type Member = {
   userId: number;

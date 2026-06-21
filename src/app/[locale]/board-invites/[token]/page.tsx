@@ -1,5 +1,5 @@
-import BoardAcceptClient from "./BoardAcceptClient";
-import styles from "../../invites/[token]/Invite.module.scss";
+import BoardAcceptClient from "./_components/BoardAcceptClient";
+import styles from "../../invites/[token]/_styles/Invite.module.scss";
 
 export default async function BoardInvitePage({
   params,

@@ -1,9 +1,9 @@
 "use client";
 
 import { ReactNode, useState } from "react";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
-import WorkspacePageHeader from "../../WorkspacePageHeader";
-import styles from "./Integrations.module.scss";
+import { useToast } from "../../../../../../components/organisms/toast/ToastProvider";
+import WorkspacePageHeader from "../../../_components/WorkspacePageHeader";
+import styles from "../_styles/Integrations.module.scss";
 
 type Provider = "gitea" | "forgejo" | "github" | "gitlab" | "bitbucket";
 

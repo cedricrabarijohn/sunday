@@ -3,12 +3,12 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { colorForId } from "@/lib/palette";
-import { BackIcon, TableIcon, TagIcon, TrashIcon, UsersIcon } from "@/components/Icons";
-import shellStyles from "../../../workspaces/AppShell.module.scss";
-import styles from "./BoardSettings.module.scss";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
+import { useConfirm } from "../../../../../../components/organisms/confirm-dialog/ConfirmDialog";
+import { colorForId } from "../../../../../../lib/palette";
+import { BackIcon, TableIcon, TagIcon, TrashIcon, UsersIcon } from "../../../../../../components/Icons";
+import shellStyles from "../../../../workspaces/_styles/AppShell.module.scss";
+import styles from "../_styles/BoardSettings.module.scss";
+import { useToast } from "../../../../../../components/organisms/toast/ToastProvider";
 
 export default function BoardSettingsClient({
   boardId,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import styles from "./RouteProgress.module.scss";
+import styles from "../_styles/RouteProgress.module.scss";
 
 /**
  * A thin top progress bar that gives immediate feedback during App Router

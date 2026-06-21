@@ -11,8 +11,8 @@ import {
 import { getSessionFromCookie } from "@/lib/auth";
 import { loadBoardCapabilities } from "@/lib/board-access";
 import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access";
-import AppShell from "../../../workspaces/AppShell";
-import BoardSettingsClient from "./BoardSettingsClient";
+import AppShell from "../../../workspaces/_components/AppShell";
+import BoardSettingsClient from "./_components/BoardSettingsClient";
 
 export default async function BoardSettingsPage({
   params,

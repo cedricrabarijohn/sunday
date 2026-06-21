@@ -5,8 +5,8 @@ import { boardUsers, boards, scmConnections, users, workspaceUsers, workspaces }
 import { getSessionFromCookie } from "@/lib/auth";
 import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities, loadMembership } from "@/lib/workspace-access";
 import { appUrl } from "@/lib/mail";
-import AppShell from "../../AppShell";
-import IntegrationsClient from "./IntegrationsClient";
+import AppShell from "../../_components/AppShell";
+import IntegrationsClient from "./_components/IntegrationsClient";
 
 export default async function IntegrationsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromCookie();

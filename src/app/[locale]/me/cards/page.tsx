@@ -14,8 +14,8 @@ import {
 } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
 import { WORKSPACE_ADMIN_ROLE_ID } from "@/lib/workspace-access";
-import AppShell from "../../workspaces/AppShell";
-import MyCardsClient from "./MyCardsClient";
+import AppShell from "../../workspaces/_components/AppShell";
+import MyCardsClient from "./_components/MyCardsClient";
 
 export default async function MyCardsPage() {
   const session = await getSessionFromCookie();

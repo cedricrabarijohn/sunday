@@ -2,10 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
-import WorkspacePageHeader from "../../WorkspacePageHeader";
-import styles from "./WorkspaceSettings.module.scss";
+import { useConfirm } from "../../../../../../components/organisms/confirm-dialog/ConfirmDialog";
+import { useToast } from "../../../../../../components/organisms/toast/ToastProvider";
+import WorkspacePageHeader from "../../../_components/WorkspacePageHeader";
+import styles from "../_styles/WorkspaceSettings.module.scss";
 
 export default function WorkspaceSettingsClient({
   workspaceId,

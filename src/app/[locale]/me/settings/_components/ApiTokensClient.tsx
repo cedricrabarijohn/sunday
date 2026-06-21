@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
-import styles from "./Settings.module.scss";
+import { useToast } from "../../../../../components/organisms/toast/ToastProvider";
+import styles from "../_styles/Settings.module.scss";
 
 export type TokenSummary = {
   id: number;

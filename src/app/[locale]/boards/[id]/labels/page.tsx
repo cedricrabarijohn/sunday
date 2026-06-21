@@ -9,8 +9,8 @@ import {
   loadCapabilities,
   loadMembership,
 } from "@/lib/workspace-access";
-import AppShell from "../../../workspaces/AppShell";
-import LabelsClient from "./LabelsClient";
+import AppShell from "../../../workspaces/_components/AppShell";
+import LabelsClient from "./_components/LabelsClient";
 
 export default async function BoardLabelsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromCookie();

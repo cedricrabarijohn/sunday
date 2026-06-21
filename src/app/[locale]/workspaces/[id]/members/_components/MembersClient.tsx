@@ -1,11 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import WorkspacePageHeader from "../../WorkspacePageHeader";
-import styles from "../../AppShell.module.scss";
-import mStyles from "./Members.module.scss";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
+import { useConfirm } from "../../../../../../components/organisms/confirm-dialog/ConfirmDialog";
+import WorkspacePageHeader from "../../../_components/WorkspacePageHeader";
+import styles from "../../../_styles/AppShell.module.scss";
+import mStyles from "../_styles/Members.module.scss";
+import { useToast } from "../../../../../../components/organisms/toast/ToastProvider";
 
 type Member = {
   userId: number;

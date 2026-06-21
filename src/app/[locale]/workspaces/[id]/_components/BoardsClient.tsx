@@ -2,10 +2,10 @@
 
 import { CSSProperties, FormEvent, MouseEvent, useState, useTransition } from "react";
 import Link from "next/link";
-import { colorForId } from "@/lib/palette";
-import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import WorkspacePageHeader from "../WorkspacePageHeader";
-import styles from "../AppShell.module.scss";
+import { colorForId } from "../../../../../lib/palette";
+import { useConfirm } from "../../../../../components/organisms/confirm-dialog/ConfirmDialog";
+import WorkspacePageHeader from "../../_components/WorkspacePageHeader";
+import styles from "../../_styles/AppShell.module.scss";
 
 type Board = { id: number; title: string | null; createdAt: Date | string | null };
 

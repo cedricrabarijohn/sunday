@@ -1,5 +1,5 @@
-import AcceptClient from "./AcceptClient";
-import styles from "./Invite.module.scss";
+import AcceptClient from "./_components/AcceptClient";
+import styles from "./_styles/Invite.module.scss";
 
 export default async function InvitePage({
   params,

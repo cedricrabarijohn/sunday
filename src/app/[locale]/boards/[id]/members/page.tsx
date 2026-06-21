@@ -4,8 +4,8 @@ import { db } from "@/db/client";
 import { boardUsers, boards, users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
 import { loadBoardCapabilities } from "@/lib/board-access";
-import AppShell from "../../../workspaces/AppShell";
-import BoardMembersClient from "./BoardMembersClient";
+import AppShell from "../../../workspaces/_components/AppShell";
+import BoardMembersClient from "./_components/BoardMembersClient";
 
 export default async function BoardMembersPage({
   params,

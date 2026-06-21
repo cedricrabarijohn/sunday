@@ -4,8 +4,8 @@ import { db } from "@/db/client";
 import { boardUsers, boards, users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
 import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities, loadMembership } from "@/lib/workspace-access";
-import AppShell from "../../AppShell";
-import MembersClient from "./MembersClient";
+import AppShell from "../../_components/AppShell";
+import MembersClient from "./_components/MembersClient";
 
 export default async function MembersPage({
   params,

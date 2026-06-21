@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import styles from "./Invite.module.scss";
+import styles from "../_styles/Invite.module.scss";
 
 type Invite = {
   id: number;

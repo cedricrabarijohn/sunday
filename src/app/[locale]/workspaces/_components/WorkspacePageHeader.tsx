@@ -2,8 +2,8 @@
 
 import { ReactNode } from "react";
 import Link from "next/link";
-import { colorForId } from "@/lib/palette";
-import styles from "./AppShell.module.scss";
+import { colorForId } from "../../../../lib/palette";
+import styles from "../_styles/AppShell.module.scss";
 
 export type WorkspacePage = "boards" | "members" | "integrations" | "settings";
 

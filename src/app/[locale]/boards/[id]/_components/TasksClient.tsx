@@ -18,7 +18,7 @@ import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer";
 import { type AssignMember } from "./AssignMenu";
 import { rememberLastBoard } from "@/lib/last-board";
 import { BoardIcon, ChecklistIcon, TableIcon } from "@/components/Icons";
-import styles from "../../../workspaces/AppShell.module.scss";
+import styles from "../../../workspaces/_styles/AppShell.module.scss";
 import kStyles from "../_styles/Kanban.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import BoardTable from "./BoardTable";
@@ -31,7 +31,7 @@ import { usePileReorder } from "../_hooks/use-pile-reorder";
 import { useBoardFields } from "../_hooks/use-board-fields";
 import { nameFor } from "../_lib/card-format";
 
-import NotificationsBell from "../../../workspaces/NotificationsBell";
+import NotificationsBell from "../../../workspaces/_components/NotificationsBell";
 import {
   fieldFilterCount,
   type FieldValue,

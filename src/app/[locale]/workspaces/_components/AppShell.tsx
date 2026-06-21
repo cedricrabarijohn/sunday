@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { colorForId } from "@/lib/palette";
+import { colorForId } from "../../../../lib/palette";
 import NotificationsBell from "./NotificationsBell";
-import ThemeSwatches from "@/components/atoms/theme-swatches/ThemeSwatches";
-import styles from "./AppShell.module.scss";
+import ThemeSwatches from "../../../../components/atoms/theme-swatches/ThemeSwatches";
+import styles from "../_styles/AppShell.module.scss";
 
 export type SidebarWorkspace = { id: number; title: string | null };
 export type SidebarBoard = { id: number; title: string | null };

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BackIcon, TrashIcon } from "@/components/Icons";
-import { PALETTE, colorForId, colorForName } from "@/lib/palette";
-import { FIELD_TYPES, type FieldConfig, type FieldType, type SelectOption } from "@/lib/fields";
-import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
-import shellStyles from "../../../workspaces/AppShell.module.scss";
-import styles from "./Fields.module.scss";
+import { BackIcon, TrashIcon } from "../../../../../../components/Icons";
+import { PALETTE, colorForId, colorForName } from "../../../../../../lib/palette";
+import { FIELD_TYPES, type FieldConfig, type FieldType, type SelectOption } from "../../../../../../lib/fields";
+import { useConfirm } from "../../../../../../components/organisms/confirm-dialog/ConfirmDialog";
+import { useToast } from "../../../../../../components/organisms/toast/ToastProvider";
+import shellStyles from "../../../../workspaces/_styles/AppShell.module.scss";
+import styles from "../_styles/Fields.module.scss";
 
 type Column = {
   id: number;

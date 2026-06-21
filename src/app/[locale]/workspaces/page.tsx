@@ -3,8 +3,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, workspaces, workspaceUsers } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
-import AppShell from "./AppShell";
-import WorkspacesClient from "./WorkspacesClient";
+import AppShell from "./_components/AppShell";
+import WorkspacesClient from "./_components/WorkspacesClient";
 
 export default async function WorkspacesPage() {
   const session = await getSessionFromCookie();

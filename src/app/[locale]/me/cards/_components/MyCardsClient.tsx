@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { colorForName } from "@/lib/palette";
-import styles from "../../workspaces/AppShell.module.scss";
-import mStyles from "./MyCards.module.scss";
+import { colorForName } from "../../../../../lib/palette";
+import styles from "../../../workspaces/_styles/AppShell.module.scss";
+import mStyles from "../_styles/MyCards.module.scss";
 
 type CardRow = {
   id: number;

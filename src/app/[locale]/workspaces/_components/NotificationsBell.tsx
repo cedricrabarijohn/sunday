@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import styles from "./NotificationsBell.module.scss";
+import styles from "../_styles/NotificationsBell.module.scss";
 
 type Notification = {
   id: number;

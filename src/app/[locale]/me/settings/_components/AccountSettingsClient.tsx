@@ -2,8 +2,8 @@
 
 import { FormEvent, ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/organisms/toast/ToastProvider";
-import styles from "./Settings.module.scss";
+import { useToast } from "../../../../../components/organisms/toast/ToastProvider";
+import styles from "../_styles/Settings.module.scss";
 
 type Initial = {
   firstname: string;
