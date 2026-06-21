@@ -6,8 +6,8 @@ import { getSessionFromCookie } from "@/lib/auth";
 import { loadBoardCapabilities } from "@/lib/board-access";
 import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access";
 import { parseConfig } from "@/lib/fields";
-import AppShell from "../../../workspaces/_components/AppShell";
-import FieldsClient from "./_components/FieldsClient";
+import AppShell from "@/components/organisms/workspaces/AppShell";
+import FieldsClient from "@/components/organisms/board-fields/FieldsClient";
 
 export default async function BoardFieldsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionFromCookie();

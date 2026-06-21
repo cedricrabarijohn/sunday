@@ -1,5 +1,5 @@
-import styles from "../../workspaces/_styles/AppShell.module.scss";
-import kStyles from "./_styles/Kanban.module.scss";
+import styles from "@/components/organisms/workspaces/AppShell.module.scss";
+import kStyles from "@/components/organisms/board/Kanban.module.scss";
 
 export default function Loading() {
   return (

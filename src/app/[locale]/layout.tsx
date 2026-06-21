@@ -18,7 +18,7 @@ const fontMono = JetBrains_Mono({
 import { ThemeProvider } from '@/context/ThemeContext';
 import ConfirmProvider from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import ToastProvider from "@/components/organisms/toast/ToastProvider";
-import RouteProgress from "./_components/RouteProgress";
+import RouteProgress from "@/components/organisms/route-progress/RouteProgress";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));

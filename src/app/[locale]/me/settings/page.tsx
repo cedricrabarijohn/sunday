@@ -5,9 +5,9 @@ import { users, workspaceUsers, workspaces } from "@/db/schema";
 import { getSessionFromCookie } from "@/lib/auth";
 import { listApiTokens } from "@/lib/api-tokens";
 import { appUrl } from "@/lib/mail";
-import AppShell from "../../workspaces/_components/AppShell";
-import AccountSettingsClient from "./_components/AccountSettingsClient";
-import ApiTokensClient from "./_components/ApiTokensClient";
+import AppShell from "@/components/organisms/workspaces/AppShell";
+import AccountSettingsClient from "@/components/organisms/me-settings/AccountSettingsClient";
+import ApiTokensClient from "@/components/organisms/me-settings/ApiTokensClient";
 
 export default async function AccountSettingsPage() {
   const session = await getSessionFromCookie();

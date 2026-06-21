@@ -1,4 +1,4 @@
-import styles from "../_styles/AppShell.module.scss";
+import styles from "@/components/organisms/workspaces/AppShell.module.scss";
 
 export default function Loading() {
   return (
