@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import styles from "./CardDrawer.module.scss";
-import type { Reaction } from "./types";
+import styles from "../styles/CardDrawer.module.scss";
+import type { Reaction } from "../lib/types";
 import EmojiPicker from "@/components/organisms/emoji-picker/EmojiPicker";
 
 export function ReactionBar({

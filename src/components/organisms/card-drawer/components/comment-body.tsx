@@ -1,6 +1,6 @@
-import styles from "./CardDrawer.module.scss";
-import type { Assignee } from "./types";
-import { nameForAssignee } from "./format";
+import styles from "../styles/CardDrawer.module.scss";
+import type { Assignee } from "../lib/types";
+import { nameForAssignee } from "../lib/format";
 
 export function CommentBody({
   body,

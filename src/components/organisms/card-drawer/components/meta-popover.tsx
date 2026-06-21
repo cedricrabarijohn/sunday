@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useRef } from "react";
-import styles from "./CardDrawer.module.scss";
+import styles from "../styles/CardDrawer.module.scss";
 
 export function MetaPopover({
   open,

@@ -1,8 +1,8 @@
 "use client";
 
-import styles from "./CardDrawer.module.scss";
-import type { Assignee } from "./types";
-import { initialsForAssignee, nameForAssignee } from "./format";
+import styles from "../styles/CardDrawer.module.scss";
+import type { Assignee } from "../lib/types";
+import { initialsForAssignee, nameForAssignee } from "../lib/format";
 
 export function AssigneePicker({
   members,

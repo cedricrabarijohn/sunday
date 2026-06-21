@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { colorForName } from "@/lib/palette";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
-import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardDrawer";
+import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer";
 import { type AssignMember } from "./AssignMenu";
 import { rememberLastBoard } from "@/lib/last-board";
 import { BoardIcon, ChecklistIcon, TableIcon } from "@/components/Icons";

@@ -19,16 +19,16 @@ import {
   LinkIcon,
   TrashIcon,
 } from "@/components/Icons";
-import styles from "./CardDrawer.module.scss";
+import styles from "../styles/CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import { FieldCell } from "@/app/[locale]/boards/[id]/_components/TableFields";
 import type { BoardColumn, FieldValue } from "@/app/[locale]/boards/[id]/_lib/board-types";
 import EmojiPicker from "@/components/organisms/emoji-picker/EmojiPicker";
-import { descriptionToHtml } from "./markdown-to-html";
+import { descriptionToHtml } from "../lib/markdown-to-html";
 import {
   serializeDescription,
   stripImageFromDescription,
-} from "./dom-to-markdown";
+} from "../lib/dom-to-markdown";
 
 import type {
   Item,
@@ -41,17 +41,17 @@ import type {
   CardLink,
   CardDetail,
   CardCounts,
-} from "./types";
+} from "../lib/types";
 
 // Re-exported for callers that import these from the drawer entrypoint.
-export type { WorkspaceLabel, CardCounts } from "./types";
+export type { WorkspaceLabel, CardCounts } from "../lib/types";
 import {
   formatBytes,
   formatCommentTime,
   toLocalDatetimeValue,
   initialsForAssignee,
   nameForAssignee,
-} from "./format";
+} from "../lib/format";
 import { LabelsPicker } from "./label-picker";
 import { MetaPopover } from "./meta-popover";
 import { CommentBody } from "./comment-body";

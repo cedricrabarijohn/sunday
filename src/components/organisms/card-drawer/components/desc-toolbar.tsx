@@ -3,7 +3,7 @@
 import { Fragment, useRef, useState } from "react";
 import { ImageIcon } from "@/components/Icons";
 import EmojiPicker from "@/components/organisms/emoji-picker/EmojiPicker";
-import styles from "./CardDrawer.module.scss";
+import styles from "../styles/CardDrawer.module.scss";
 
 const TOOLBAR_BUTTONS: ReadonlyArray<{
   cmd: string;
