@@ -27,8 +27,9 @@ import { BoardActionsMenu } from "./board-actions-menu";
 import { BoardFilter } from "./board-filter";
 import { AddPileForm } from "./add-pile-form";
 import { useBoardStream } from "./use-board-stream";
+import { usePileReorder } from "./use-pile-reorder";
+import { useBoardFields } from "./use-board-fields";
 import { nameFor } from "./card-format";
-import type { FieldConfig, FieldType } from "@/lib/fields";
 
 import NotificationsBell from "../../workspaces/NotificationsBell";
 import {
@@ -657,181 +658,18 @@ export default function TasksClient({
     }
   };
 
-  // --- Pile reordering (drag & drop + move buttons) ---
-  const [pileDragId, setPileDragId] = useState<number | null>(null);
-  // beforeId === null means "drop at the end"; the whole hint null means none.
-  const [pileDropHint, setPileDropHint] = useState<{ beforeId: number | null } | null>(null);
+  const {
+    pileDragId,
+    pileDropHint,
+    movePile,
+    onPileReorderStart,
+    onPileReorderOver,
+    onPileReorderDrop,
+    onPileReorderEnd,
+  } = usePileReorder(piles, setPiles, boardId);
 
-  const persistPileOrder = async (orderedIds: number[]) => {
-    try {
-      const res = await fetch(`/api/boards/${boardId}/piles/reorder`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pileIds: orderedIds }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast.error(json.error || "Could not reorder piles");
-        return false;
-      }
-      return true;
-    } catch {
-      toast.error("Network error.");
-      return false;
-    }
-  };
-
-  const applyPileOrder = (renum: Pile[]) => {
-    const current = [...piles].sort((a, b) => a.position - b.position);
-    if (renum.every((p, i) => p.id === current[i]?.id)) return; // no change
-    const snapshot = piles;
-    setPiles(renum);
-    persistPileOrder(renum.map((p) => p.id)).then((ok) => {
-      if (!ok) setPiles(snapshot);
-    });
-  };
-
-  // Move `dragId` so it sits just before `beforeId` (or at the end when null).
-  const reorderPiles = (dragId: number, beforeId: number | null) => {
-    const current = [...piles].sort((a, b) => a.position - b.position);
-    const dragged = current.find((p) => p.id === dragId);
-    if (!dragged) return;
-    const without = current.filter((p) => p.id !== dragId);
-    const idx = beforeId == null ? without.length : without.findIndex((p) => p.id === beforeId);
-    const insertAt = idx < 0 ? without.length : idx;
-    without.splice(insertAt, 0, dragged);
-    applyPileOrder(without.map((p, i) => ({ ...p, position: i + 1 })));
-  };
-
-  // Nudge a pile one slot left/right — accessible/touch-friendly alternative
-  // to dragging.
-  const movePile = (pileId: number, dir: -1 | 1) => {
-    const current = [...piles].sort((a, b) => a.position - b.position);
-    const i = current.findIndex((p) => p.id === pileId);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= current.length) return;
-    [current[i], current[j]] = [current[j], current[i]];
-    applyPileOrder(current.map((p, k) => ({ ...p, position: k + 1 })));
-  };
-
-  const onPileReorderStart = (e: DragEvent<HTMLElement>, pileId: number) => {
-    setPileDragId(pileId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("application/x-pile", String(pileId));
-  };
-
-  const onPileReorderOver = (e: DragEvent<HTMLElement>, overPile: Pile) => {
-    if (pileDragId == null) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (overPile.id === pileDragId) {
-      setPileDropHint(null);
-      return;
-    }
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const after = e.clientX > rect.left + rect.width / 2;
-    const current = [...piles].sort((a, b) => a.position - b.position);
-    const i = current.findIndex((p) => p.id === overPile.id);
-    const beforeId = after ? current[i + 1]?.id ?? null : overPile.id;
-    // Dropping right next to where it already is is a no-op — hide the hint.
-    if (beforeId === pileDragId) {
-      setPileDropHint(null);
-      return;
-    }
-    setPileDropHint({ beforeId });
-  };
-
-  const onPileReorderDrop = (e: DragEvent<HTMLElement>) => {
-    if (pileDragId == null) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const dragId = pileDragId;
-    const hint = pileDropHint;
-    setPileDragId(null);
-    setPileDropHint(null);
-    if (hint) reorderPiles(dragId, hint.beforeId);
-  };
-
-  const onPileReorderEnd = () => {
-    setPileDragId(null);
-    setPileDropHint(null);
-  };
-
-  // --- custom fields ---
-  const onSetFieldValue = async (cardId: number, columnId: number, value: FieldValue) => {
-    const snapshot = tasks;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === cardId ? { ...t, fields: { ...(t.fields ?? {}), [columnId]: value } } : t,
-      ),
-    );
-    if (cardId < 0) return;
-    try {
-      const res = await fetch(`/api/cards/${cardId}/columns/${columnId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        setTasks(snapshot);
-        toast.error(d.error || "Could not save field");
-      }
-    } catch {
-      setTasks(snapshot);
-      toast.error("Network error.");
-    }
-  };
-
-  const onCreateField = async (input: { label: string; type: FieldType; config?: FieldConfig }) => {
-    try {
-      const res = await fetch(`/api/boards/${boardId}/columns`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(d.error || "Could not add field");
-        return;
-      }
-      setColumns((prev) => [...prev, d.column as BoardColumn]);
-    } catch {
-      toast.error("Network error.");
-    }
-  };
-
-  const onRenameField = (columnId: number, label: string) => {
-    setColumns((prev) => prev.map((c) => (c.id === columnId ? { ...c, label } : c)));
-    fetch(`/api/columns/${columnId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
-    }).catch(() => {});
-  };
-
-  const onDeleteField = async (columnId: number) => {
-    const col = columns.find((c) => c.id === columnId);
-    const ok = await confirm({
-      title: `Delete field “${col?.label ?? ""}”?`,
-      message: "Its values on every card will be removed. This cannot be undone.",
-      confirmLabel: "Delete field",
-      danger: true,
-    });
-    if (!ok) return;
-    const snap = columns;
-    setColumns((prev) => prev.filter((c) => c.id !== columnId));
-    try {
-      const res = await fetch(`/api/columns/${columnId}`, { method: "DELETE" });
-      if (!res.ok) {
-        setColumns(snap);
-        toast.error("Could not delete field");
-      }
-    } catch {
-      setColumns(snap);
-      toast.error("Network error.");
-    }
-  };
+  const { onSetFieldValue, onCreateField, onRenameField, onDeleteField } =
+    useBoardFields(boardId, tasks, setTasks, columns, setColumns);
 
   // --- drop a card on Add pile: create a new pile and drop the card into it
   const onDropOnAddPile = async (e: DragEvent<HTMLButtonElement>) => {
