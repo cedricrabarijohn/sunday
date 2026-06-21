@@ -23,7 +23,7 @@ import type {
   FieldValue,
 } from "./TasksClient";
 import type { FieldType, SelectOption } from "@/lib/fields";
-import styles from "./Table.module.scss";
+import styles from "../_styles/Table.module.scss";
 
 type Caps = {
   editCard: boolean;

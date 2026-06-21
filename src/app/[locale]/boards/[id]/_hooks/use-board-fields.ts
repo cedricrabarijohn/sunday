@@ -4,7 +4,7 @@ import { Dispatch, SetStateAction } from "react";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import type { FieldConfig, FieldType } from "@/lib/fields";
-import type { BoardColumn, FieldValue, Task } from "./board-types";
+import type { BoardColumn, FieldValue, Task } from "../_lib/board-types";
 
 /** Create / rename / delete custom fields and edit their per-card values. */
 export function useBoardFields(

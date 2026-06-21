@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { colorForName, PALETTE } from "@/lib/palette";
 import type { FieldType, SelectOption } from "@/lib/fields";
 import type { BoardColumn, FieldValue } from "./TasksClient";
-import styles from "./Table.module.scss";
+import styles from "../_styles/Table.module.scss";
 
 /** Types a user can create from the table UI (multi_select shows read-only). */
 const CREATABLE: { type: FieldType; label: string }[] = [

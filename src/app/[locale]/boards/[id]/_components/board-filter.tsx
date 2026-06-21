@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { FilterIcon } from "@/components/Icons";
 import { colorForName } from "@/lib/palette";
-import kStyles from "./Kanban.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 import {
   fieldFilterCount,
   type BoardColumn,
   type BoardFilterState,
   type CardAssignee,
   type WorkspaceLabel,
-} from "./board-types";
-import { nameFor } from "./card-format";
+} from "../_lib/board-types";
+import { nameFor } from "../_lib/card-format";
 
 export function BoardFilter({
   filter,

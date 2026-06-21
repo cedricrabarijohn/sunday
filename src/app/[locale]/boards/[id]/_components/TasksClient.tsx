@@ -18,20 +18,20 @@ import CardDrawer, { CardCounts } from "@/components/organisms/card-drawer/CardD
 import { type AssignMember } from "./AssignMenu";
 import { rememberLastBoard } from "@/lib/last-board";
 import { BoardIcon, ChecklistIcon, TableIcon } from "@/components/Icons";
-import styles from "../../workspaces/AppShell.module.scss";
-import kStyles from "./Kanban.module.scss";
+import styles from "../../../workspaces/AppShell.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
 import BoardTable from "./BoardTable";
 import { PileColumn } from "./pile-column";
 import { BoardActionsMenu } from "./board-actions-menu";
 import { BoardFilter } from "./board-filter";
 import { AddPileForm } from "./add-pile-form";
-import { useBoardStream } from "./use-board-stream";
-import { usePileReorder } from "./use-pile-reorder";
-import { useBoardFields } from "./use-board-fields";
-import { nameFor } from "./card-format";
+import { useBoardStream } from "../_hooks/use-board-stream";
+import { usePileReorder } from "../_hooks/use-pile-reorder";
+import { useBoardFields } from "../_hooks/use-board-fields";
+import { nameFor } from "../_lib/card-format";
 
-import NotificationsBell from "../../workspaces/NotificationsBell";
+import NotificationsBell from "../../../workspaces/NotificationsBell";
 import {
   fieldFilterCount,
   type FieldValue,
@@ -44,7 +44,7 @@ import {
   type DragState,
   type DropHint,
   type BoardFilterState,
-} from "./board-types";
+} from "../_lib/board-types";
 
 // Re-export the public board types from their original entrypoint so existing
 // importers (BoardTable, CardDrawer, TableFields, the board page) keep working.
@@ -58,7 +58,7 @@ export type {
   Pile,
   DragState,
   DropHint,
-} from "./board-types";
+} from "../_lib/board-types";
 
 export default function TasksClient({
   boardId,

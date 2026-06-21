@@ -9,10 +9,10 @@ import {
   UsersIcon,
 } from "@/components/Icons";
 import { colorForName } from "@/lib/palette";
-import kStyles from "./Kanban.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 import MovePileMenu from "./MovePileMenu";
 import AssignMenu, { AssignMember } from "./AssignMenu";
-import type { BoardColumn, CardAssignee, Pile, Task } from "./board-types";
+import type { BoardColumn, CardAssignee, Pile, Task } from "../_lib/board-types";
 import { AvatarStack } from "./avatar-stack";
 import { DueBadge } from "./due-badge";
 

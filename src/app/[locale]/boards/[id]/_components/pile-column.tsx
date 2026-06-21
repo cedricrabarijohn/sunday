@@ -2,7 +2,7 @@
 
 import { DragEvent, FormEvent, Fragment, useState } from "react";
 import { colorForName } from "@/lib/palette";
-import kStyles from "./Kanban.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 import { KanbanCard } from "./kanban-card";
 import type { AssignMember } from "./AssignMenu";
 import type {
@@ -11,7 +11,7 @@ import type {
   DropHint,
   Pile,
   Task,
-} from "./board-types";
+} from "../_lib/board-types";
 
 export function PileColumn({
   pile,

@@ -1,8 +1,8 @@
 "use client";
 
-import kStyles from "./Kanban.module.scss";
-import type { CardAssignee } from "./board-types";
-import { initialsFor, nameFor } from "./card-format";
+import kStyles from "../_styles/Kanban.module.scss";
+import type { CardAssignee } from "../_lib/board-types";
+import { initialsFor, nameFor } from "../_lib/card-format";
 
 export function AvatarStack({ assignees }: { assignees: CardAssignee[] }) {
   const visible = assignees.slice(0, 3);

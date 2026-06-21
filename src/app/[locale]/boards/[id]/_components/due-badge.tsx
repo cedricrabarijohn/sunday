@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarIcon } from "@/components/Icons";
-import kStyles from "./Kanban.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 
 function dueState(dueAt: string | Date): "overdue" | "soon" | "later" {
   const t = typeof dueAt === "string" ? new Date(dueAt).getTime() : dueAt.getTime();

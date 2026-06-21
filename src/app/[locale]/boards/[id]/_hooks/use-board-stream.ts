@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction, useEffect, type MutableRefObject } from "react";
 import type { BoardEvent } from "@/lib/board-bus";
-import type { CardLabel, Pile, Task, WorkspaceLabel } from "./board-types";
+import type { CardLabel, Pile, Task, WorkspaceLabel } from "../_lib/board-types";
 
 /**
  * Subscribe to the board's server-sent event stream and fold card/pile

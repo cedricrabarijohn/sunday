@@ -24,7 +24,7 @@ import { parseConfig, parseValue } from "@/lib/fields";
 import { loadBoardCapabilities } from "@/lib/board-access";
 import { WORKSPACE_ADMIN_ROLE_ID, loadCapabilities, loadMembership } from "@/lib/workspace-access";
 import AppShell from "../../workspaces/AppShell";
-import TasksClient, { type FieldValue } from "./TasksClient";
+import TasksClient, { type FieldValue } from "./_components/TasksClient";
 
 export default async function BoardDetail({
   params,

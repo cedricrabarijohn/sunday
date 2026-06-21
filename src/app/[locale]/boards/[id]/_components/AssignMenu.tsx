@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import styles from "./AssignMenu.module.scss";
+import styles from "../_styles/AssignMenu.module.scss";
 
 export type AssignMember = {
   userId: number;

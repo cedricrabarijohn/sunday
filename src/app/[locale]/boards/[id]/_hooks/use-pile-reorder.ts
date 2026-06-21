@@ -2,7 +2,7 @@
 
 import { Dispatch, DragEvent, SetStateAction, useState } from "react";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
-import type { Pile } from "./board-types";
+import type { Pile } from "../_lib/board-types";
 
 /**
  * Drag-and-drop + move-button reordering for board piles. Owns the drag

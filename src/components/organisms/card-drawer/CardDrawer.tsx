@@ -21,8 +21,8 @@ import {
 } from "@/components/Icons";
 import styles from "./CardDrawer.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
-import { FieldCell } from "@/app/[locale]/boards/[id]/TableFields";
-import type { BoardColumn, FieldValue } from "@/app/[locale]/boards/[id]/TasksClient";
+import { FieldCell } from "@/app/[locale]/boards/[id]/_components/TableFields";
+import type { BoardColumn, FieldValue } from "@/app/[locale]/boards/[id]/_lib/board-types";
 import EmojiPicker from "@/components/organisms/emoji-picker/EmojiPicker";
 import { descriptionToHtml } from "./markdown-to-html";
 import {

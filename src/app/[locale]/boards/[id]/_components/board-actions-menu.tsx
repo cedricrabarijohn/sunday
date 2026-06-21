@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PlugIcon, SettingsIcon, TableIcon, UsersIcon } from "@/components/Icons";
-import kStyles from "./Kanban.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 
 export function BoardActionsMenu({
   boardId,

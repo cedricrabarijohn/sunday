@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import kStyles from "./Kanban.module.scss";
+import kStyles from "../_styles/Kanban.module.scss";
 
 export function AddPileForm({
   onCancel,
