@@ -1,0 +1,169 @@
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.crumb:hover { color: var(--text-1); }
+
+.note {
+  max-width: 720px;
+  margin: 0 0 1.2rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-width: 720px;
+}
+.empty {
+  padding: 1.4rem;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-3);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.labelCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1rem;
+}
+.labelTop {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chipDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+.nameInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.nameStatic { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-1); }
+
+.deleteBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.deleteBtn:hover { color: var(--danger); background: var(--danger-soft); }
+
+.swatches {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatchOn { border-color: var(--text-1); }
+
+.createCard {
+  max-width: 720px;
+  margin-top: 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.2rem;
+}
+.createTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 0.8rem;
+}
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+/* The create form's swatch row shouldn't carry the per-card top margin. */
+.createForm .swatches { margin-top: 0; }
+.input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-1);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.createActions { display: flex; justify-content: flex-end; }
+.btnPrimary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/organisms/confirm-dialog/ConfirmDialog";
 import { colorForId } from "@/lib/palette";
-import { BackIcon, TableIcon, TrashIcon, UsersIcon } from "@/components/Icons";
+import { BackIcon, TableIcon, TagIcon, TrashIcon, UsersIcon } from "@/components/Icons";
 import shellStyles from "../../../workspaces/AppShell.module.scss";
 import styles from "./BoardSettings.module.scss";
 import { useToast } from "@/components/organisms/toast/ToastProvider";
@@ -167,6 +167,15 @@ export default function BoardSettingsClient({
             <div className={styles.rowLinkTitle}>Custom fields</div>
             <div className={styles.rowLinkSub}>
               Add and configure the typed columns that appear on cards and in the table.
+            </div>
+          </div>
+        </Link>
+        <Link href={`/boards/${boardId}/labels`} className={styles.rowLink}>
+          <TagIcon size={18} />
+          <div className={styles.rowLinkText}>
+            <div className={styles.rowLinkTitle}>Labels</div>
+            <div className={styles.rowLinkSub}>
+              Create and customize the labels you can put on cards, before you even add one.
             </div>
           </div>
         </Link>
