@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction, useEffect, type MutableRefObject } from "react";
 import type { BoardEvent } from "@/lib/board-bus";
-import type { CardLabel, Pile, Task, WorkspaceLabel } from "@/lib/board-types";
+import type { BoardColumn, CardLabel, Pile, Task, WorkspaceLabel } from "@/lib/board-types";
 
 /**
  * Subscribe to the board's server-sent event stream and fold card/pile
@@ -13,6 +13,7 @@ export function useBoardStream(
   boardId: number,
   setTasks: Dispatch<SetStateAction<Task[]>>,
   setPiles: Dispatch<SetStateAction<Pile[]>>,
+  setColumns: Dispatch<SetStateAction<BoardColumn[]>>,
   labelsRef: MutableRefObject<WorkspaceLabel[]>,
 ) {
 // Live board sync: every open kanban view subscribes to the board's
@@ -177,6 +178,19 @@ useEffect(() => {
         );
         break;
       }
+      case "column_created": {
+        const c = ev.column;
+        setColumns((prev) => (prev.some((x) => x.id === c.id) ? prev : [...prev, c]));
+        break;
+      }
+      case "column_updated": {
+        const c = ev.column;
+        setColumns((prev) => prev.map((x) => (x.id === c.id ? c : x)));
+        break;
+      }
+      case "column_deleted":
+        setColumns((prev) => prev.filter((c) => c.id !== ev.columnId));
+        break;
     }
   };
   return () => es.close();

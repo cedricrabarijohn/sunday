@@ -10,6 +10,8 @@
  * harmless. That lets us skip any client-id bookkeeping.
  */
 
+import type { FieldConfig } from "@/lib/fields";
+
 export type BoardPileSummary = {
   id: number;
   title: string;
@@ -34,6 +36,15 @@ export type BoardAssignee = {
 /** Ordered card ids for a pile, used to re-pack positions after a move. */
 export type PileOrder = { pileId: number; cardIds: number[] };
 
+/** A custom field/column, carried whole so any open board can add it live. */
+export type BoardColumnSummary = {
+  id: number;
+  label: string | null;
+  type: string | null;
+  config: FieldConfig;
+  position: number | null;
+};
+
 export type BoardEvent =
   | { type: "card_created"; card: BoardCardSummary }
   | { type: "card_moved"; cardId: number; pileId: number; order: PileOrder[] }
@@ -53,7 +64,10 @@ export type BoardEvent =
   | { type: "pile_created"; pile: BoardPileSummary }
   | { type: "pile_updated"; pileId: number; title: string }
   | { type: "pile_deleted"; pileId: number }
-  | { type: "piles_reordered"; pileIds: number[] };
+  | { type: "piles_reordered"; pileIds: number[] }
+  | { type: "column_created"; column: BoardColumnSummary }
+  | { type: "column_updated"; column: BoardColumnSummary }
+  | { type: "column_deleted"; columnId: number };
 
 type Handler = (event: BoardEvent) => void;
 

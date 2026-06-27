@@ -181,7 +181,7 @@ export default function TasksClient({
     labelsRef.current = labels;
   }, [labels]);
 
-  useBoardStream(boardId, setTasks, setPiles, labelsRef);
+  useBoardStream(boardId, setTasks, setPiles, setColumns, labelsRef);
 
   const onRenameBoard = (next: string) => {
     setTitle(next);

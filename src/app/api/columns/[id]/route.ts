@@ -4,7 +4,8 @@ import { db } from "@/db/client";
 import { boardColumns } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
-import { normalizeConfig, type FieldType } from "@/lib/fields";
+import { normalizeConfig, parseConfig, type FieldConfig, type FieldType } from "@/lib/fields";
+import { publishBoard } from "@/lib/board-bus";
 
 async function loadColumn(columnId: number) {
   const [col] = await db
@@ -35,7 +36,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
-  const updates: { label?: string; config?: unknown; position?: number } = {};
+  const updates: { label?: string; config?: FieldConfig; position?: number } = {};
 
   if (typeof body?.label === "string") {
     const label = body.label.trim();
@@ -55,6 +56,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   await db.update(boardColumns).set(updates).where(eq(boardColumns.id, columnId));
+
+  publishBoard(col.boardId, {
+    type: "column_updated",
+    column: {
+      id: col.id,
+      label: updates.label ?? col.label,
+      type: col.type,
+      config: updates.config !== undefined ? updates.config : parseConfig(col.config),
+      position: updates.position ?? col.position,
+    },
+  });
   return NextResponse.json({ ok: true });
 }
 
@@ -71,5 +83,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
 
   // Soft-delete the field; its values are filtered out by the column join.
   await db.update(boardColumns).set({ deletedAt: new Date() }).where(eq(boardColumns.id, columnId));
+
+  publishBoard(col.boardId, { type: "column_deleted", columnId });
   return NextResponse.json({ ok: true });
 }

@@ -5,6 +5,7 @@ import { boardColumns } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
 import { isFieldType, normalizeConfig, parseConfig } from "@/lib/fields";
+import { publishBoard } from "@/lib/board-bus";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const [res] = await db.insert(boardColumns).values({ boardId, label, type, config, position });
   const columnId = Number((res as { insertId: number }).insertId);
 
-  return NextResponse.json(
-    { column: { id: columnId, label, type, config, position } },
-    { status: 201 },
-  );
+  const column = { id: columnId, label, type, config, position };
+  publishBoard(boardId, { type: "column_created", column });
+
+  return NextResponse.json({ column }, { status: 201 });
 }
