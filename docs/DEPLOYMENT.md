@@ -41,19 +41,33 @@ How to ship Sunday safely, and how to scale it later.
   blocking).
 - Remove dev-only data (e.g. the "Stress Test" demo board).
 
-### Integrations (Gitea webhooks)
+### Integrations (SCM webhooks)
 
-The optional Gitea integration receives webhooks at
-`/api/webhooks/gitea/<token>`. If you use it:
+The optional SCM integration receives webhooks at
+`/api/webhooks/<provider>/<token>`, where `<provider>` is one of `gitea`,
+`forgejo`, `github`, `gitlab` or `bitbucket`. If you use it:
 
 - **`APP_URL` must be the public URL.** The webhook URL shown to admins (to paste
-  into Gitea) is built from it; a wrong value yields an unreachable hook.
-- **Keep that path publicly reachable** from your Gitea server through the
-  reverse proxy. It needs **no auth allowlist** — it authenticates itself via the
-  secret `token` in the URL plus the `X-Gitea-Signature` HMAC. Unknown/paused
-  tokens get `404`, bad signatures `401`.
+  into the provider) is built from it; a wrong value yields an unreachable hook.
+- **Keep that path publicly reachable** from your SCM server through the reverse
+  proxy. It needs **no auth allowlist** — it authenticates itself via the secret
+  `token` in the URL plus the provider's signature (HMAC for Gitea/Forgejo/
+  GitHub/Bitbucket, a shared token for GitLab). Unknown/paused tokens get `404`,
+  bad signatures `401`.
 - No extra env or open ports are required; the integration is dormant until a
-  workspace admin connects it.
+  workspace admin connects a provider.
+
+### Programmatic API (MCP server)
+
+The MCP endpoint at `/api/mcp` is authenticated solely by **personal access
+tokens** (`Authorization: Bearer sun_pat_…`); there is no separate flag to
+enable it. If you expose Sunday publicly it is reachable, so:
+
+- **`APP_URL` must be the public URL** — account settings builds the MCP URL
+  shown to users from it.
+- Tokens are bearer credentials with the holder's full permissions. Treat them
+  like passwords; users can revoke them from account settings. Only the SHA-256
+  hash is stored, so a DB leak does not expose usable tokens.
 
 ## Migrations in production
 
@@ -78,10 +92,12 @@ the baseline row into `__drizzle_migrations` so `db:migrate` treats it as applie
 
 ### ⚠️ Index gotcha
 
-The live database carries performance indexes (on `board_tasks.board_id`,
-`pile_id`, `notifications.user_id` / `created_at`, assignees/labels join columns,
-etc.) that are **not declared in `src/db/schema.ts`**. A database created purely
-from the current migrations will be **missing them** and will be slow under load.
+The live database carries performance indexes (on `board_tasks.pile_id`,
+`notifications.user_id` / `created_at`, labels join columns, etc.) that are
+**not declared in `src/db/schema.ts`**. (Some, like `board_tasks(board_id,
+position)` and the assignees/columns join uniques, _are_ now declared.) A
+database created purely from the current migrations will be **missing the
+undeclared ones** and will be slow under load.
 
 **Fix:** add the indexes to the table definitions in `schema.ts`
 (`index(...).on(...)`), run `bun run db:generate`, and ship the resulting

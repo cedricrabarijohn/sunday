@@ -56,12 +56,18 @@ comments, real-time sync, and an invite/auth system with email.
   labels, assignees, due dates, checklists (sub-tasks), file attachments, and
   threaded comments with `@mentions`.
 - **Custom fields**: per-board columns (text, number, select, multi-select,
-  date, checkbox, URL) edited inline in the table view.
-- **Optional Gitea integration** (opt-in per workspace): link commits and pull
-  requests to cards via `#cardId`, and optionally auto-move a card to a chosen
-  pile when its PR merges. Off until an admin connects it.
-- **Real-time**: changes (card create/move/update/delete, pile changes, badge
-  counts, comments) stream to other viewers over Server-Sent Events — no refresh.
+  date, checkbox, URL) edited inline in the table view, with live sync.
+- **Optional SCM integration** (opt-in per workspace): connect **Gitea, Forgejo,
+  GitHub, GitLab or Bitbucket** to link commits and pull requests to cards via
+  `#cardId`, and optionally auto-move a card to a chosen pile when its PR merges.
+  Off until an admin connects it.
+- **MCP server / programmatic API**: a built-in [MCP](https://modelcontextprotocol.io)
+  endpoint (`/api/mcp`) lets agents and scripts drive boards, cards, comments,
+  labels and custom fields. Authenticated with **personal access tokens**
+  (`sun_pat_…`) minted in account settings.
+- **Real-time**: changes (card create/move/update/delete, pile create/update/
+  delete/reorder, custom-field changes, badge counts, comments) stream to other
+  viewers over Server-Sent Events — no refresh.
 - **Move without dragging**: a "move to pile" menu on every card, plus
   **multi-level undo** for cross-pile moves (toast button or `Ctrl/Cmd+Z`).
 - **Roles & permissions**: two-tier RBAC (workspace caps + board caps).
@@ -84,6 +90,7 @@ comments, real-time sync, and an invite/auth system with email.
 | Real-time | Server-Sent Events + in-process pub/sub |
 | Storage | Local disk by default · optional S3-compatible (MinIO / S3 / R2) |
 | Email | SMTP via `nodemailer` (Mailpit in dev) |
+| Programmatic API | Built-in MCP server (`/api/mcp`) + personal access tokens |
 | i18n | `next-intl` |
 | Runtime / dev | Docker Compose, `bun` |
 
@@ -186,8 +193,10 @@ src/
       boards/[id]/       # board view: kanban + table, card drawer
       workspaces/        # workspace list + AppShell (sidebar, profile menu)
       users/             # sign in/up, forgot/reset password, verify email
-      me/                # my cards, account settings
+      me/                # my cards, account settings (+ personal access tokens)
     api/                 # route handlers (auth, boards, cards, invites, …)
+      mcp/               # MCP server endpoint (programmatic API)
+      webhooks/          # inbound SCM webhooks (gitea/forgejo/github/gitlab/bitbucket)
   components/            # atoms / molecules / organisms (UI)
   db/                    # schema.ts + Drizzle client
   lib/                   # server logic: auth, RBAC, realtime buses, mail, …
@@ -200,8 +209,8 @@ docs/                    # architecture & deployment docs
 ## Architecture
 
 See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details on the RBAC
-model, the real-time SSE buses, storage/email abstractions, and auth/token
-flows.
+model, the real-time SSE buses, the SCM integrations, the MCP server / personal
+access tokens, storage/email abstractions, and auth/token flows.
 
 ## Going to production
 

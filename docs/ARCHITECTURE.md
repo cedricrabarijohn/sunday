@@ -28,6 +28,9 @@ Browser ──HTTP──> Next.js route handlers ──Drizzle──> MariaDB
 - Passwords are hashed with **bcrypt** (`bcryptjs`).
 - `requireAuth()` (`src/lib/require-auth.ts`) gates API routes and returns the
   session (`{ sub, email }`).
+- A second, **non-cookie** auth path exists for the programmatic API: the MCP
+  endpoint authenticates **personal access tokens** instead of the session
+  cookie. See [Programmatic API](#programmatic-api-mcp-server).
 
 ### Single-use tokens
 
@@ -87,7 +90,9 @@ Two in-process pub/sub buses, each a module singleton pinned to `globalThis`
 - **`src/lib/board-bus.ts`** — one channel per board. Events: `card_created`,
   `card_moved` (with authoritative ordering), `card_updated`, `card_deleted`,
   `card_labels`, `card_assignees`, `card_counts`, `pile_created`,
-  `pile_updated`, `pile_deleted`.
+  `pile_updated`, `pile_deleted`, `piles_reordered`, and the custom-field
+  events `column_created`, `column_updated` (each carrying the whole column so
+  any open board can add/retype it live) and `column_deleted` (the column id).
 - **`src/lib/card-bus.ts`** — one channel per card, for comment events.
 
 Clients connect with `EventSource` to `api/boards/[id]/stream` and
@@ -151,19 +156,25 @@ select options) and `coerceValue` (validating a value against its type/config).
 
 ## Integrations (SCM)
 
-An **optional, opt-in** Gitea integration links commits and pull requests to
-cards. It is invisible until a workspace admin connects it — nothing about it
-appears for workspaces that never do.
+An **optional, opt-in** SCM integration links commits and pull requests to
+cards. **Gitea, Forgejo, GitHub, GitLab and Bitbucket** are supported. It is
+invisible until a workspace admin connects a provider — nothing about it appears
+for workspaces that never do.
 
-- **Connection**: one `scm_connections` row per workspace+provider, created from
-  the Integrations settings page. It holds the Gitea `base_url`, a random
-  `webhook_token` (routes the inbound URL), a `secret` (verifies it), an
-  `enabled` flag (Pause), and an optional `done_pile_name` (auto-move target).
-- **Inbound webhook**: `api/webhooks/gitea/[token]` takes no session. It finds
-  the connection by token (404 if unknown or paused — never revealing which),
-  verifies the `X-Gitea-Signature` HMAC against the secret (401 otherwise), then
-  parses `#cardId` refs out of commit messages / PR titles+bodies
-  (`src/lib/scm.ts`). Links are upserted into `card_links`.
+- **Connection**: one `scm_connections` row per workspace+provider (a workspace
+  can connect several at once), created from the Integrations settings page. It
+  holds the provider, a `base_url`, a random `webhook_token` (routes the inbound
+  URL), a `secret` (verifies it), an `enabled` flag (Pause), and an optional
+  `done_pile_name` (auto-move target).
+- **Inbound webhook**: `api/webhooks/<provider>/[token]` takes no session. Each
+  provider has a thin route that hands off to the shared receiver in
+  `src/lib/scm-webhook.ts`. It finds the connection by token+provider (404 if
+  unknown or paused — never revealing which), **verifies the signature** with the
+  provider's scheme (Gitea/Forgejo `X-Gitea-Signature` HMAC, GitHub/Bitbucket
+  `X-Hub-Signature(-256)` HMAC, GitLab `X-Gitlab-Token` constant-time compare;
+  401 otherwise), then normalizes the push / pull-request payload and parses
+  `#cardId` refs out of commit messages / PR titles+bodies (`src/lib/scm.ts`).
+  Links are upserted into `card_links`.
 - **Workspace isolation**: the receiver only ever touches cards whose board
   belongs to the connection's own workspace (`INNER JOIN boards … WHERE
   boards.workspace_id = conn.workspace_id`). A webhook for one workspace can
@@ -175,6 +186,26 @@ appears for workspaces that never do.
   never fails the webhook.
 
 Linked commits/PRs are shown in a "Linked code" section on the card drawer.
+
+## Programmatic API (MCP server)
+
+Sunday ships a built-in **MCP server** at `api/mcp/route.ts` — a single
+JSON-RPC endpoint (`tools/list`, `tools/call`) that exposes the app's actions
+(boards, piles, cards, comments, labels, custom fields) as tools to agents and
+scripts. The tool implementations live in `src/lib/mcp/tools.ts` and reuse the
+**same RBAC helpers** as the web routes, so a token can never do more than its
+owner could in the UI; mutations publish the same SSE events, so MCP-driven
+changes show up live in open boards.
+
+- **Auth — personal access tokens** (`src/lib/api-tokens.ts`): the endpoint
+  authenticates a `Authorization: Bearer sun_pat_…` token. Tokens are
+  long-lived, optional-TTL, and only stored as a **SHA-256 hash** — the
+  plaintext is shown once at creation and never again. The `sun_pat_` prefix
+  makes leaked tokens easy for secret scanners to catch. Backed by the
+  `api_tokens` table.
+- **Management**: users mint and revoke tokens on the account settings page
+  (`me/settings`), via `api/me/tokens` (list/create) and `api/me/tokens/[id]`
+  (revoke). The settings page also surfaces the MCP URL (`<APP_URL>/api/mcp`).
 
 ## Data model
 
@@ -188,8 +219,9 @@ The schema is in `src/db/schema.ts`. Roughly:
   `board_task_attachments`, `board_task_comments`.
 - **Custom fields**: `board_columns` (field definitions), `board_task_columns`
   (per-card values).
-- **Integrations**: `scm_connections` (per-workspace Gitea config),
+- **Integrations**: `scm_connections` (per-workspace, per-provider SCM config),
   `card_links` (commits/PRs linked to a card).
+- **Programmatic access**: `api_tokens` (hashed personal access tokens).
 - **Invites & notifications**: `workspace_invites`, `board_invites`,
   `notifications`.
 
