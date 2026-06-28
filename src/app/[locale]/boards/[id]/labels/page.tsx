@@ -6,7 +6,6 @@ import { getSessionFromCookie } from "@/lib/auth";
 import { loadBoardCapabilities } from "@/lib/board-access";
 import {
   WORKSPACE_ADMIN_ROLE_ID,
-  loadCapabilities,
   loadMembership,
 } from "@/lib/workspace-access";
 import AppShell from "@/components/organisms/workspaces/AppShell";
@@ -47,10 +46,8 @@ export default async function BoardLabelsPage({ params }: { params: Promise<{ id
   );
   if (!caps.has("view_board")) notFound();
 
-  // Labels are workspace-scoped; managing them needs the workspace-level
-  // manage_labels capability (same source the card drawer's label picker uses).
-  const wsCaps = await loadCapabilities(board.workspaceId, session.sub);
-  const canManageLabels = wsCaps.has("manage_labels");
+  // Labels are board-scoped; managing the catalog needs the edit_board cap.
+  const canManageLabels = caps.has("edit_board");
 
   const allWorkspaces = await db
     .select({ id: workspaces.id, title: workspaces.title })
@@ -94,7 +91,7 @@ export default async function BoardLabelsPage({ params }: { params: Promise<{ id
       isDefault: labels.isDefault,
     })
     .from(labels)
-    .where(and(eq(labels.workspaceId, board.workspaceId), isNull(labels.deletedAt)))
+    .where(and(eq(labels.boardId, board.id), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
   return (

@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { labels, workspaces, workspaceUsers } from "@/db/schema";
+import { workspaces, workspaceUsers } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 
 const WORKSPACE_ADMIN_ROLE_ID = 1;
-
-// Labels are meant to be orthogonal to status — the piles ("To do",
-// "In progress"…) already carry the workflow state. So the defaults describe
-// the *kind* and *priority* of work instead of duplicating the columns.
-const DEFAULT_LABELS: Array<{ title: string; color: string }> = [
-  { title: "Bug", color: "coral" },
-  { title: "Feature", color: "indigo" },
-  { title: "Improvement", color: "sky" },
-  { title: "Urgent", color: "pink" },
-  { title: "Documentation", color: "teal" },
-];
 
 export async function GET() {
   const auth = await requireAuth();
@@ -58,18 +47,7 @@ export async function POST(request: NextRequest) {
     workspaceRoleId: WORKSPACE_ADMIN_ROLE_ID,
   });
 
-  const now = new Date();
-  await db.insert(labels).values(
-    DEFAULT_LABELS.map((d, idx) => ({
-      workspaceId: id,
-      title: d.title,
-      color: d.color,
-      position: idx + 1,
-      isDefault: 1,
-      createdAt: now,
-      updatedAt: now,
-    })),
-  );
+  // Labels are board-scoped now — a new board seeds its own starter set.
 
   return NextResponse.json({ workspace: { id, title } }, { status: 201 });
 }

@@ -6,6 +6,7 @@ import {
   boardRoleCapabilities,
   boardUsers,
   boards,
+  labels,
 } from "@/db/schema";
 import { WORKSPACE_ADMIN_ROLE_ID, loadMembership } from "@/lib/workspace-access";
 
@@ -140,6 +141,49 @@ export async function requireBoardCap(
   if (!caps.has("view_board")) return notFound();
   if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
   return { ok: true, board, workspaceId: board.workspaceId, capabilities: caps };
+}
+
+export type LoadedLabel = {
+  id: number;
+  boardId: number;
+  title: string;
+  color: string;
+  position: number | null;
+  isDefault: number;
+};
+
+/**
+ * Require a board capability via a label. Labels are board-scoped, so a label's
+ * access is its board's access. Returns the loaded label + board capabilities.
+ */
+export async function requireLabelCap(
+  labelId: number,
+  userId: number,
+  capability: BoardCapability,
+): Promise<
+  | Ok<{ label: LoadedLabel; board: LoadedBoardForAccess; capabilities: BoardCapabilitySet }>
+  | Fail
+> {
+  if (!Number.isFinite(labelId)) return invalidId();
+  const [row] = await db
+    .select({
+      id: labels.id,
+      boardId: labels.boardId,
+      title: labels.title,
+      color: labels.color,
+      position: labels.position,
+      isDefault: labels.isDefault,
+    })
+    .from(labels)
+    .where(and(eq(labels.id, labelId), isNull(labels.deletedAt)))
+    .limit(1);
+  if (!row || row.boardId == null) return notFound();
+  const board = await loadBoard(row.boardId);
+  if (!board) return notFound();
+  const caps = await loadBoardCapabilities(board, userId);
+  if (!caps.has("view_board")) return notFound();
+  if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
+  return { ok: true, label: row, board, capabilities: caps };
 }
 
 export type {

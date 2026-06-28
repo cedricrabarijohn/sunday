@@ -7,7 +7,6 @@ import {
   boardTaskItems,
   boardTasks,
   boards,
-  labels,
   workspaceCapabilities,
   workspaceRoleCapabilities,
   workspaceUsers,
@@ -291,39 +290,8 @@ export async function requirePileCap(
   };
 }
 
-export type LoadedLabel = {
-  id: number;
-  workspaceId: number;
-  title: string;
-  color: string;
-  position: number | null;
-  isDefault: number;
-};
-
-export async function requireLabelCap(
-  labelId: number,
-  userId: number,
-  capability: Capability,
-): Promise<Ok<{ label: LoadedLabel; capabilities: CapabilitySet }> | Fail> {
-  if (!Number.isFinite(labelId)) return invalidId();
-  const [row] = await db
-    .select({
-      id: labels.id,
-      workspaceId: labels.workspaceId,
-      title: labels.title,
-      color: labels.color,
-      position: labels.position,
-      isDefault: labels.isDefault,
-    })
-    .from(labels)
-    .where(and(eq(labels.id, labelId), isNull(labels.deletedAt)))
-    .limit(1);
-  if (!row) return notFound();
-  const caps = await loadCapabilities(row.workspaceId, userId);
-  if (!caps.has("view_workspace")) return notFound();
-  if (!caps.has(capability)) return forbidden(`Missing capability: ${capability}`);
-  return { ok: true, label: row, capabilities: caps };
-}
+// Labels are board-scoped; their access guard (requireLabelCap) lives in
+// board-access.ts.
 
 export async function requireItemCap(
   itemId: number,

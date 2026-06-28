@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { ALLOWED_COLORS } from "@/lib/label-access";
-import { requireLabelCap } from "@/lib/workspace-access";
+import { requireLabelCap } from "@/lib/board-access";
 
 export async function PATCH(
   request: NextRequest,
@@ -14,7 +14,7 @@ export async function PATCH(
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const labelId = Number(id);
-  const guard = await requireLabelCap(labelId, auth.session.sub, "manage_labels");
+  const guard = await requireLabelCap(labelId, auth.session.sub, "edit_board");
   if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
@@ -62,7 +62,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const labelId = Number(id);
-  const guard = await requireLabelCap(labelId, auth.session.sub, "manage_labels");
+  const guard = await requireLabelCap(labelId, auth.session.sub, "edit_board");
   if (!guard.ok) return guard.response;
 
   await db

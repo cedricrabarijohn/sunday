@@ -218,16 +218,16 @@ async function labelContext(labelId: number, userId: number) {
   const [label] = await db
     .select({
       id: labels.id,
-      workspaceId: labels.workspaceId,
+      boardId: labels.boardId,
       title: labels.title,
       color: labels.color,
     })
     .from(labels)
     .where(and(eq(labels.id, labelId), isNull(labels.deletedAt)))
     .limit(1);
-  if (!label || label.workspaceId == null) throw new ToolError(`Label ${labelId} not found`);
-  const wsCaps = await loadCapabilities(label.workspaceId, userId);
-  return { label, caps: wsCaps };
+  if (!label || label.boardId == null) throw new ToolError(`Label ${labelId} not found`);
+  const { board, caps } = await boardContext(label.boardId, userId);
+  return { label, board, caps };
 }
 
 async function columnContext(fieldId: number, userId: number) {
@@ -634,41 +634,21 @@ export const TOOLS: McpTool[] = [
   {
     name: "list_labels",
     description:
-      "List the labels available for a board's workspace (id, title, color) so you can resolve which to add to a card.",
+      "List the labels available on a board (id, title, color) so you can resolve which to add to a card.",
     inputSchema: {
       type: "object",
       properties: {
-        board_id: { type: "number", description: "Resolve labels from this board's workspace." },
-        workspace_id: { type: "number" },
+        board_id: { type: "number", description: "List labels on this board." },
       },
+      required: ["board_id"],
       additionalProperties: false,
     },
     async handler(userId, args) {
-      let workspaceId: number;
-      if (typeof args.board_id === "number") {
-        const { board } = await boardContext(args.board_id, userId);
-        workspaceId = board.workspaceId as number;
-      } else if (typeof args.workspace_id === "number") {
-        const [member] = await db
-          .select({ id: workspaceUsers.userId })
-          .from(workspaceUsers)
-          .where(
-            and(
-              eq(workspaceUsers.workspaceId, args.workspace_id),
-              eq(workspaceUsers.userId, userId),
-              isNull(workspaceUsers.deletedAt),
-            ),
-          )
-          .limit(1);
-        if (!member) throw new ToolError("No access to that workspace");
-        workspaceId = args.workspace_id;
-      } else {
-        throw new ToolError("Provide board_id or workspace_id");
-      }
+      const { board } = await boardContext(Number(args.board_id), userId);
       const rows = await db
         .select({ id: labels.id, title: labels.title, color: labels.color })
         .from(labels)
-        .where(and(eq(labels.workspaceId, workspaceId), isNull(labels.deletedAt)))
+        .where(and(eq(labels.boardId, board.id), isNull(labels.deletedAt)))
         .orderBy(asc(labels.position), asc(labels.id));
       return { labels: rows };
     },
@@ -676,32 +656,21 @@ export const TOOLS: McpTool[] = [
   {
     name: "create_label",
     description:
-      "Create a new label in a workspace (so it can then be added to cards). Requires the manage_labels capability. " +
+      "Create a new label on a board (so it can then be added to that board's cards). Requires the edit_board capability. " +
       `Valid colors: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
     inputSchema: {
       type: "object",
       properties: {
-        board_id: { type: "number", description: "Create the label in this board's workspace." },
-        workspace_id: { type: "number" },
+        board_id: { type: "number", description: "Create the label on this board." },
         title: { type: "string" },
         color: { type: "string", description: "One of the valid palette colors. Defaults to slate." },
       },
-      required: ["title"],
+      required: ["board_id", "title"],
       additionalProperties: false,
     },
     async handler(userId, args) {
-      // Resolve the target workspace from board_id or workspace_id.
-      let workspaceId: number;
-      if (typeof args.board_id === "number") {
-        const { board } = await boardContext(args.board_id, userId);
-        workspaceId = board.workspaceId as number;
-      } else if (typeof args.workspace_id === "number") {
-        workspaceId = args.workspace_id;
-      } else {
-        throw new ToolError("Provide board_id or workspace_id");
-      }
-      const caps = await loadCapabilities(workspaceId, userId);
-      requireCap(caps, "manage_labels");
+      const { board, caps } = await boardContext(Number(args.board_id), userId);
+      requireCap(caps, "edit_board");
 
       const title = String(args.title ?? "").trim();
       if (!title) throw new ToolError("title is required");
@@ -714,11 +683,11 @@ export const TOOLS: McpTool[] = [
       const [maxRow] = await db
         .select({ value: max(labels.position) })
         .from(labels)
-        .where(eq(labels.workspaceId, workspaceId));
+        .where(eq(labels.boardId, board.id));
       const position = (maxRow?.value ?? 0) + 1;
       const now = new Date();
       const [res] = await db.insert(labels).values({
-        workspaceId,
+        boardId: board.id,
         title,
         color,
         position,
@@ -727,7 +696,7 @@ export const TOOLS: McpTool[] = [
         updatedAt: now,
       });
       return {
-        label: { id: Number((res as { insertId: number }).insertId), title, color, workspaceId },
+        label: { id: Number((res as { insertId: number }).insertId), title, color, boardId: board.id },
       };
     },
   },
@@ -929,7 +898,7 @@ export const TOOLS: McpTool[] = [
           .from(labels)
           .where(
             and(
-              eq(labels.workspaceId, board.workspaceId as number),
+              eq(labels.boardId, board.id),
               inArray(labels.id, target),
               isNull(labels.deletedAt),
             ),
@@ -937,7 +906,7 @@ export const TOOLS: McpTool[] = [
         const validIds = new Set(valid.map((l) => l.id));
         const bad = target.filter((id) => !validIds.has(id));
         if (bad.length > 0) {
-          throw new ToolError(`Labels not in this workspace: ${bad.join(", ")}`);
+          throw new ToolError(`Labels not on this board: ${bad.join(", ")}`);
         }
       }
 
@@ -1569,7 +1538,7 @@ export const TOOLS: McpTool[] = [
   {
     name: "update_label",
     description:
-      "Rename a label and/or change its color. Requires the manage_labels workspace capability. " +
+      "Rename a label and/or change its color. Requires the edit_board capability on the label's board. " +
       `Valid colors: ${Array.from(ALLOWED_COLORS).join(", ")}.`,
     inputSchema: {
       type: "object",
@@ -1586,7 +1555,7 @@ export const TOOLS: McpTool[] = [
     },
     async handler(userId, args) {
       const { label, caps } = await labelContext(Number(args.label_id), userId);
-      requireCap(caps, "manage_labels");
+      requireCap(caps, "edit_board");
       const updates: { title?: string; color?: string } = {};
       if (typeof args.title === "string") {
         const t = args.title.trim();
@@ -1613,8 +1582,8 @@ export const TOOLS: McpTool[] = [
   {
     name: "delete_label",
     description:
-      "Delete a label from a workspace. It will be removed from all cards that use it. " +
-      "Requires the manage_labels workspace capability.",
+      "Delete a label from a board. It will be removed from all cards that use it. " +
+      "Requires the edit_board capability on the label's board.",
     inputSchema: {
       type: "object",
       properties: { label_id: { type: "number" } },
@@ -1623,7 +1592,7 @@ export const TOOLS: McpTool[] = [
     },
     async handler(userId, args) {
       const { label, caps } = await labelContext(Number(args.label_id), userId);
-      requireCap(caps, "manage_labels");
+      requireCap(caps, "edit_board");
       await db
         .update(labels)
         .set({ deletedAt: new Date(), updatedAt: new Date() })

@@ -315,7 +315,7 @@ export default async function BoardDetail({
       isDefault: labels.isDefault,
     })
     .from(labels)
-    .where(and(eq(labels.workspaceId, board.workspaceId!), isNull(labels.deletedAt)))
+    .where(and(eq(labels.boardId, board.id), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
   const capabilities = Array.from(boardCapSet);

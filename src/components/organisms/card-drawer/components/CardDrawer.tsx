@@ -88,7 +88,6 @@ type Props = {
 
 export default function CardDrawer({
   cardId,
-  workspaceId,
   workspaceLabels,
   onWorkspaceLabelsChange,
   onClose,
@@ -832,7 +831,7 @@ export default function CardDrawer({
   // --- Labels ---
   const { onToggleLabel, onCreateLabel, onEditLabel, onDeleteLabel } = useCardLabels({
     cardId,
-    workspaceId,
+    boardId: data?.card.boardId,
     data,
     setData,
     workspaceLabels,

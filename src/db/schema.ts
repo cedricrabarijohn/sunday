@@ -434,7 +434,8 @@ export const labels = mysqlTable(
   "labels",
   {
     id: int("id").autoincrement().primaryKey(),
-    workspaceId: int("workspace_id").notNull(),
+    // Labels are board-scoped: each board owns its own label catalog.
+    boardId: int("board_id").notNull(),
     title: varchar("title", { length: 50 }).notNull(),
     color: varchar("color", { length: 20 }).notNull(),
     description: varchar("description", { length: 120 }),
@@ -444,7 +445,7 @@ export const labels = mysqlTable(
     updatedAt: datetime("updated_at"),
     deletedAt: datetime("deleted_at"),
   },
-  (t) => [index("idx_labels_workspace").on(t.workspaceId)],
+  (t) => [index("idx_labels_board").on(t.boardId)],
 );
 
 export const boardTaskLabels = mysqlTable(

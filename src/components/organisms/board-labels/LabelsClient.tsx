@@ -103,7 +103,7 @@ export default function LabelsClient({
     if (!title) return;
     setCreating(true);
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/labels`, {
+      const res = await fetch(`/api/boards/${boardId}/labels`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, color: newColor }),

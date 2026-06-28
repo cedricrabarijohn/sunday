@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardPiles, boardUsers, boards } from "@/db/schema";
+import { boardPiles, boardUsers, boards, labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import {
   WORKSPACE_ADMIN_ROLE_ID,
@@ -14,6 +14,16 @@ const DEFAULT_PILES: Array<{ title: string; color: string }> = [
   { title: "To do", color: "slate" },
   { title: "In progress", color: "amber" },
   { title: "Done", color: "lime" },
+];
+
+// Labels are board-scoped. New boards start with a small starter catalog
+// describing the *kind* / *priority* of work (status lives in the piles).
+const DEFAULT_LABELS: Array<{ title: string; color: string }> = [
+  { title: "Bug", color: "coral" },
+  { title: "Feature", color: "indigo" },
+  { title: "Improvement", color: "sky" },
+  { title: "Urgent", color: "pink" },
+  { title: "Documentation", color: "teal" },
 ];
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -80,6 +90,18 @@ export async function POST(
       title: p.title,
       color: p.color,
       position: idx + 1,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  );
+
+  await db.insert(labels).values(
+    DEFAULT_LABELS.map((d, idx) => ({
+      boardId,
+      title: d.title,
+      color: d.color,
+      position: idx + 1,
+      isDefault: 1,
       createdAt: now,
       updatedAt: now,
     })),

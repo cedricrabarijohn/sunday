@@ -4,14 +4,14 @@ import { db } from "@/db/client";
 import { labels } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { ALLOWED_COLORS } from "@/lib/label-access";
-import { requireWorkspaceCap } from "@/lib/workspace-access";
+import { requireBoardCap } from "@/lib/board-access";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const workspaceId = Number(id);
-  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "view_workspace");
+  const boardId = Number(id);
+  const guard = await requireBoardCap(boardId, auth.session.sub, "view_board");
   if (!guard.ok) return guard.response;
 
   const rows = await db
@@ -24,7 +24,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       isDefault: labels.isDefault,
     })
     .from(labels)
-    .where(and(eq(labels.workspaceId, workspaceId), isNull(labels.deletedAt)))
+    .where(and(eq(labels.boardId, boardId), isNull(labels.deletedAt)))
     .orderBy(asc(labels.position), asc(labels.id));
 
   return NextResponse.json({ labels: rows });
@@ -37,8 +37,8 @@ export async function POST(
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const workspaceId = Number(id);
-  const guard = await requireWorkspaceCap(workspaceId, auth.session.sub, "manage_labels");
+  const boardId = Number(id);
+  const guard = await requireBoardCap(boardId, auth.session.sub, "edit_board");
   if (!guard.ok) return guard.response;
 
   const body = await request.json().catch(() => null);
@@ -53,12 +53,12 @@ export async function POST(
   const [maxRow] = await db
     .select({ value: max(labels.position) })
     .from(labels)
-    .where(eq(labels.workspaceId, workspaceId));
+    .where(eq(labels.boardId, boardId));
   const position = (maxRow?.value ?? 0) + 1;
 
   const now = new Date();
   const [result] = await db.insert(labels).values({
-    workspaceId,
+    boardId,
     title,
     color,
     position,

@@ -7,7 +7,7 @@ import type { CardDetail, CardLabel, WorkspaceLabel } from "@/components/organis
 
 type Options = {
   cardId: number;
-  workspaceId: number;
+  boardId: number | null | undefined;
   data: CardDetail | null;
   setData: Dispatch<SetStateAction<CardDetail | null>>;
   workspaceLabels: WorkspaceLabel[];
@@ -21,7 +21,7 @@ type Options = {
  */
 export function useCardLabels({
   cardId,
-  workspaceId,
+  boardId,
   data,
   setData,
   workspaceLabels,
@@ -63,7 +63,7 @@ export function useCardLabels({
     const trimmed = title.trim();
     if (!trimmed) return;
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/labels`, {
+      const res = await fetch(`/api/boards/${boardId}/labels`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmed, color }),
