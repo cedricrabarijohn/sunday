@@ -22,7 +22,7 @@ export const THEMES: ThemeMeta[] = [
 ];
 
 export const THEME_IDS = THEMES.map((t) => t.id);
-export const DEFAULT_THEME: ThemeId = "dark";
+export const DEFAULT_THEME: ThemeId = "sand";
 
 export function isThemeId(v: unknown): v is ThemeId {
   return typeof v === "string" && (THEME_IDS as string[]).includes(v);

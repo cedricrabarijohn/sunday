@@ -11,8 +11,8 @@ import { SignJWT } from "jose";
 import puppeteer from "puppeteer-core";
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
-const BOARD = 18; // "Stator & demarreur" — labels, checklists, descriptions
-const CARD = 99; // a rich card (isolement) on that board
+const BOARD = 8;
+const CARD = 35;
 const CHROME = process.env.CHROME_PATH || "/usr/bin/google-chrome";
 const OUT = "docs/screenshots";
 const VIEW = { width: 1440, height: 900, deviceScaleFactor: 1.5 };
@@ -76,11 +76,11 @@ async function main() {
     await page.close();
   }
 
-  await shot({ name: "landing", path: "/", theme: "dark", authed: false });
-  await shot({ name: "board-kanban", path: `/boards/${BOARD}`, theme: "dark" });
-  await shot({ name: "card-drawer", path: `/boards/${BOARD}?card=${CARD}`, theme: "dark" });
-  await shot({ name: "board-table", path: `/boards/${BOARD}`, theme: "dark", view: "table" });
-  await shot({ name: "board-light", path: `/boards/${BOARD}`, theme: "light" });
+  await shot({ name: "landing", path: "/", theme: "sand", authed: false });
+  await shot({ name: "board-kanban", path: `/boards/${BOARD}`, theme: "sand" });
+  await shot({ name: "card-drawer", path: `/boards/${BOARD}?card=${CARD}`, theme: "sand" });
+  await shot({ name: "board-table", path: `/boards/${BOARD}`, theme: "sand", view: "table" });
+  await shot({ name: "board-light", path: `/boards/${BOARD}`, theme: "sand" });
 
   await browser.close();
 }
