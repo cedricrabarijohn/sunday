@@ -169,9 +169,9 @@ A fresh database is bootstrapped from the baseline migration
 dev database is already baselined in `__drizzle_migrations`, so `db:migrate` is
 a no-op there.
 
-> ⚠️ The live database carries a few performance indexes that are not yet
-> declared in `schema.ts`. A brand-new DB created purely from migrations will be
-> missing them — see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+> Performance indexes are declared in `schema.ts` and shipped in
+> `drizzle/0010_perf_indexes.sql`, so a database provisioned purely from
+> migrations now matches production's index coverage.
 
 ## Email (dev & prod)
 

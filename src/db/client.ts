@@ -14,7 +14,7 @@ const pool =
     user: process.env.DB_USER || "sunday",
     password: process.env.DB_PASSWORD || "password",
     database: process.env.DB_NAME || "sunday_db",
-    connectionLimit: 10,
+    connectionLimit: Number(process.env.DB_POOL_SIZE) || 10,
   });
 
 if (process.env.NODE_ENV !== "production") globalForDb.pool = pool;

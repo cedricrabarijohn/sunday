@@ -71,6 +71,13 @@
       "when": 1781800000000,
       "tag": "0009_reactions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1781900000000,
+      "tag": "0010_perf_indexes",
+      "breakpoints": true
     }
   ]
 }

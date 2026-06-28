@@ -33,10 +33,8 @@ How to ship Sunday safely, and how to scale it later.
   `make db-restore` are a starting point, not a backup strategy).
 - **Monitoring / error tracking.** Today the app only `console.error`s. Wire up
   something like Sentry and structured logs.
-- **Declare the performance indexes in `schema.ts`** (see gotcha below) so fresh
-  deploys aren't missing them.
-- **Raise the DB connection pool.** `src/db/client.ts` uses
-  `connectionLimit: 10`; make it env-configurable and larger.
+- **Raise the DB connection pool.** `src/db/client.ts` reads
+  `DB_POOL_SIZE` (default 10); raise it under load.
 - Decide whether to **enforce email verification** (currently informational, not
   blocking).
 - Remove dev-only data (e.g. the "Stress Test" demo board).
@@ -90,18 +88,20 @@ For an existing database already at this schema, baseline it once by inserting
 the baseline row into `__drizzle_migrations` so `db:migrate` treats it as applied
 (the dev DB is already baselined).
 
-### ⚠️ Index gotcha
+### Performance indexes
 
-The live database carries performance indexes (on `board_tasks.pile_id`,
-`notifications.user_id` / `created_at`, labels join columns, etc.) that are
-**not declared in `src/db/schema.ts`**. (Some, like `board_tasks(board_id,
-position)` and the assignees/columns join uniques, _are_ now declared.) A
-database created purely from the current migrations will be **missing the
-undeclared ones** and will be slow under load.
+The secondary/performance indexes are declared in `src/db/schema.ts` and
+shipped in `drizzle/0010_perf_indexes.sql`. Every statement is
+`CREATE INDEX IF NOT EXISTS` with the same names the long-lived database already
+uses, so the migration is a clean no-op on the existing DB and creates the full
+set on a fresh one. A database provisioned purely from migrations now matches
+production's index coverage.
 
-**Fix:** add the indexes to the table definitions in `schema.ts`
-(`index(...).on(...)`), run `bun run db:generate`, and ship the resulting
-migration before going to scale.
+> Note: `bun run db:generate` (drizzle-kit) is **not** the migration workflow
+> here — its snapshot journal drifted once migrations started being hand-written
+> (0007+). Migrations are authored as SQL files and registered in
+> `drizzle/meta/_journal.json`; `make db-migrate` (→ `scripts/db-migrate.sh`)
+> applies them and tolerates "already exists" as baseline.
 
 ## Scaling roadmap
 
@@ -116,7 +116,7 @@ When you do grow, here is what breaks first, in order:
 | 1 | **Real-time SSE pub/sub** (`board-bus`/`card-bus`, `globalThis` singletons) | A publish on instance A never reaches SSE clients on instance B → live sync silently breaks across instances | Shared pub/sub: Redis Pub/Sub, NATS, or a managed real-time service |
 | 2 | **Rate limiter** (`src/lib/rate-limit.ts`, in-memory) | Per-instance counters → ineffective across instances | Move counters to Redis |
 | 3 | **SSE connection count** | Many persistent connections held in memory per instance | More instances + (1) |
-| 4 | **Single MariaDB**, `connectionLimit: 10` | One node, tiny pool | Bigger pool + a pooler, read replicas, eventually sharding |
+| 4 | **Single MariaDB** (pool `DB_POOL_SIZE`, default 10) | One node, single pool | Bigger pool + a pooler, read replicas, eventually sharding |
 | 5 | **Inline notification emails** | No queue → traffic spikes are unbounded | Job queue + workers (e.g. BullMQ/Redis) |
 | 6 | **Notification polling** (bell polls every 60s) | N users × constant polling | Push over SSE/WebSocket |
 | 7 | **No caching layer** | Every request hits the DB | Cache hot reads |

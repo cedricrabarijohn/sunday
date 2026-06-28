@@ -14,9 +14,8 @@ help:
 	@echo " kill                        Kill containers"
 	@echo ""
 	@echo "Database Commands:"
-	@echo " generate-init-sql           Generate sql/init.sql"
+	@echo " db-migrate                  Apply pending migrations (provision/upgrade the schema)"
 	@echo " db                          Launch db container and access the database $(DB_NAME)"
-	@echo " db-init                     Init the database from sql/init.sql file"
 	@echo " db-seed                     Seed RBAC reference data (roles/capabilities) from sql/seed.sql"
 	@echo " db-dump                     Dump the current database in sql/dump.sql"
 	@echo " db-restore                  Restore the database from sql/dump.sql"
@@ -44,14 +43,8 @@ stop:
 kill:
 	@docker compose --env-file .env --project-directory docker kill
 
-generate-init-sql:
-	dbml2sql diagram.dbml --mysql -o sql/init.sql
-
 db:
 	@docker compose --env-file .env -f docker/docker-compose.yml exec -it db mariadb -u root -p${DB_ROOT_PASSWORD} ${DB_NAME}
-
-db-init:
-	@docker compose --env-file .env -f docker/docker-compose.yml exec -T db mariadb -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} < ./sql/init.sql
 
 db-seed:
 	@docker compose --env-file .env -f docker/docker-compose.yml exec -T db mariadb -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} < ./sql/seed.sql
