@@ -1,8 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import Button from '../../atoms/button/Button';
-import LanguageSwitcher from '../../molecules/language-switcher/LanguageSwitcher';
 import ThemeToggle from '../../atoms/theme-toggle/ThemeToggle';
 import styles from './Navbar.module.scss';
 import LogoWithText from '@/components/molecules/logo/LogoWithText';
@@ -10,8 +8,6 @@ import { PAGE_ROUTES } from '@/globals/page-routes';
 import { gotTo } from '@/lib/goTo';
 
 const Navbar = () => {
-    const t = useTranslations('navbar');
-
     return (
         <nav className={styles.navbar}>
             <div className={styles.container}>
@@ -23,13 +19,12 @@ const Navbar = () => {
 
                 <div className={styles.actions}>
                     <ThemeToggle />
-                    <LanguageSwitcher />
                     <Button
                         onClick={() => {
                             gotTo(PAGE_ROUTES.AUTH.SIGN_IN());
                         }}
                         variant="primary" size="medium">
-                        {t('getStarted')}
+                        Get Started
                     </Button>
                 </div>
             </div>
