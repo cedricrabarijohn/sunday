@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users, workspaceInvites, workspaces } from "@/db/schema";
+import { users, workspaceInvites, workspaceUsers, workspaces } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { appUrl, sendMail } from "@/lib/mail";
 import { inviteEmail } from "@/lib/mail-templates";
@@ -74,8 +74,51 @@ export async function POST(
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  const token = crypto.randomBytes(24).toString("base64url");
   const now = new Date();
+
+  // Reject an email that already belongs to a member of this workspace, or that
+  // already has a pending, unexpired invite. (Link-only invites have no email.)
+  if (email) {
+    const [existingMember] = await db
+      .select({ userId: workspaceUsers.userId })
+      .from(workspaceUsers)
+      .innerJoin(users, eq(users.id, workspaceUsers.userId))
+      .where(
+        and(
+          eq(workspaceUsers.workspaceId, workspaceId),
+          isNull(workspaceUsers.deletedAt),
+          eq(users.email, email),
+        ),
+      )
+      .limit(1);
+    if (existingMember) {
+      return NextResponse.json(
+        { error: "That email already belongs to a member of this workspace" },
+        { status: 409 },
+      );
+    }
+
+    const [pendingInvite] = await db
+      .select({ id: workspaceInvites.id })
+      .from(workspaceInvites)
+      .where(
+        and(
+          eq(workspaceInvites.workspaceId, workspaceId),
+          eq(workspaceInvites.email, email),
+          eq(workspaceInvites.status, "pending"),
+          gt(workspaceInvites.expiresAt, now),
+        ),
+      )
+      .limit(1);
+    if (pendingInvite) {
+      return NextResponse.json(
+        { error: "That email already has a pending invite to this workspace" },
+        { status: 409 },
+      );
+    }
+  }
+
+  const token = crypto.randomBytes(24).toString("base64url");
   const expires = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
   const [result] = await db.insert(workspaceInvites).values({

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { boardInvites, users } from "@/db/schema";
+import { boardInvites, boardUsers, users } from "@/db/schema";
 import { requireAuth } from "@/lib/require-auth";
 import { requireBoardCap } from "@/lib/workspace-access";
 import {
@@ -74,8 +74,51 @@ export async function POST(
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  const token = crypto.randomBytes(24).toString("base64url");
   const now = new Date();
+
+  // Reject an email that already belongs to a member of this board, or that
+  // already has a pending, unexpired invite. (Link-only invites have no email.)
+  if (email) {
+    const [existingMember] = await db
+      .select({ userId: boardUsers.userId })
+      .from(boardUsers)
+      .innerJoin(users, eq(users.id, boardUsers.userId))
+      .where(
+        and(
+          eq(boardUsers.boardId, boardId),
+          isNull(boardUsers.deletedAt),
+          eq(users.email, email),
+        ),
+      )
+      .limit(1);
+    if (existingMember) {
+      return NextResponse.json(
+        { error: "That email already belongs to a member of this board" },
+        { status: 409 },
+      );
+    }
+
+    const [pendingInvite] = await db
+      .select({ id: boardInvites.id })
+      .from(boardInvites)
+      .where(
+        and(
+          eq(boardInvites.boardId, boardId),
+          eq(boardInvites.email, email),
+          eq(boardInvites.status, "pending"),
+          gt(boardInvites.expiresAt, now),
+        ),
+      )
+      .limit(1);
+    if (pendingInvite) {
+      return NextResponse.json(
+        { error: "That email already has a pending invite to this board" },
+        { status: 409 },
+      );
+    }
+  }
+
+  const token = crypto.randomBytes(24).toString("base64url");
   const expires = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
   const [result] = await db.insert(boardInvites).values({
