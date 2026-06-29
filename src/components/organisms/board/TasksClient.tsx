@@ -29,6 +29,7 @@ import { AddPileForm } from "./AddPileForm";
 import { useBoardStream } from "@/hooks/useBoardStream";
 import { usePileReorder } from "@/hooks/usePileReorder";
 import { useBoardFields } from "@/hooks/useBoardFields";
+import { useDragAutoScroll } from "@/hooks/useDragAutoScroll";
 import { nameFor } from "@/lib/card-format";
 
 import NotificationsBell from "@/components/molecules/workspaces/NotificationsBell";
@@ -471,6 +472,20 @@ export default function TasksClient({
     setHint((prev) => (prev && prev.pileId === pile.id ? null : prev));
   };
 
+  // After a drop, settle the board on the pile the card landed in so the drop
+  // target is fully visible (an edge-drag may have left it half off-screen).
+  // Deferred two frames: the drag-end re-render restores scroll-snap, and we
+  // want to scroll after that so snapping doesn't fight the programmatic scroll.
+  const scrollPileIntoView = (pileId: number) => {
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-pile-id="${pileId}"]`)
+          ?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+      }),
+    );
+  };
+
   const onPileDrop = async (e: DragEvent<HTMLElement>, pile: Pile) => {
     e.preventDefault();
     e.stopPropagation();
@@ -480,6 +495,7 @@ export default function TasksClient({
     const beforeCardId = hint?.pileId === targetPileId ? hint.beforeCardId : null;
     setDrag(null);
     setHint(null);
+    scrollPileIntoView(targetPileId);
     await moveCard(cardId, targetPileId, beforeCardId);
   };
 
@@ -667,6 +683,12 @@ export default function TasksClient({
     onPileReorderDrop,
     onPileReorderEnd,
   } = usePileReorder(piles, setPiles, boardId);
+
+  // While dragging a card or a pile, scroll the board toward off-screen piles
+  // and cards as the pointer nears an edge, so a partly-hidden drop target
+  // (e.g. a "Done" pile off the right edge) becomes fully visible and reachable
+  // without pixel-perfect aim. Works with mouse, trackpad and touch alike.
+  useDragAutoScroll(drag !== null || pileDragId !== null);
 
   const { onSetFieldValue, onCreateField, onRenameField, onDeleteField } =
     useBoardFields(boardId, tasks, setTasks, columns, setColumns);

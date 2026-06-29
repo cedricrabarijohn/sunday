@@ -108,6 +108,7 @@ export function PileColumn({
 
   return (
     <div
+      data-pile-id={pile.id}
       className={`${kStyles.pile} ${isDropTarget ? kStyles.pileDragOver : ""} ${isPileDragging ? kStyles.pileGhost : ""} ${pileReordering ? kStyles.pileReorderActive : ""}`}
       onDragOver={(e) => onPileDragOver(e, pile)}
       onDragLeave={(e) => onPileDragLeave(e, pile)}
