@@ -531,6 +531,7 @@
 @media (max-width: 640px) { .mainWide { padding: 1rem 1rem 0; } }
 
 .pageHeader {
+  position: relative; /* anchor for the mobile full-width Filter/Manage dropdowns */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -615,6 +616,24 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.pageActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  row-gap: 0.6rem;
+}
+
+/* On phones, the actions take the full width below the title and lay out
+   left-aligned so nothing gets crushed. */
+@media (max-width: 640px) {
+  .pageActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 /* --- Buttons ----------------------------------------- */

@@ -929,7 +929,7 @@ export default function TasksClient({
             </div>
           </div>
         </div>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem" }}>
+        <div className={styles.pageActions}>
           <span className={styles.pageMeta}>
             {piles.length} {piles.length === 1 ? "pile" : "piles"} ·{" "}
             {filterCount > 0
