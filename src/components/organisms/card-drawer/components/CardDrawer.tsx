@@ -48,7 +48,7 @@ export type { WorkspaceLabel, CardCounts } from "../lib/types";
 import {
   formatBytes,
   formatCommentTime,
-  toLocalDatetimeValue,
+  toLocalDateValue,
   initialsForAssignee,
   nameForAssignee,
 } from "../lib/format";
@@ -1397,13 +1397,10 @@ export default function CardDrawer({
             >
               <div className={styles.duePopover}>
                 <input
-                  type="datetime-local"
+                  type="date"
                   className={styles.dueInput}
-                  value={toLocalDatetimeValue(data.card.dueAt)}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    onChangeDueAt(v ? new Date(v).toISOString() : null);
-                  }}
+                  value={toLocalDateValue(data.card.dueAt)}
+                  onChange={(e) => onChangeDueAt(e.target.value || null)}
                 />
                 {data.card.dueAt && (
                   <button
