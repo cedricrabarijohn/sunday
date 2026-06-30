@@ -48,6 +48,9 @@ export default function NotificationsBell() {
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Set when the panel closes by navigating to an item, so the close effect
+  // doesn't also pop the history entry the upcoming navigation will bury.
+  const skipHistoryPop = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -80,6 +83,24 @@ export default function NotificationsBell() {
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // On mobile the panel is a full-screen sheet, so the back gesture should
+  // dismiss it instead of navigating. Push a throwaway history entry while open
+  // and pop it back off on close (unless an item navigation already buried it).
+  useEffect(() => {
+    if (!open) return;
+    if (!window.matchMedia("(max-width: 880px)").matches) return;
+    window.history.pushState({ notifPanel: true }, "");
+    const onPop = () => setOpen(false);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (!skipHistoryPop.current && window.history.state?.notifPanel) {
+        window.history.back();
+      }
+      skipHistoryPop.current = false;
     };
   }, [open]);
 
@@ -120,6 +141,7 @@ export default function NotificationsBell() {
         // best-effort
       }
     }
+    skipHistoryPop.current = true;
     setOpen(false);
   };
 
