@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { EyeIcon, EyeOffIcon } from "@/components/Icons";
 import styles from "./AuthForm.module.scss";
 
 function safeRedirect(raw: string | null): string {
@@ -19,6 +20,7 @@ export default function SignUpForm() {
   const [lastname, setLastname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -91,17 +93,28 @@ export default function SignUpForm() {
         </div>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="password">Password</label>
-          <input
-            id="password"
-            className={styles.input}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            minLength={8}
-            placeholder="At least 8 characters"
-            required
-          />
+          <div className={styles.passwordWrap}>
+            <input
+              id="password"
+              className={styles.input}
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={8}
+              placeholder="At least 8 characters"
+              required
+            />
+            <button
+              type="button"
+              className={styles.toggle}
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
         </div>
         <button className={styles.submit} type="submit" disabled={loading}>
           {loading ? "Creating account…" : "Create account"}

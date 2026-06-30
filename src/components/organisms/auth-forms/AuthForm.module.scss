@@ -172,6 +172,30 @@
 }
 .input::placeholder { color: var(--text-mute); }
 
+.passwordWrap {
+  position: relative;
+  display: flex;
+}
+.passwordWrap .input { padding-right: 2.4rem; }
+.toggle {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.toggle:hover { color: var(--text-1); }
+.toggle:focus-visible { outline: 2px solid var(--accent); }
+
 .submit {
   margin-top: 0.5rem;
   height: 38px;
