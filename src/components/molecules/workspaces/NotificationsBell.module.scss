@@ -166,8 +166,21 @@
   font-style: italic;
 }
 
+/* On mobile the bell lives in the sticky top bar. Dock the panel edge-to-edge
+   right below that bar so it reads as a native notification screen instead of a
+   floating card that can clip the viewport edge. */
 @media (max-width: 880px) {
   .menu {
-    width: min(360px, calc(100vw - 24px));
+    position: fixed;
+    top: 52px; /* height of .mobileBar */
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 52px);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
   }
 }
