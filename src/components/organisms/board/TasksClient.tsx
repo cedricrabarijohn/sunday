@@ -35,6 +35,8 @@ import { nameFor } from "@/lib/card-format";
 import NotificationsBell from "@/components/molecules/workspaces/NotificationsBell";
 import {
   fieldFilterCount,
+  filterToSearchParams,
+  filterFromSearchParams,
   type FieldValue,
   type BoardColumn,
   type CardLabel,
@@ -217,13 +219,30 @@ export default function TasksClient({
     return map;
   }, [tasks, piles]);
 
-  const [filter, setFilter] = useState<BoardFilterState>({
-    query: "",
-    assigneeIds: new Set<number>(),
-    labelIds: new Set<number>(),
-    due: "any",
-    fields: new Map<number, Set<string>>(),
-  });
+  const initialSearch = useSearchParams().toString();
+  const [filter, setFilter] = useState<BoardFilterState>(() =>
+    filterFromSearchParams(new URLSearchParams(initialSearch)),
+  );
+
+  // Reflect the active filter in the URL so it survives a refresh and can be
+  // shared, preserving any other query params (e.g. ?card=). Same approach as
+  // the card-param sync above.
+  useEffect(() => {
+    try {
+      const params = filterToSearchParams(
+        filter,
+        new URLSearchParams(window.location.search),
+      );
+      const qs = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (qs ? `?${qs}` : ""),
+      );
+    } catch {
+      // No History API — filtering still works, just without the URL sync.
+    }
+  }, [filter]);
 
   const queryNorm = filter.query.trim().toLowerCase();
   const filterCount =
