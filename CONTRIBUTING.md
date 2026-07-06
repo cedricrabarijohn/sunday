@@ -25,7 +25,7 @@ make start          # or: make start-f  (foreground)
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full tour. In short:
 
-- `src/app/[locale]/` — localized pages (App Router)
+- `src/app/` — App Router pages
 - `src/app/api/` — route handlers (the backend)
 - `src/components/` — UI (atoms / molecules / organisms)
 - `src/lib/` — server logic: auth, RBAC, realtime buses, mail, …

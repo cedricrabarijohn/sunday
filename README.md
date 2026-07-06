@@ -91,7 +91,6 @@ comments, real-time sync, and an invite/auth system with email.
 | Storage | Local disk by default · optional S3-compatible (MinIO / S3 / R2) |
 | Email | SMTP via `nodemailer` (Mailpit in dev) |
 | Programmatic API | Built-in MCP server (`/api/mcp`) + personal access tokens |
-| i18n | `next-intl` |
 | Runtime / dev | Docker Compose, `bun` |
 
 ## Quick start
@@ -188,19 +187,17 @@ that triggered it (invite, signup, notification).
 
 ```
 src/
-  app/
-    [locale]/            # localized pages (App Router)
-      boards/[id]/       # board view: kanban + table, card drawer
-      workspaces/        # workspace list + AppShell (sidebar, profile menu)
-      users/             # sign in/up, forgot/reset password, verify email
-      me/                # my cards, account settings (+ personal access tokens)
+  app/                   # App Router pages + route handlers
+    boards/[id]/         # board view: kanban + table, card drawer
+    workspaces/          # workspace list + AppShell (sidebar, profile menu)
+    users/               # sign in/up, forgot/reset password, verify email
+    me/                  # my cards, account settings (+ personal access tokens)
     api/                 # route handlers (auth, boards, cards, invites, …)
       mcp/               # MCP server endpoint (programmatic API)
       webhooks/          # inbound SCM webhooks (gitea/forgejo/github/gitlab/bitbucket)
   components/            # atoms / molecules / organisms (UI)
   db/                    # schema.ts + Drizzle client
   lib/                   # server logic: auth, RBAC, realtime buses, mail, …
-  messages/              # i18n translations
 docker/                  # Dockerfile + docker-compose.yml
 drizzle/                 # generated migrations
 docs/                    # architecture & deployment docs

@@ -227,7 +227,3 @@ The schema is in `src/db/schema.ts`. Roughly:
 
 Soft deletes use `deleted_at`; count queries filter on it consistently so the
 initial render and live updates agree.
-
-## Internationalization
-
-`next-intl` with messages in `src/messages` and routing under `app/[locale]`.
