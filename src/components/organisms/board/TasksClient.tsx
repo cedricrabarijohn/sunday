@@ -37,6 +37,7 @@ import {
   fieldFilterCount,
   filterToSearchParams,
   filterFromSearchParams,
+  matchesFilter,
   type FieldValue,
   type BoardColumn,
   type CardLabel,
@@ -252,44 +253,13 @@ export default function TasksClient({
     (filter.due === "any" ? 0 : 1) +
     fieldFilterCount(filter.fields);
 
-  const matchesFilter = (t: Task): boolean => {
-    if (queryNorm) {
-      const title = (t.title ?? "").toLowerCase();
-      if (!title.includes(queryNorm)) return false;
-    }
-    if (filter.assigneeIds.size > 0) {
-      const hasOne = t.assignees.some((a) => filter.assigneeIds.has(a.userId));
-      if (!hasOne) return false;
-    }
-    if (filter.labelIds.size > 0) {
-      const hasOne = t.labels.some((l) => filter.labelIds.has(l.id));
-      if (!hasOne) return false;
-    }
-    for (const [colId, optIds] of filter.fields) {
-      if (optIds.size === 0) continue;
-      const v = t.fields?.[colId];
-      const hasOne = Array.isArray(v)
-        ? v.some((id) => optIds.has(id))
-        : typeof v === "string" && optIds.has(v);
-      if (!hasOne) return false;
-    }
-    if (filter.due === "withDue" && !t.dueAt) return false;
-    if (filter.due === "overdue") {
-      if (!t.dueAt) return false;
-      const tms = typeof t.dueAt === "string" ? new Date(t.dueAt).getTime() : t.dueAt.getTime();
-      if (tms >= Date.now()) return false;
-    }
-    return true;
-  };
-
   const visibleCardsByPile = useMemo(() => {
     if (filterCount === 0) return cardsByPile;
     const map = new Map<number, Task[]>();
     for (const [pileId, arr] of cardsByPile) {
-      map.set(pileId, arr.filter(matchesFilter));
+      map.set(pileId, arr.filter((t) => matchesFilter(t, filter)));
     }
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardsByPile, filter, filterCount]);
 
   const visibleCount = useMemo(() => {

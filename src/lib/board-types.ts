@@ -71,6 +71,45 @@ export function fieldFilterCount(fields: Map<number, Set<string>>): number {
   return n;
 }
 
+/** The task fields the filter actually inspects — lets richer or leaner task
+ * shapes (board view, export) share one matcher. */
+export type FilterableTask = Pick<Task, "title" | "assignees" | "labels" | "fields" | "dueAt">;
+
+/**
+ * Does a task pass the given filter? Pure and shared by the board view
+ * (client) and the export route (server) so both filter identically.
+ */
+export function matchesFilter(t: FilterableTask, filter: BoardFilterState): boolean {
+  const queryNorm = filter.query.trim().toLowerCase();
+  if (queryNorm) {
+    const title = (t.title ?? "").toLowerCase();
+    if (!title.includes(queryNorm)) return false;
+  }
+  if (filter.assigneeIds.size > 0) {
+    const hasOne = t.assignees.some((a) => filter.assigneeIds.has(a.userId));
+    if (!hasOne) return false;
+  }
+  if (filter.labelIds.size > 0) {
+    const hasOne = t.labels.some((l) => filter.labelIds.has(l.id));
+    if (!hasOne) return false;
+  }
+  for (const [colId, optIds] of filter.fields) {
+    if (optIds.size === 0) continue;
+    const v = t.fields?.[colId];
+    const hasOne = Array.isArray(v)
+      ? v.some((id) => optIds.has(id))
+      : typeof v === "string" && optIds.has(v);
+    if (!hasOne) return false;
+  }
+  if (filter.due === "withDue" && !t.dueAt) return false;
+  if (filter.due === "overdue") {
+    if (!t.dueAt) return false;
+    const tms = typeof t.dueAt === "string" ? new Date(t.dueAt).getTime() : t.dueAt.getTime();
+    if (tms >= Date.now()) return false;
+  }
+  return true;
+}
+
 const FILTER_KEYS = ["q", "assignees", "labels", "due"];
 const isFieldKey = (k: string) => /^cf\d+$/.test(k);
 

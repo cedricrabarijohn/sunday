@@ -105,3 +105,32 @@ export function coerceValue(type: FieldType, raw: unknown, config: FieldConfig):
     }
   }
 }
+
+/**
+ * Render a stored field value as plain display text (select/multi_select map
+ * option ids back to their labels). Returns "" for empty/cleared values.
+ * Used by the board export to print custom-field values.
+ */
+export function formatFieldValue(
+  type: FieldType | string | null,
+  value: unknown,
+  config: FieldConfig,
+): string {
+  if (value === null || value === undefined || value === "") return "";
+  const labelFor = (id: string) =>
+    config?.options?.find((o) => o.id === id)?.label ?? id;
+  switch (type) {
+    case "select":
+      return typeof value === "string" ? labelFor(value) : "";
+    case "multi_select":
+      return Array.isArray(value) ? value.map((v) => labelFor(String(v))).join(", ") : "";
+    case "checkbox":
+      return value ? "Yes" : "No";
+    case "date": {
+      const d = new Date(String(value));
+      return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
+    }
+    default:
+      return String(value);
+  }
+}
