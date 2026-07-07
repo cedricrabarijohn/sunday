@@ -1,6 +1,10 @@
 FROM node:20.18
 
-RUN npm install -g bun
+# Pin Bun to the version that maintains bun.lockb. An unpinned `bun` floats to
+# the latest release, whose `--frozen-lockfile` install rejects this lockfile's
+# integrity hashes (they're written in an older format). Keep this in lockstep
+# with the CI pin and the local toolchain.
+RUN npm install -g bun@1.1.43
 
 WORKDIR /app
 
